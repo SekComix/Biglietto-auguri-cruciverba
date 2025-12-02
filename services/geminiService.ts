@@ -124,7 +124,7 @@ export const generateCrossword = async (
 
   try {
     const response = await ai.models.generateContent({
-      model: 'gemini-3-pro-preview',
+      model: 'gemini-2.5-flash',
       contents: prompt,
       config: {
         responseMimeType: "application/json",
@@ -145,8 +145,11 @@ export const generateCrossword = async (
       return data as CrosswordData;
     }
     throw new Error("Nessuna risposta generata");
-  } catch (error) {
+  } catch (error: any) {
     console.error("Gemini Error:", error);
+    if (error.status === 429 || (error.message && error.message.includes("429"))) {
+       throw new Error("Troppe richieste in poco tempo. Attendi 30 secondi e riprova.");
+    }
     throw error;
   }
 };
