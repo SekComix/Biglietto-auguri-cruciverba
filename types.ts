@@ -17,36 +17,43 @@ export interface WordEntry {
 
 export interface SolutionData {
   word: string;
-  // Which cells in the grid correspond to the letters of the solution
   cells: { 
     x: number; 
     y: number; 
     char: string;
-    index: number; // Position in the solution string (0, 1, 2...)
+    index: number; 
   }[]; 
+}
+
+export interface CustomImages {
+  logo?: string; // Base64 string
+  photo?: string; // Base64 string
 }
 
 export interface CrosswordData {
   title: string;
-  message: string; // Greeting message
+  recipientName: string; // Nome del festeggiato per il file PDF
+  message: string;
   theme: ThemeType;
   width: number;
   height: number;
   words: WordEntry[];
-  solution?: SolutionData; // Optional hidden word
+  solution?: SolutionData;
+  images?: CustomImages;
+  stickers?: string[]; // Array of emoji chars
 }
 
 export interface CellData {
   x: number;
   y: number;
-  char?: string; // Correct character
-  userChar: string; // What user typed
-  number?: number; // If it's the start of a word
+  char?: string;
+  userChar: string;
+  number?: number;
   active?: boolean;
   isWordStart?: boolean;
-  partOfWords: string[]; // IDs of words this cell belongs to
-  isSolutionCell?: boolean; // If true, this cell helps form the hidden word
-  solutionIndex?: number; // The number to display for the solution mapping
+  partOfWords: string[];
+  isSolutionCell?: boolean;
+  solutionIndex?: number;
 }
 
 export interface ManualInput {
