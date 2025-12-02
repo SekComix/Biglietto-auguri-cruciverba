@@ -26,13 +26,14 @@ export interface SolutionData {
 }
 
 export interface CustomImages {
-  logo?: string; // Base64 string
-  photo?: string; // Base64 string
+  extraImage?: string; // Base64 string (Logo, QR, Vignetta)
+  photo?: string; // Base64 string (Foto Ricordo)
 }
 
 export interface CrosswordData {
   title: string;
-  recipientName: string; // Nome del festeggiato per il file PDF
+  recipientName: string;
+  eventDate: string; // Data dell'evento (es. 25 Dicembre 2024)
   message: string;
   theme: ThemeType;
   width: number;
@@ -40,7 +41,7 @@ export interface CrosswordData {
   words: WordEntry[];
   solution?: SolutionData;
   images?: CustomImages;
-  stickers?: string[]; // Array of emoji chars
+  stickers?: string[];
 }
 
 export interface CellData {
