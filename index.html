@@ -15,7 +15,7 @@
     <meta name="apple-mobile-web-app-title" content="Enigmistica" />
     <link rel="apple-touch-icon" href="https://cdn-icons-png.flaticon.com/512/3600/3600931.png" />
 
-    <!-- Tailwind CSS (CDN is fine for simple usage without PostCSS setup) -->
+    <!-- Tailwind CSS -->
     <script src="https://cdn.tailwindcss.com"></script>
     
     <!-- Fonts -->
@@ -65,31 +65,51 @@
     <style>
       body {
         background-color: #0F172A; /* Fallback */
-        overscroll-behavior-y: none; /* Prevents pull-to-refresh on mobile */
+        overscroll-behavior-y: none;
       }
       .clue-scroll::-webkit-scrollbar { width: 6px; }
       .clue-scroll::-webkit-scrollbar-track { background: rgba(0,0,0,0.05); }
       .clue-scroll::-webkit-scrollbar-thumb { background: rgba(0,0,0,0.2); border-radius: 3px; }
       .animate-fade-in { animation: fadeIn 0.5s ease-in; }
       @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
+
+      /* Printing Rules for A4 */
+      @media print {
+        @page { size: A4 portrait; margin: 1cm; }
+        body { 
+          background: white !important; 
+          color: black !important; 
+          -webkit-print-color-adjust: exact !important; 
+          print-color-adjust: exact !important;
+        }
+        /* Hide UI elements */
+        header button, footer, .print\:hidden { display: none !important; }
+        /* Reset background images/colors for ink saving */
+        .min-h-screen { background: white !important; padding: 0 !important; }
+        /* Ensure Grid is visible and black */
+        .bg-black { background-color: white !important; }
+        .text-white { color: black !important; }
+        /* Make borders crisp */
+        .border-4 { border-width: 2px !important; border-color: black !important; }
+        input { display: none !important; } /* Hide inputs, just show boxes */
+      }
     </style>
   <script type="importmap">
 {
   "imports": {
-    "@vitejs/plugin-react": "https://aistudiocdn.com/@vitejs/plugin-react@^5.1.1",
+    "lucide-react": "https://aistudiocdn.com/lucide-react@^0.555.0",
     "vite": "https://aistudiocdn.com/vite@^7.2.6",
-    "react-dom/": "https://aistudiocdn.com/react-dom@^19.2.0/",
+    "@vitejs/plugin-react": "https://aistudiocdn.com/@vitejs/plugin-react@^5.1.1",
     "react/": "https://aistudiocdn.com/react@^19.2.0/",
     "react": "https://aistudiocdn.com/react@^19.2.0",
-    "@google/genai": "https://aistudiocdn.com/@google/genai@^1.30.0",
-    "lucide-react": "https://aistudiocdn.com/lucide-react@^0.555.0"
+    "react-dom/": "https://aistudiocdn.com/react-dom@^19.2.0/",
+    "@google/genai": "https://aistudiocdn.com/@google/genai@^1.30.0"
   }
 }
 </script>
 </head>
   <body>
     <div id="root"></div>
-    <!-- Pointing to local index.tsx for Vite build -->
     <script type="module" src="./index.tsx"></script>
   </body>
 </html>
