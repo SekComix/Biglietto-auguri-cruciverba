@@ -1,7 +1,7 @@
 import { GoogleGenAI, Type } from "@google/genai";
 import { CrosswordData, ManualInput, ThemeType, CustomImages } from '../types';
 
-// Schema definition for the crossword generation
+// Schema definition
 const crosswordSchema = {
   type: Type.OBJECT,
   properties: {
@@ -32,14 +32,14 @@ const crosswordSchema = {
         word: { type: Type.STRING, description: "The hidden solution word." },
         cells: {
           type: Type.ARRAY,
-          description: "Coordinates for each letter of the solution word, IN ORDER.",
+          description: "Coordinates for each letter of the solution word.",
           items: {
             type: Type.OBJECT,
             properties: {
               x: { type: Type.INTEGER },
               y: { type: Type.INTEGER },
-              char: { type: Type.STRING, description: "The letter at this position." },
-              index: { type: Type.INTEGER, description: "0-based index of this letter in the solution word." }
+              char: { type: Type.STRING },
+              index: { type: Type.INTEGER }
             },
             required: ["x", "y", "char", "index"]
           }
@@ -58,6 +58,7 @@ export const generateCrossword = async (
   hiddenSolutionWord?: string,
   extraData?: {
     recipientName: string;
+    eventDate: string;
     images?: CustomImages;
     stickers?: string[];
   }
@@ -65,66 +66,47 @@ export const generateCrossword = async (
   const apiKey = process.env.API_KEY;
   if (!apiKey) throw new Error("API Key mancante");
 
+  // USE FLASH MODEL FOR SPEED AND QUOTA SAFETY
   const ai = new GoogleGenAI({ apiKey });
 
   let prompt = "";
   const commonInstructions = `
-    Tema grafico selezionato: ${theme}.
-    Il destinatario si chiama: ${extraData?.recipientName || 'Anonimo'}.
-    
-    ISTRUZIONI BASE:
-    1. Griglia max 12x12 (o più piccola se possibile, ottima 10x10).
-    2. Le parole devono incrociarsi correttamente.
-    3. "startX" e "startY" sono indici 0-based.
-    4. "number" è il numero progressivo della definizione (1, 2, 3...).
+    Tema grafico: ${theme}.
+    Destinatario: ${extraData?.recipientName || 'Anonimo'}.
+    IMPORTANTE: Genera JSON valido. Griglia max 12x12.
+    Se il tema è Natale, usa parole natalizie. Se Compleanno, parole festive.
   `;
 
   let solutionInstructions = "";
   if (hiddenSolutionWord) {
     solutionInstructions = `
-      ISTRUZIONI SOLUZIONE NASCOSTA:
-      L'utente vuole che il cruciverba celi la parola segreta: "${hiddenSolutionWord.toUpperCase()}".
-      
-      IL TUO COMPITO CRUCIALE:
-      1. Genera un cruciverba normale con parole che contengano le lettere di "${hiddenSolutionWord.toUpperCase()}".
-      2. DEVI identificare le coordinate (x, y) esatte nella griglia finale dove si trovano le lettere che compongono "${hiddenSolutionWord.toUpperCase()}".
-      3. Riempi il campo 'solution' nel JSON. 
-      4. 'solution.cells' deve essere un array ordinato corrispondente alle lettere della soluzione.
-         NON devono essere per forza contigue. Possono essere sparse nella griglia.
+      SOLUZIONE NASCOSTA RICHIESTA: "${hiddenSolutionWord.toUpperCase()}".
+      1. Genera parole che contengano queste lettere.
+      2. Mappa le coordinate esatte in 'solution.cells'.
     `;
   }
 
   if (mode === 'manual') {
     const inputs = inputData as ManualInput[];
     const wordListString = inputs.map(i => `WORD: ${i.word}, CLUE: ${i.clue}`).join("\n");
-    
     prompt = `
-      Agisci come un motore di cruciverba esperto.
-      Crea una griglia valida utilizzando queste parole fornite dall'utente.
-      
-      Lista Parole Utente:
+      Crea una griglia valida con queste parole fornite dall'utente:
       ${wordListString}
-      
       ${commonInstructions}
       ${solutionInstructions}
     `;
   } else {
-    // AI Mode
     const topic = inputData as string;
     prompt = `
-      Crea un cruciverba completo per un biglietto di auguri.
-      Argomento specifico o dettagli: "${topic}".
-      
+      Crea un cruciverba. Argomento: "${topic}".
       ${commonInstructions}
       ${solutionInstructions}
-      
-      Genera parole e indizi pertinenti all'argomento.
     `;
   }
 
   try {
     const response = await ai.models.generateContent({
-      model: 'gemini-2.5-flash',
+      model: 'gemini-2.5-flash', // FAST MODEL
       contents: prompt,
       config: {
         responseMimeType: "application/json",
@@ -135,10 +117,11 @@ export const generateCrossword = async (
 
     if (response.text) {
       const data = JSON.parse(response.text);
-      // Enrich data with local visual assets (images, name, stickers)
+      // Inject local data
       data.words = data.words.map((w: any, idx: number) => ({ ...w, id: `word-${idx}` }));
       data.theme = theme;
       data.recipientName = extraData?.recipientName || '';
+      data.eventDate = extraData?.eventDate || '';
       data.images = extraData?.images;
       data.stickers = extraData?.stickers;
       
@@ -147,8 +130,8 @@ export const generateCrossword = async (
     throw new Error("Nessuna risposta generata");
   } catch (error: any) {
     console.error("Gemini Error:", error);
-    if (error.status === 429 || (error.message && error.message.includes("429"))) {
-       throw new Error("Troppe richieste in poco tempo. Attendi 30 secondi e riprova.");
+    if (error.status === 429) {
+       throw new Error("Traffico intenso. Attendi 10 secondi e riprova.");
     }
     throw error;
   }
