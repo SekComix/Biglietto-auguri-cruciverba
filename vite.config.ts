@@ -9,6 +9,9 @@ export default defineConfig({
     outDir: 'dist',
   },
   define: {
-    'process.env.API_KEY': JSON.stringify(process.env.API_KEY)
+    // Defines process.env.API_KEY globally for the code to use
+    'process.env.API_KEY': JSON.stringify(process.env.API_KEY),
+    // Fallback for other process calls if any lib uses them
+    'process.env': {}
   }
 });
