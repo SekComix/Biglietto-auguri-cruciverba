@@ -1,4 +1,4 @@
-import React, { useState, useRef } from 'react';
+import React, { useState } from 'react';
 import { generateCrossword } from '../services/geminiService';
 import { CrosswordData, ManualInput, ThemeType } from '../types';
 import { Loader2, Wand2, Plus, Trash2, Gift, PartyPopper, CalendarHeart, Crown, KeyRound, Image as ImageIcon, Smile, Upload } from 'lucide-react';
