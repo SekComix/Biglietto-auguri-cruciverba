@@ -117,7 +117,7 @@ const Creator: React.FC<CreatorProps> = ({ onCreated }) => {
   };
 
   return (
-    <div className="max-w-3xl mx-auto bg-white/95 backdrop-blur p-6 md:p-8 rounded-3xl shadow-2xl border-2 border-white/50">
+    <form onSubmit={handleGenerate} className="max-w-3xl mx-auto bg-white/95 backdrop-blur p-6 md:p-8 rounded-3xl shadow-2xl border-2 border-white/50">
       <div className="text-center mb-8">
         <h2 className="font-bold text-3xl md:text-4xl text-gray-800 mb-2 font-body">Crea il Tuo Biglietto</h2>
         <p className="text-gray-500">Personalizza ogni dettaglio per un regalo unico.</p>
@@ -165,12 +165,14 @@ const Creator: React.FC<CreatorProps> = ({ onCreated }) => {
         <label className="block text-xs font-bold text-gray-400 mb-2 uppercase tracking-wider">3. Contenuto</label>
         <div className="flex p-1 bg-gray-100 rounded-xl mb-4">
             <button
+            type="button"
             onClick={() => setMode('ai')}
             className={`flex-1 py-2 text-sm font-bold rounded-lg transition-all ${mode === 'ai' ? 'bg-white text-gray-800 shadow-sm' : 'text-gray-400'}`}
             >
             ✨ Genera con AI
             </button>
             <button
+            type="button"
             onClick={() => setMode('manual')}
             className={`flex-1 py-2 text-sm font-bold rounded-lg transition-all ${mode === 'manual' ? 'bg-white text-gray-800 shadow-sm' : 'text-gray-400'}`}
             >
@@ -294,7 +296,7 @@ const Creator: React.FC<CreatorProps> = ({ onCreated }) => {
         >
           {loading ? <><Loader2 className="animate-spin" /> Elaborazione...</> : <><Wand2 /> Crea Biglietto</>}
       </button>
-    </div>
+    </form>
   );
 };
 
