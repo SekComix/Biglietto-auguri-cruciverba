@@ -1,5 +1,5 @@
 import { GoogleGenAI, Type } from "@google/genai";
-import { CrosswordData, ManualInput, ThemeType } from '../types';
+import { CrosswordData, ManualInput, ThemeType, CustomImages } from '../types';
 
 // Schema definition for the crossword generation
 const crosswordSchema = {
@@ -7,8 +7,8 @@ const crosswordSchema = {
   properties: {
     title: { type: Type.STRING, description: "Title of the card." },
     message: { type: Type.STRING, description: "Greeting message." },
-    width: { type: Type.INTEGER, description: "Grid width (max 15)." },
-    height: { type: Type.INTEGER, description: "Grid height (max 15)." },
+    width: { type: Type.INTEGER, description: "Grid width (max 12)." },
+    height: { type: Type.INTEGER, description: "Grid height (max 12)." },
     words: {
       type: Type.ARRAY,
       items: {
@@ -55,7 +55,12 @@ export const generateCrossword = async (
   mode: 'ai' | 'manual',
   theme: ThemeType,
   inputData: string | ManualInput[],
-  hiddenSolutionWord?: string
+  hiddenSolutionWord?: string,
+  extraData?: {
+    recipientName: string;
+    images?: CustomImages;
+    stickers?: string[];
+  }
 ): Promise<CrosswordData> => {
   const apiKey = process.env.API_KEY;
   if (!apiKey) throw new Error("API Key mancante");
@@ -65,9 +70,10 @@ export const generateCrossword = async (
   let prompt = "";
   const commonInstructions = `
     Tema grafico selezionato: ${theme}.
+    Il destinatario si chiama: ${extraData?.recipientName || 'Anonimo'}.
     
     ISTRUZIONI BASE:
-    1. Griglia max 12x12 (o più piccola se possibile).
+    1. Griglia max 12x12 (o più piccola se possibile, ottima 10x10).
     2. Le parole devono incrociarsi correttamente.
     3. "startX" e "startY" sono indici 0-based.
     4. "number" è il numero progressivo della definizione (1, 2, 3...).
@@ -83,8 +89,7 @@ export const generateCrossword = async (
       1. Genera un cruciverba normale con parole che contengano le lettere di "${hiddenSolutionWord.toUpperCase()}".
       2. DEVI identificare le coordinate (x, y) esatte nella griglia finale dove si trovano le lettere che compongono "${hiddenSolutionWord.toUpperCase()}".
       3. Riempi il campo 'solution' nel JSON. 
-      4. 'solution.cells' deve essere un array ordinato corrispondente a P-A-L-E-R-M-O (esempio).
-         Esempio: Se la parola è 'CIAO', trova la C, poi la I, poi la A, poi la O nella griglia e dimmi dove sono.
+      4. 'solution.cells' deve essere un array ordinato corrispondente alle lettere della soluzione.
          NON devono essere per forza contigue. Possono essere sparse nella griglia.
     `;
   }
@@ -102,8 +107,6 @@ export const generateCrossword = async (
       
       ${commonInstructions}
       ${solutionInstructions}
-      
-      Se c'è una soluzione nascosta, assicurati che le parole fornite (o incrociandole) contengano le lettere necessarie.
     `;
   } else {
     // AI Mode
@@ -121,7 +124,7 @@ export const generateCrossword = async (
 
   try {
     const response = await ai.models.generateContent({
-      model: 'gemini-2.5-flash',
+      model: 'gemini-3-pro-preview',
       contents: prompt,
       config: {
         responseMimeType: "application/json",
@@ -132,9 +135,13 @@ export const generateCrossword = async (
 
     if (response.text) {
       const data = JSON.parse(response.text);
-      // Ensure IDs and Theme
+      // Enrich data with local visual assets (images, name, stickers)
       data.words = data.words.map((w: any, idx: number) => ({ ...w, id: `word-${idx}` }));
       data.theme = theme;
+      data.recipientName = extraData?.recipientName || '';
+      data.images = extraData?.images;
+      data.stickers = extraData?.stickers;
+      
       return data as CrosswordData;
     }
     throw new Error("Nessuna risposta generata");
