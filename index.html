@@ -61,7 +61,7 @@
       @media print {
         @page { 
           size: A4 landscape; 
-          margin: 0; 
+          margin: 0; /* CRITICAL: Remove browser default margins */
         }
         
         body { 
@@ -70,31 +70,46 @@
           padding: 0;
           -webkit-print-color-adjust: exact !important; 
           print-color-adjust: exact !important;
+          width: 297mm;
+          height: 210mm;
         }
 
         /* Hide UI */
-        header, footer, button, .no-print, form { display: none !important; }
+        header, footer, button, .no-print, form, .print-guide { display: none !important; }
         
         /* The Sheet Container */
         .print-sheet {
           width: 297mm;
-          height: 210mm;
+          height: 209mm; /* Slightly less than 210 to avoid spilling to next page */
           display: flex !important;
           page-break-after: always;
           break-after: page;
           overflow: hidden;
           position: relative;
+          background-color: white !important;
         }
 
         /* The Half Page (A5) */
         .print-half {
           width: 148.5mm; /* Exact half of A4 landscape */
-          height: 210mm;
-          padding: 15mm;
+          height: 100%;
+          padding: 10mm; /* Safe print margin */
           box-sizing: border-box;
           display: flex;
-          flex-col: column;
+          flex-direction: column;
           position: relative;
+        }
+
+        /* Watermark styling */
+        .watermark {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%) rotate(-10deg);
+            opacity: 0.05 !important;
+            font-size: 200px;
+            pointer-events: none;
+            z-index: 0;
         }
 
         /* Reset Tailwind constraints */
@@ -103,9 +118,10 @@
         
         /* Typography fix for print */
         p, h1, h2, h3, li { color: black !important; text-shadow: none !important; }
+        input, textarea { border: none !important; background: transparent !important; resize: none; overflow: hidden; }
       }
     </style>
-  <script type="importmap">
+<script type="importmap">
 {
   "imports": {
     "react": "https://aistudiocdn.com/react@^19.2.0",
