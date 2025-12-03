@@ -1,25 +1,24 @@
 import { GoogleGenAI, Type } from "@google/genai";
 import { CrosswordData, ManualInput, ThemeType, CustomImages } from '../types';
 
-// Schema definition
 const crosswordSchema = {
   type: Type.OBJECT,
   properties: {
-    title: { type: Type.STRING, description: "Title of the card." },
-    message: { type: Type.STRING, description: "Greeting message." },
-    width: { type: Type.INTEGER, description: "Grid width (max 12)." },
-    height: { type: Type.INTEGER, description: "Grid height (max 12)." },
+    title: { type: Type.STRING },
+    message: { type: Type.STRING },
+    width: { type: Type.INTEGER },
+    height: { type: Type.INTEGER },
     words: {
       type: Type.ARRAY,
       items: {
         type: Type.OBJECT,
         properties: {
-          word: { type: Type.STRING, description: "The word in uppercase." },
-          clue: { type: Type.STRING, description: "The clue for the word." },
+          word: { type: Type.STRING },
+          clue: { type: Type.STRING },
           direction: { type: Type.STRING, enum: ["across", "down"] },
-          startX: { type: Type.INTEGER, description: "0-based X coordinate (column)." },
-          startY: { type: Type.INTEGER, description: "0-based Y coordinate (row)." },
-          number: { type: Type.INTEGER, description: "The visual number for the clue." }
+          startX: { type: Type.INTEGER },
+          startY: { type: Type.INTEGER },
+          number: { type: Type.INTEGER }
         },
         required: ["word", "clue", "direction", "startX", "startY", "number"]
       }
@@ -27,12 +26,10 @@ const crosswordSchema = {
     solution: {
       type: Type.OBJECT,
       nullable: true,
-      description: "Data for the hidden solution word, if requested.",
       properties: {
-        word: { type: Type.STRING, description: "The hidden solution word." },
+        word: { type: Type.STRING },
         cells: {
           type: Type.ARRAY,
-          description: "Coordinates for each letter of the solution word.",
           items: {
             type: Type.OBJECT,
             properties: {
@@ -66,47 +63,32 @@ export const generateCrossword = async (
   const apiKey = process.env.API_KEY;
   if (!apiKey) throw new Error("API Key mancante");
 
-  // USE FLASH MODEL FOR SPEED AND QUOTA SAFETY
   const ai = new GoogleGenAI({ apiKey });
 
   let prompt = "";
+  // Simplified instructions for speed
   const commonInstructions = `
-    Tema grafico: ${theme}.
-    Destinatario: ${extraData?.recipientName || 'Anonimo'}.
-    IMPORTANTE: Genera JSON valido. Griglia max 12x12.
-    Se il tema è Natale, usa parole natalizie. Se Compleanno, parole festive.
+    Tema: ${theme}. Destinatario: ${extraData?.recipientName || 'Anonimo'}.
+    JSON valido. Max 12x12.
   `;
 
   let solutionInstructions = "";
   if (hiddenSolutionWord) {
-    solutionInstructions = `
-      SOLUZIONE NASCOSTA RICHIESTA: "${hiddenSolutionWord.toUpperCase()}".
-      1. Genera parole che contengano queste lettere.
-      2. Mappa le coordinate esatte in 'solution.cells'.
-    `;
+    solutionInstructions = `SOLUZIONE OBBLIGATORIA: "${hiddenSolutionWord.toUpperCase()}". Usa queste lettere nella griglia.`;
   }
 
   if (mode === 'manual') {
     const inputs = inputData as ManualInput[];
-    const wordListString = inputs.map(i => `WORD: ${i.word}, CLUE: ${i.clue}`).join("\n");
-    prompt = `
-      Crea una griglia valida con queste parole fornite dall'utente:
-      ${wordListString}
-      ${commonInstructions}
-      ${solutionInstructions}
-    `;
+    const wordListString = inputs.map(i => `W:${i.word},C:${i.clue}`).join("|");
+    prompt = `Crea griglia con: ${wordListString}. ${commonInstructions} ${solutionInstructions}`;
   } else {
     const topic = inputData as string;
-    prompt = `
-      Crea un cruciverba. Argomento: "${topic}".
-      ${commonInstructions}
-      ${solutionInstructions}
-    `;
+    prompt = `Cruciverba su: "${topic}". ${commonInstructions} ${solutionInstructions}`;
   }
 
   try {
     const response = await ai.models.generateContent({
-      model: 'gemini-2.5-flash', // FAST MODEL
+      model: 'gemini-2.5-flash',
       contents: prompt,
       config: {
         responseMimeType: "application/json",
@@ -117,7 +99,6 @@ export const generateCrossword = async (
 
     if (response.text) {
       const data = JSON.parse(response.text);
-      // Inject local data
       data.words = data.words.map((w: any, idx: number) => ({ ...w, id: `word-${idx}` }));
       data.theme = theme;
       data.recipientName = extraData?.recipientName || '';
@@ -131,7 +112,7 @@ export const generateCrossword = async (
   } catch (error: any) {
     console.error("Gemini Error:", error);
     if (error.status === 429) {
-       throw new Error("Traffico intenso. Attendi 10 secondi e riprova.");
+       throw new Error("Traffico intenso. Riprova tra poco.");
     }
     throw error;
   }
