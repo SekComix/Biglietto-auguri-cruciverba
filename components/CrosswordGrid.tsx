@@ -59,17 +59,23 @@ const CrosswordGrid: React.FC<CrosswordGridProps> = ({ data, onComplete }) => {
   const themeAssets = THEME_ASSETS[data.theme] || THEME_ASSETS.generic;
 
   useEffect(() => {
+    // 1. Initialize empty grid
     const newGrid: CellData[][] = Array(data.height).fill(null).map((_, y) =>
       Array(data.width).fill(null).map((_, x) => ({ x, y, userChar: '', partOfWords: [] }))
     );
 
+    // 2. Map words to grid
     data.words.forEach(w => {
       for (let i = 0; i < w.word.length; i++) {
         const x = w.direction === Direction.ACROSS ? w.startX + i : w.startX;
         const y = w.direction === Direction.DOWN ? w.startY + i : w.startY;
+        
+        // Boundary Check (Safety)
         if (y < data.height && x < data.width) {
             newGrid[y][x].char = w.word[i].toUpperCase();
             newGrid[y][x].partOfWords.push(w.id);
+            
+            // Assign Number only at the start
             if (i === 0) {
               newGrid[y][x].number = w.number;
               newGrid[y][x].isWordStart = true;
@@ -78,6 +84,7 @@ const CrosswordGrid: React.FC<CrosswordGridProps> = ({ data, onComplete }) => {
       }
     });
 
+    // 3. Map Solution cells
     if (data.solution) {
       data.solution.cells.forEach(solCell => {
         if (newGrid[solCell.y]?.[solCell.x]) {
@@ -110,6 +117,7 @@ const CrosswordGrid: React.FC<CrosswordGridProps> = ({ data, onComplete }) => {
     if (char) {
       let nextX = x, nextY = y;
       if (currentDirection === Direction.ACROSS) nextX++; else nextY++;
+      // Auto-move focus
       if (nextX < data.width && nextY < data.height && grid[nextY][nextX].char) {
           setSelectedCell({ x: nextX, y: nextY });
           inputRefs.current[nextY][nextX]?.focus();
@@ -166,7 +174,8 @@ const CrosswordGrid: React.FC<CrosswordGridProps> = ({ data, onComplete }) => {
              (activeWord.direction === Direction.DOWN && x === activeWord.startX && y >= activeWord.startY && y < activeWord.startY + activeWord.word.length));
           
           if (!cell.char) {
-             return <div key={`${x}-${y}`} className={`${isPrint ? 'bg-gray-100 border border-gray-200' : 'bg-black/5 rounded-sm'}`} />;
+             // Empty cell styling - Greyed out in print to show boundaries clearly
+             return <div key={`${x}-${y}`} className={`${isPrint ? 'bg-gray-100 border border-gray-300' : 'bg-black/5 rounded-sm'}`} />;
           }
 
           return (
@@ -175,14 +184,15 @@ const CrosswordGrid: React.FC<CrosswordGridProps> = ({ data, onComplete }) => {
               onClick={() => !isPrint && handleCellClick(x, y)}
               className={`
                 relative flex items-center justify-center text-lg md:text-xl font-bold uppercase select-none
-                ${isPrint ? 'bg-white border border-gray-800 text-black h-full' : 'bg-white rounded-md shadow-sm cursor-pointer transition-colors'}
+                ${isPrint ? 'bg-white border-2 border-black text-black h-full' : 'bg-white rounded-md shadow-sm cursor-pointer transition-colors'}
                 ${isSelected ? 'bg-yellow-200' : ''}
                 ${isInActiveWord ? 'brightness-95' : ''}
-                ${cell.isSolutionCell && isPrint ? 'bg-yellow-50 !border-2 !border-black' : ''}
+                ${cell.isSolutionCell && isPrint ? 'bg-yellow-50 !border-[3px] !border-black' : ''}
               `}
             >
+              {/* CELL NUMBER: Always visible, Bold, Black */}
               {cell.number && (
-                <span className={`absolute top-0.5 left-0.5 leading-none opacity-70 font-sans ${isPrint ? 'text-[8px]' : 'text-[10px]'}`}>
+                <span className={`absolute top-0 left-0.5 leading-none z-10 font-sans font-extrabold text-black ${isPrint ? 'text-[9px]' : 'text-[10px] opacity-70'}`}>
                   {cell.number}
                 </span>
               )}
@@ -190,13 +200,13 @@ const CrosswordGrid: React.FC<CrosswordGridProps> = ({ data, onComplete }) => {
               {!isPrint ? (
                 <input
                   ref={(el) => { inputRefs.current[y][x] = el; }}
-                  className="w-full h-full bg-transparent text-center outline-none cursor-pointer"
+                  className="w-full h-full bg-transparent text-center outline-none cursor-pointer pt-2"
                   value={cell.userChar}
                   maxLength={1}
                   onChange={(e) => handleInput(x, y, e.target.value)}
                 />
               ) : (
-                cell.isSolutionCell && <span className="absolute bottom-0 right-0.5 text-[7px] font-bold text-gray-500 bg-white px-0.5 rounded border border-gray-300">{cell.solutionIndex}</span>
+                cell.isSolutionCell && <span className="absolute bottom-0 right-0.5 text-[7px] font-bold text-gray-600 bg-white px-0.5 border border-gray-400">{cell.solutionIndex}</span>
               )}
             </div>
           );
@@ -235,14 +245,9 @@ const CrosswordGrid: React.FC<CrosswordGridProps> = ({ data, onComplete }) => {
 
       {/* --- SCREEN MODE (INTERACTIVE PREVIEW) --- */}
       <div className="max-w-6xl mx-auto no-print pb-20">
-         
-        {/* WE ONLY SHOW THE PUZZLE AND CLUES FOR PLAYING HERE. 
-            THE CARD LAYOUT IS HANDLED IN THE PRINT SECTION BUT ALSO RENDERED HERE FOR EDITING */}
-        
         <div className="bg-white p-6 rounded-xl shadow-2xl mb-8 border-4 border-dashed border-gray-300">
             <h3 className="text-center font-bold text-gray-400 uppercase text-xs mb-4">Anteprima Biglietto (Pagina Interna)</h3>
             
-            {/* SIMULATED A4 INTERNAL PAGE */}
             <div className="flex flex-col md:flex-row gap-8 bg-white border shadow-sm p-4 min-h-[500px]">
                  {/* LEFT: GRID */}
                  <div className="flex-1 border-r border-dashed border-gray-200 pr-4">
@@ -287,20 +292,19 @@ const CrosswordGrid: React.FC<CrosswordGridProps> = ({ data, onComplete }) => {
                       </div>
                  </div>
             </div>
-            <p className="text-center text-xs text-gray-400 mt-2">↑ Clicca sul testo per modificarlo. Stampa per vedere l'effetto finale.</p>
         </div>
 
         {/* CLUES LIST FOR SCREEN */}
         <div className="bg-white/90 p-6 rounded-xl shadow-xl max-w-2xl mx-auto">
-            <h3 className="font-bold mb-4 text-center">Indizi</h3>
+            <h3 className="font-bold mb-4 text-center">Indizi (Lettere)</h3>
             <div className="grid grid-cols-2 gap-8 text-sm">
                 <div>
                     <h4 className="font-bold text-gray-500 text-xs uppercase border-b mb-2">Orizzontali</h4>
-                    <ul>{data.words.filter(w => w.direction === Direction.ACROSS).map(w => <li key={w.id} className="mb-1"><b className="mr-1">{w.number}.</b>{w.clue}</li>)}</ul>
+                    <ul>{data.words.filter(w => w.direction === Direction.ACROSS).map(w => <li key={w.id} className="mb-1"><b className="mr-1">{w.number}.</b>{w.clue} <span className="font-bold text-gray-500">({w.word.length})</span></li>)}</ul>
                 </div>
                 <div>
                     <h4 className="font-bold text-gray-500 text-xs uppercase border-b mb-2">Verticali</h4>
-                    <ul>{data.words.filter(w => w.direction === Direction.DOWN).map(w => <li key={w.id} className="mb-1"><b className="mr-1">{w.number}.</b>{w.clue}</li>)}</ul>
+                    <ul>{data.words.filter(w => w.direction === Direction.DOWN).map(w => <li key={w.id} className="mb-1"><b className="mr-1">{w.number}.</b>{w.clue} <span className="font-bold text-gray-500">({w.word.length})</span></li>)}</ul>
                 </div>
             </div>
         </div>
@@ -353,7 +357,7 @@ const CrosswordGrid: React.FC<CrosswordGridProps> = ({ data, onComplete }) => {
                    <h4 className="font-bold border-b border-black mb-1 text-black">Orizzontali</h4>
                    <ul className="list-none space-y-1 text-black">
                       {data.words.filter(w => w.direction === Direction.ACROSS).map(w => (
-                          <li key={w.id}><span className="font-bold">{w.number}.</span> {w.clue} ({w.word.length})</li>
+                          <li key={w.id}><span className="font-bold">{w.number}.</span> {w.clue} <b>({w.word.length})</b></li>
                       ))}
                    </ul>
                 </div>
@@ -361,7 +365,7 @@ const CrosswordGrid: React.FC<CrosswordGridProps> = ({ data, onComplete }) => {
                    <h4 className="font-bold border-b border-black mb-1 text-black">Verticali</h4>
                    <ul className="list-none space-y-1 text-black">
                       {data.words.filter(w => w.direction === Direction.DOWN).map(w => (
-                          <li key={w.id}><span className="font-bold">{w.number}.</span> {w.clue} ({w.word.length})</li>
+                          <li key={w.id}><span className="font-bold">{w.number}.</span> {w.clue} <b>({w.word.length})</b></li>
                       ))}
                    </ul>
                 </div>
