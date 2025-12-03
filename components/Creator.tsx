@@ -77,20 +77,22 @@ const Creator: React.FC<CreatorProps> = ({ onCreated }) => {
     setManualWords(newWords);
   };
 
-  // Timeout logic
+  // Timeout logic - Aumentato a 90 secondi
   useEffect(() => {
     let timer: any;
     if (loading) {
         timer = setTimeout(() => {
             setLoading(false);
-            setError("L'IA sta impiegando troppo tempo. Riprova, magari con un argomento più semplice o controlla la tua connessione.");
-        }, 45000); // 45s timeout
+            setError("L'IA sta impiegando più del previsto. Potrebbe esserci molto traffico. Riprova tra un istante.");
+        }, 90000); // 90s timeout
     }
     return () => clearTimeout(timer);
   }, [loading]);
 
   const handleGenerate = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (loading) return; // Prevent double clicks
+    
     setLoading(true);
     setError(null);
 
@@ -252,7 +254,7 @@ const Creator: React.FC<CreatorProps> = ({ onCreated }) => {
           disabled={loading}
           className={`w-full py-4 rounded-xl text-white font-bold text-lg shadow-xl flex items-center justify-center gap-2 transition-all active:scale-95 ${loading ? 'bg-gray-400 cursor-not-allowed' : 'bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700'}`}
         >
-          {loading ? <><Loader2 className="animate-spin" /> Creazione in corso...</> : <><Wand2 /> GENERA BIGLIETTO</>}
+          {loading ? <><Loader2 className="animate-spin" /> Creazione in corso (attendi...)</> : <><Wand2 /> GENERA BIGLIETTO</>}
       </button>
     </form>
   );
