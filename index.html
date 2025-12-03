@@ -19,7 +19,7 @@
     <script src="https://cdn.tailwindcss.com"></script>
     
     <!-- Fonts -->
-    <link href="https://fonts.googleapis.com/css2?family=Mountains+of+Christmas:wght@400;700&family=Lato:wght@400;700&family=Fredoka:wght@400;600&family=Dancing+Script:wght@400;700&family=Playfair+Display:wght@400;700&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Mountains+of+Christmas:wght@400;700&family=Lato:wght@400;700&family=Fredoka:wght@400;600&family=Dancing+Script:wght@400;700&family=Playfair+Display:wght@400;700&family=Great+Vibes&display=swap" rel="stylesheet">
     
     <script>
       tailwind.config = {
@@ -31,6 +31,7 @@
               fun: ['Fredoka', 'sans-serif'],
               elegant: ['"Playfair Display"', 'serif'],
               hand: ['"Dancing Script"', 'cursive'],
+              script: ['"Great Vibes"', 'cursive'],
             },
             colors: {
               xmas: {
@@ -39,23 +40,6 @@
                 gold: '#F8B229',
                 cream: '#FDFBF7',
                 dark: '#0F172A'
-              },
-              easter: {
-                pink: '#FFC8DD',
-                green: '#BDE0FE',
-                yellow: '#FFFACD',
-                text: '#5D576B'
-              },
-              bday: {
-                primary: '#FF006E',
-                secondary: '#3A86FF',
-                accent: '#FFBE0B',
-                bg: '#FFFFFF'
-              },
-              elegant: {
-                bg: '#121212',
-                gold: '#D4AF37',
-                text: '#E0E0E0'
               }
             }
           }
@@ -64,7 +48,7 @@
     </script>
     <style>
       body {
-        background-color: #0F172A; /* Fallback */
+        background-color: #0F172A;
         overscroll-behavior-y: none;
       }
       .clue-scroll::-webkit-scrollbar { width: 6px; }
@@ -73,49 +57,62 @@
       .animate-fade-in { animation: fadeIn 0.5s ease-in; }
       @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
 
-      /* Printing Rules for A4 Foldable Booklet */
+      /* --- PRINTING RULES: A4 LANDSCAPE BOOKLET --- */
       @media print {
-        @page { size: landscape; margin: 0; }
+        @page { 
+          size: A4 landscape; 
+          margin: 0; 
+        }
+        
         body { 
           background: white !important; 
-          color: black !important; 
-          -webkit-print-color-adjust: exact !important; 
-          print-color-adjust: exact !important;
           margin: 0;
           padding: 0;
+          -webkit-print-color-adjust: exact !important; 
+          print-color-adjust: exact !important;
         }
-        /* Hide UI elements */
-        header, footer, button, .no-print { display: none !important; }
+
+        /* Hide UI */
+        header, footer, button, .no-print, form { display: none !important; }
         
-        /* Layout containers */
-        .print-page {
-          width: 100vw;
-          height: 100vh;
+        /* The Sheet Container */
+        .print-sheet {
+          width: 297mm;
+          height: 210mm;
           display: flex !important;
           page-break-after: always;
           break-after: page;
+          overflow: hidden;
           position: relative;
         }
-        
-        /* Grid styling adjustments for print */
-        .bg-black { background-color: #ddd !important; } /* Grey blocked cells */
-        .text-white { color: black !important; }
-        .border-4 { border-width: 2px !important; border-color: #000 !important; }
-        input { display: none !important; } 
-        
-        /* Reset containers */
+
+        /* The Half Page (A5) */
+        .print-half {
+          width: 148.5mm; /* Exact half of A4 landscape */
+          height: 210mm;
+          padding: 15mm;
+          box-sizing: border-box;
+          display: flex;
+          flex-col: column;
+          position: relative;
+        }
+
+        /* Reset Tailwind constraints */
         #root, main, .container { width: 100%; max-width: none; margin: 0; padding: 0; }
         .min-h-screen { min-height: 0 !important; background: none !important; }
+        
+        /* Typography fix for print */
+        p, h1, h2, h3, li { color: black !important; text-shadow: none !important; }
       }
     </style>
-<script type="importmap">
+  <script type="importmap">
 {
   "imports": {
-    "react/": "https://aistudiocdn.com/react@^19.2.0/",
     "react": "https://aistudiocdn.com/react@^19.2.0",
+    "react-dom/": "https://aistudiocdn.com/react-dom@^19.2.0/",
+    "react/": "https://aistudiocdn.com/react@^19.2.0/",
     "@google/genai": "https://aistudiocdn.com/@google/genai@^1.30.0",
     "lucide-react": "https://aistudiocdn.com/lucide-react@^0.555.0",
-    "react-dom/": "https://aistudiocdn.com/react-dom@^19.2.0/",
     "vite": "https://aistudiocdn.com/vite@^7.2.6",
     "@vitejs/plugin-react": "https://aistudiocdn.com/@vitejs/plugin-react@^5.1.1"
   }
