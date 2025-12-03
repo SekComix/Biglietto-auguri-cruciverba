@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef, useMemo } from 'react';
 import { CrosswordData, CellData, Direction, ThemeType } from '../types';
-import { Printer, Edit, Check, AlertCircle } from 'lucide-react';
+import { Printer, Edit } from 'lucide-react';
 
 interface CrosswordGridProps {
   data: CrosswordData;
@@ -118,7 +118,6 @@ const CrosswordGrid: React.FC<CrosswordGridProps> = ({ data, onComplete }) => {
 
   const triggerPrint = () => {
     const originalTitle = document.title;
-    // Format: EVENT_YEAR_NAME.pdf
     const cleanName = data.recipientName.replace(/\s+/g, '_').toUpperCase();
     document.title = `${data.theme.toUpperCase()}_${new Date().getFullYear()}_${cleanName}`;
     window.print();
@@ -153,7 +152,6 @@ const CrosswordGrid: React.FC<CrosswordGridProps> = ({ data, onComplete }) => {
              (activeWord.direction === Direction.DOWN && x === activeWord.startX && y >= activeWord.startY && y < activeWord.startY + activeWord.word.length));
           
           if (!cell.char) {
-             // Blocked cells
              return <div key={`${x}-${y}`} className={`${isPrint ? 'bg-gray-100 border border-gray-200' : 'bg-black/5 rounded-sm'}`} />;
           }
 
@@ -184,8 +182,7 @@ const CrosswordGrid: React.FC<CrosswordGridProps> = ({ data, onComplete }) => {
                   onChange={(e) => handleInput(x, y, e.target.value)}
                 />
               ) : (
-                // Print mode solution indices
-                cell.isSolutionCell && <span className="absolute bottom-0 right-0.5 text-[7px] font-bold text-gray-500">SOL.{cell.solutionIndex}</span>
+                cell.isSolutionCell && <span className="absolute bottom-0 right-0.5 text-[7px] font-bold text-gray-500 bg-white px-0.5 rounded border border-gray-300">{cell.solutionIndex}</span>
               )}
             </div>
           );
@@ -231,7 +228,6 @@ const CrosswordGrid: React.FC<CrosswordGridProps> = ({ data, onComplete }) => {
              </div>
              <h2 className={`${themeAssets.fontTitle} text-3xl font-bold mb-4`}>{data.title}</h2>
              
-             {/* Unified Editable Message Field */}
              <textarea 
                className="w-full bg-white/10 text-white text-center p-4 rounded-xl border border-white/20 font-hand text-xl focus:bg-white/20 focus:outline-none placeholder-white/50"
                rows={3}
@@ -264,10 +260,9 @@ const CrosswordGrid: React.FC<CrosswordGridProps> = ({ data, onComplete }) => {
       <div className="print-sheet hidden print:flex">
          <div className="watermark">{themeAssets.watermark}</div>
          
-         {/* LEFT HALF: BACK COVER (RETRO) */}
+         {/* LEFT HALF: BACK COVER (RETRO) - CLEAN, NO DUPLICATE TEXT */}
          <div className="print-half justify-end items-center border-r border-gray-300 border-dashed relative z-10">
-            <div className="absolute top-10 left-10 opacity-10 text-6xl rotate-12 text-black">{themeAssets.decoration}</div>
-            <div className="text-center opacity-40">
+            <div className="text-center opacity-30 scale-75">
                 <p className="text-xs uppercase tracking-widest font-sans text-black">Realizzato con</p>
                 <p className="font-bold font-serif text-black">Enigmistica Auguri</p>
                 <div className="mt-2 w-8 h-8 mx-auto border border-black rounded-full flex items-center justify-center text-xs text-black">©</div>
@@ -301,12 +296,10 @@ const CrosswordGrid: React.FC<CrosswordGridProps> = ({ data, onComplete }) => {
          <div className="print-half p-8 border-r border-gray-300 border-dashed z-10">
             <h2 className="text-3xl font-bold text-center mb-6 uppercase tracking-wider" style={{ color: themeAssets.accentColor }}>Il Cruciverba</h2>
             
-            {/* Grid Container - Scaled to fit */}
             <div className="w-full max-w-[90%] mx-auto mb-6 aspect-square bg-white shadow-none border-2 border-gray-800 p-2">
                 {renderGridCells(true)}
             </div>
 
-            {/* Compact Clues */}
             <div className="grid grid-cols-2 gap-4 text-[9px] leading-tight font-sans bg-white/80 p-2 rounded-lg flex-1 overflow-hidden">
                 <div>
                    <h4 className="font-bold border-b border-black mb-1 text-black">Orizzontali</h4>
@@ -327,56 +320,54 @@ const CrosswordGrid: React.FC<CrosswordGridProps> = ({ data, onComplete }) => {
             </div>
          </div>
 
-         {/* RIGHT HALF: GREETINGS */}
+         {/* RIGHT HALF: GREETINGS & SOLUTION */}
          <div className={`print-half items-center text-center p-10 flex flex-col relative z-10`}>
              <div className={`absolute inset-4 ${themeAssets.printBorder} opacity-30 pointer-events-none`}></div>
 
-             {/* Date Header */}
-             <div className="w-full text-right mb-8">
+             <div className="w-full text-right mb-6">
                 <span className="font-serif italic text-xl border-b border-gray-400 pb-1 text-black">{data.eventDate || new Date().toLocaleDateString()}</span>
              </div>
 
-             {/* Main Greeting Area */}
              <div className="flex-1 flex flex-col justify-center items-center w-full">
-                 <h3 className={`${themeAssets.fontTitle} text-5xl mb-8 leading-tight`} style={{ color: themeAssets.accentColor }}>
+                 <h3 className={`${themeAssets.fontTitle} text-5xl mb-6 leading-tight`} style={{ color: themeAssets.accentColor }}>
                     {data.title}
                  </h3>
                  
-                 {/* The Printable Message (No input border in print mode) */}
-                 <div className="font-script text-3xl leading-relaxed whitespace-pre-wrap max-w-sm mx-auto text-black">
+                 <div className="font-script text-3xl leading-relaxed whitespace-pre-wrap max-w-sm mx-auto text-black mb-4">
                      {editableMessage}
                  </div>
 
-                 {/* Custom Image / QR */}
-                 {data.images?.extraImage && (
-                    <div className="mt-8 mb-4 border-2 border-gray-200 shadow-none bg-white p-2 grayscale">
-                        <img src={data.images.extraImage} className="h-32 object-contain" />
-                    </div>
-                 )}
-                 
-                 {/* Photo (if exists) */}
-                 {data.images?.photo && (
-                    <div className="mt-4 border-4 border-white shadow-md -rotate-2 bg-white">
-                        <img src={data.images.photo} className="max-h-40 max-w-[200px] object-cover filter grayscale contrast-125" />
-                    </div>
-                 )}
+                 {/* Custom Images Row - Horizontal Layout */}
+                 <div className="flex flex-row gap-4 justify-center items-center w-full mt-2">
+                     {data.images?.extraImage && (
+                        <div className="border border-gray-200 bg-white p-2">
+                            <img src={data.images.extraImage} className="h-24 w-auto object-contain grayscale" />
+                        </div>
+                     )}
+                     
+                     {data.images?.photo && (
+                        <div className="border-4 border-white shadow bg-white -rotate-2">
+                            <img src={data.images.photo} className="h-28 w-auto object-cover grayscale contrast-125" />
+                        </div>
+                     )}
+                 </div>
              </div>
 
-             {/* Solution Footer */}
+             {/* Solution Footer (Wheel of Fortune Style) */}
              {data.solution && (
-                <div className="w-full mt-auto pt-6 border-t border-gray-300">
-                    <p className="text-xs uppercase font-bold text-gray-500 mb-2 tracking-widest">Soluzione Segreta</p>
+                <div className="w-full mt-auto pt-4 border-t-2 border-dashed border-gray-400">
+                    <p className="text-xs uppercase font-bold text-black mb-2 tracking-[0.3em]">Soluzione Segreta</p>
                     <div className="flex gap-2 justify-center">
                         {Array(data.solution.word.length).fill(0).map((_, i) => (
-                             <div key={i} className="w-6 h-8 border-b-2 border-black relative">
-                                 <span className="absolute top-0 left-0 text-[6px] text-gray-400">{i+1}</span>
+                             <div key={i} className="w-8 h-10 border-2 border-black relative bg-white flex items-end justify-center pb-1">
+                                 <span className="absolute top-0.5 left-0.5 text-[7px] text-gray-500 font-bold">{i+1}</span>
+                                 <span className="w-4 h-0.5 bg-black/10 rounded-full"></span>
                              </div>
                         ))}
                     </div>
                 </div>
              )}
 
-             {/* Corner Sticker */}
              {data.stickers?.[1] && <div className="absolute bottom-4 right-4 text-3xl opacity-80">{data.stickers[1]}</div>}
          </div>
       </div>
