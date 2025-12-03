@@ -71,23 +71,31 @@ export const generateCrossword = async (
   const ai = new GoogleGenAI({ apiKey });
 
   let prompt = "";
+  // Istruzioni ottimizzate per VELOCITÀ e CORRETTEZZA SPAZIALE
   const commonInstructions = `
+    Sei un motore per cruciverba veloce.
     Tema: ${theme}. Destinatario: ${extraData?.recipientName || 'Anonimo'}.
-    JSON valido. Max 12x12.
+    Regole CRITICHE:
+    1. Crea un cruciverba COMPATTO (max 10x10).
+    2. Usa MAX 8-10 parole totali per velocità.
+    3. LE LETTERE NGLI INCROCI DEVONO COMBACIARE ESATTAMENTE.
+    4. Coordinate startX/startY partono da 0.
+    5. JSON puro.
   `;
 
   let solutionInstructions = "";
   if (hiddenSolutionWord) {
-    solutionInstructions = `SOLUZIONE OBBLIGATORIA: "${hiddenSolutionWord.toUpperCase()}". Usa queste lettere nella griglia.`;
+    solutionInstructions = `SOLUZIONE NASCOSTA: "${hiddenSolutionWord.toUpperCase()}". 
+    Scegli coordinate (x,y) di caselle occupate da altre parole per formare questa parola segreta.`;
   }
 
   if (mode === 'manual') {
     const inputs = inputData as ManualInput[];
-    const wordListString = inputs.map(i => `W:${i.word},C:${i.clue}`).join("|");
-    prompt = `Crea griglia con: ${wordListString}. ${commonInstructions} ${solutionInstructions}`;
+    const wordListString = inputs.map(i => `Parola:${i.word.toUpperCase()}, Indizio:${i.clue}`).join(" | ");
+    prompt = `Genera layout cruciverba valido con queste parole esatte: ${wordListString}. ${commonInstructions} ${solutionInstructions}`;
   } else {
     const topic = inputData as string;
-    prompt = `Cruciverba su: "${topic}". ${commonInstructions} ${solutionInstructions}`;
+    prompt = `Genera un piccolo cruciverba su: "${topic}". Parole semplici e divertenti. ${commonInstructions} ${solutionInstructions}`;
   }
 
   try {
@@ -97,13 +105,20 @@ export const generateCrossword = async (
       config: {
         responseMimeType: "application/json",
         responseSchema: crosswordSchema,
-        temperature: 0.2, 
+        temperature: 0.1, // Temperatura bassa per massima precisione logica
+        topP: 0.8,
+        topK: 20
       },
     });
 
     if (response.text) {
       const data = JSON.parse(response.text);
-      data.words = data.words.map((w: any, idx: number) => ({ ...w, id: `word-${idx}` }));
+      // Post-processing per ID univoci
+      data.words = data.words.map((w: any, idx: number) => ({ 
+          ...w, 
+          id: `word-${idx}`,
+          word: w.word.toUpperCase().trim() 
+      }));
       data.theme = theme;
       data.recipientName = extraData?.recipientName || '';
       data.eventDate = extraData?.eventDate || '';
@@ -139,7 +154,7 @@ export const regenerateGreeting = async (
 
     const prompt = `Scrivi SOLO un breve messaggio di auguri (max 20 parole) per ${recipient}.
     Occasione: ${theme}. Stile: ${tones[tone]}.
-    Messaggio precedente (da variare): "${currentMessage}"`;
+    Messaggio precedente: "${currentMessage}"`;
 
     try {
         const response = await ai.models.generateContent({
