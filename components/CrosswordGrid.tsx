@@ -1,19 +1,19 @@
 import React, { useState, useEffect, useRef, useMemo } from 'react';
 import { CrosswordData, CellData, Direction, ThemeType } from '../types';
-import { Printer, Edit } from 'lucide-react';
+import { regenerateGreeting } from '../services/geminiService';
+import { Printer, Edit, RefreshCw, Wand2, Dice5, Save } from 'lucide-react';
 
 interface CrosswordGridProps {
   data: CrosswordData;
   onComplete: () => void;
 }
 
-// Visual Themes Configuration for "Wow" Effect
 const THEME_ASSETS: Record<ThemeType, any> = {
   christmas: {
     fontTitle: 'font-christmas',
     printBorder: 'border-double border-8 border-red-800',
     decoration: '🎄',
-    watermark: '❄️',
+    watermark: '🎄',
     accentColor: '#165B33'
   },
   birthday: {
@@ -27,7 +27,7 @@ const THEME_ASSETS: Record<ThemeType, any> = {
     fontTitle: 'font-hand',
     printBorder: 'border-dotted border-8 border-green-400',
     decoration: '🐰',
-    watermark: '🥚',
+    watermark: '🐣',
     accentColor: '#3A86FF'
   },
   elegant: {
@@ -41,7 +41,7 @@ const THEME_ASSETS: Record<ThemeType, any> = {
      fontTitle: 'font-body',
      printBorder: 'border-4 border-gray-300',
      decoration: '🎁',
-     watermark: '🎉',
+     watermark: '🎁',
      accentColor: '#000000'
   }
 };
@@ -51,12 +51,13 @@ const CrosswordGrid: React.FC<CrosswordGridProps> = ({ data, onComplete }) => {
   const [selectedCell, setSelectedCell] = useState<{ x: number; y: number } | null>(null);
   const [currentDirection, setCurrentDirection] = useState<Direction>(Direction.ACROSS);
   const [editableMessage, setEditableMessage] = useState(data.message);
+  const [isEditingMsg, setIsEditingMsg] = useState(false);
+  const [isRegeneratingMsg, setIsRegeneratingMsg] = useState(false);
   const [showPrintGuide, setShowPrintGuide] = useState(false);
   const inputRefs = useRef<(HTMLInputElement | null)[][]>([]);
 
   const themeAssets = THEME_ASSETS[data.theme] || THEME_ASSETS.generic;
 
-  // Init Grid Logic
   useEffect(() => {
     const newGrid: CellData[][] = Array(data.height).fill(null).map((_, y) =>
       Array(data.width).fill(null).map((_, x) => ({ x, y, userChar: '', partOfWords: [] }))
@@ -114,6 +115,19 @@ const CrosswordGrid: React.FC<CrosswordGridProps> = ({ data, onComplete }) => {
           inputRefs.current[nextY][nextX]?.focus();
       }
     }
+  };
+
+  const handleRegenerateMessage = async (tone: 'funny' | 'heartfelt' | 'rhyme') => {
+      if (isRegeneratingMsg) return;
+      setIsRegeneratingMsg(true);
+      try {
+          const newMsg = await regenerateGreeting(editableMessage, data.theme, data.recipientName, tone);
+          setEditableMessage(newMsg);
+      } catch (e) {
+          console.error(e);
+      } finally {
+          setIsRegeneratingMsg(false);
+      }
   };
 
   const triggerPrint = () => {
@@ -221,20 +235,43 @@ const CrosswordGrid: React.FC<CrosswordGridProps> = ({ data, onComplete }) => {
 
       {/* --- SCREEN MODE (INTERACTIVE) --- */}
       <div className="max-w-4xl mx-auto no-print pb-20">
-         <div className="text-center mb-6 text-white bg-black/20 p-4 rounded-xl backdrop-blur-sm">
-             <div className="flex justify-center items-center gap-2 mb-2">
-                <Edit size={16} className="opacity-50" />
-                <span className="text-xs uppercase font-bold opacity-70">Modifica il messaggio qui sotto</span>
-             </div>
-             <h2 className={`${themeAssets.fontTitle} text-3xl font-bold mb-4`}>{data.title}</h2>
-             
-             <textarea 
-               className="w-full bg-white/10 text-white text-center p-4 rounded-xl border border-white/20 font-hand text-xl focus:bg-white/20 focus:outline-none placeholder-white/50"
-               rows={3}
-               value={editableMessage}
-               onChange={e => setEditableMessage(e.target.value)}
-             />
-        </div>
+         {/* REMOVED DUPLICATE TEXT AREA FROM HERE */}
+         
+         {/* PREVIEW OF THE PRINT LAYOUT FOR EDITING */}
+         <div className="mb-8 p-4 bg-white rounded-lg shadow-lg border-4 border-dashed border-gray-300">
+            <h3 className="text-center font-bold text-gray-400 uppercase text-xs mb-2">Anteprima & Modifica Frase</h3>
+            <div className="flex flex-col items-center justify-center text-center p-6 border bg-white">
+                 <h3 className={`${themeAssets.fontTitle} text-3xl mb-4 text-black`}>{data.title}</h3>
+                 
+                 {/* IN-PLACE MESSAGE EDITOR */}
+                 <div className="relative group w-full max-w-lg">
+                    {isEditingMsg ? (
+                        <div className="flex flex-col gap-2">
+                            <textarea 
+                                className="w-full p-2 border-2 border-blue-400 rounded-lg text-xl font-hand"
+                                value={editableMessage}
+                                onChange={e => setEditableMessage(e.target.value)}
+                                rows={3}
+                            />
+                            <button onClick={() => setIsEditingMsg(false)} className="bg-blue-600 text-white py-1 px-4 rounded self-end flex items-center gap-1 text-sm"><Save size={14}/> Salva</button>
+                        </div>
+                    ) : (
+                        <div className="relative border-2 border-transparent hover:border-gray-200 rounded-lg p-2 transition-all">
+                             <p className="font-script text-2xl whitespace-pre-wrap text-black">{editableMessage}</p>
+                             
+                             {/* Floating Controls */}
+                             <div className="absolute -top-10 left-1/2 -translate-x-1/2 flex gap-2 bg-white shadow-lg rounded-full p-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                                <button onClick={() => setIsEditingMsg(true)} className="p-2 hover:bg-gray-100 rounded-full text-blue-600" title="Modifica testo"><Edit size={16}/></button>
+                                <button onClick={() => handleRegenerateMessage('heartfelt')} className="p-2 hover:bg-gray-100 rounded-full text-purple-600" title="Rigenera AI (Commovente)"><Wand2 size={16}/></button>
+                                <button onClick={() => handleRegenerateMessage('funny')} className="p-2 hover:bg-gray-100 rounded-full text-orange-500" title="Rigenera AI (Divertente)"><Dice5 size={16}/></button>
+                                <button onClick={() => handleRegenerateMessage('rhyme')} className="p-2 hover:bg-gray-100 rounded-full text-green-600" title="Rigenera AI (Rima)"><RefreshCw size={16}/></button>
+                             </div>
+                        </div>
+                    )}
+                     {isRegeneratingMsg && <div className="absolute inset-0 bg-white/80 flex items-center justify-center text-sm font-bold text-purple-600"><RefreshCw className="animate-spin mr-2"/> Scrivendo...</div>}
+                 </div>
+            </div>
+         </div>
         
         <div className="grid md:grid-cols-2 gap-8">
             <div className="bg-white/90 p-4 rounded-xl shadow-xl">{renderGridCells(false)}</div>
@@ -260,7 +297,7 @@ const CrosswordGrid: React.FC<CrosswordGridProps> = ({ data, onComplete }) => {
       <div className="print-sheet hidden print:flex">
          <div className="watermark">{themeAssets.watermark}</div>
          
-         {/* LEFT HALF: BACK COVER (RETRO) - CLEAN, NO DUPLICATE TEXT */}
+         {/* LEFT HALF: BACK COVER (RETRO) */}
          <div className="print-half justify-end items-center border-r border-gray-300 border-dashed relative z-10">
             <div className="text-center opacity-30 scale-75">
                 <p className="text-xs uppercase tracking-widest font-sans text-black">Realizzato con</p>
@@ -333,6 +370,7 @@ const CrosswordGrid: React.FC<CrosswordGridProps> = ({ data, onComplete }) => {
                     {data.title}
                  </h3>
                  
+                 {/* The Printable Message (No controls here, just text) */}
                  <div className="font-script text-3xl leading-relaxed whitespace-pre-wrap max-w-sm mx-auto text-black mb-4">
                      {editableMessage}
                  </div>
