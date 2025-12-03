@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef, useMemo } from 'react';
 import { CrosswordData, CellData, Direction, ThemeType } from '../types';
 import { regenerateGreeting } from '../services/geminiService';
-import { Printer, Edit, RefreshCw, Wand2, Dice5, Save } from 'lucide-react';
+import { Printer, Edit, RefreshCw, Wand2, Dice5, Save, ArrowLeft } from 'lucide-react';
 
 interface CrosswordGridProps {
   data: CrosswordData;
@@ -233,59 +233,74 @@ const CrosswordGrid: React.FC<CrosswordGridProps> = ({ data, onComplete }) => {
         <Printer size={20} /> Stampa Biglietto
       </button>
 
-      {/* --- SCREEN MODE (INTERACTIVE) --- */}
-      <div className="max-w-4xl mx-auto no-print pb-20">
-         {/* REMOVED DUPLICATE TEXT AREA FROM HERE */}
+      {/* --- SCREEN MODE (INTERACTIVE PREVIEW) --- */}
+      <div className="max-w-6xl mx-auto no-print pb-20">
          
-         {/* PREVIEW OF THE PRINT LAYOUT FOR EDITING */}
-         <div className="mb-8 p-4 bg-white rounded-lg shadow-lg border-4 border-dashed border-gray-300">
-            <h3 className="text-center font-bold text-gray-400 uppercase text-xs mb-2">Anteprima & Modifica Frase</h3>
-            <div className="flex flex-col items-center justify-center text-center p-6 border bg-white">
-                 <h3 className={`${themeAssets.fontTitle} text-3xl mb-4 text-black`}>{data.title}</h3>
-                 
-                 {/* IN-PLACE MESSAGE EDITOR */}
-                 <div className="relative group w-full max-w-lg">
-                    {isEditingMsg ? (
-                        <div className="flex flex-col gap-2">
-                            <textarea 
-                                className="w-full p-2 border-2 border-blue-400 rounded-lg text-xl font-hand"
-                                value={editableMessage}
-                                onChange={e => setEditableMessage(e.target.value)}
-                                rows={3}
-                            />
-                            <button onClick={() => setIsEditingMsg(false)} className="bg-blue-600 text-white py-1 px-4 rounded self-end flex items-center gap-1 text-sm"><Save size={14}/> Salva</button>
-                        </div>
-                    ) : (
-                        <div className="relative border-2 border-transparent hover:border-gray-200 rounded-lg p-2 transition-all">
-                             <p className="font-script text-2xl whitespace-pre-wrap text-black">{editableMessage}</p>
-                             
-                             {/* Floating Controls */}
-                             <div className="absolute -top-10 left-1/2 -translate-x-1/2 flex gap-2 bg-white shadow-lg rounded-full p-1 opacity-0 group-hover:opacity-100 transition-opacity">
-                                <button onClick={() => setIsEditingMsg(true)} className="p-2 hover:bg-gray-100 rounded-full text-blue-600" title="Modifica testo"><Edit size={16}/></button>
-                                <button onClick={() => handleRegenerateMessage('heartfelt')} className="p-2 hover:bg-gray-100 rounded-full text-purple-600" title="Rigenera AI (Commovente)"><Wand2 size={16}/></button>
-                                <button onClick={() => handleRegenerateMessage('funny')} className="p-2 hover:bg-gray-100 rounded-full text-orange-500" title="Rigenera AI (Divertente)"><Dice5 size={16}/></button>
-                                <button onClick={() => handleRegenerateMessage('rhyme')} className="p-2 hover:bg-gray-100 rounded-full text-green-600" title="Rigenera AI (Rima)"><RefreshCw size={16}/></button>
-                             </div>
-                        </div>
-                    )}
-                     {isRegeneratingMsg && <div className="absolute inset-0 bg-white/80 flex items-center justify-center text-sm font-bold text-purple-600"><RefreshCw className="animate-spin mr-2"/> Scrivendo...</div>}
+        {/* WE ONLY SHOW THE PUZZLE AND CLUES FOR PLAYING HERE. 
+            THE CARD LAYOUT IS HANDLED IN THE PRINT SECTION BUT ALSO RENDERED HERE FOR EDITING */}
+        
+        <div className="bg-white p-6 rounded-xl shadow-2xl mb-8 border-4 border-dashed border-gray-300">
+            <h3 className="text-center font-bold text-gray-400 uppercase text-xs mb-4">Anteprima Biglietto (Pagina Interna)</h3>
+            
+            {/* SIMULATED A4 INTERNAL PAGE */}
+            <div className="flex flex-col md:flex-row gap-8 bg-white border shadow-sm p-4 min-h-[500px]">
+                 {/* LEFT: GRID */}
+                 <div className="flex-1 border-r border-dashed border-gray-200 pr-4">
+                     <h2 className="text-center font-bold mb-4" style={{ color: themeAssets.accentColor }}>Il Cruciverba</h2>
+                     <div className="max-w-[300px] mx-auto">{renderGridCells(false)}</div>
+                 </div>
+
+                 {/* RIGHT: CONTENT EDITING */}
+                 <div className="flex-1 flex flex-col items-center justify-center text-center">
+                      <div className="w-full text-right border-b mb-4">
+                         <p className="font-serif italic">{data.eventDate || 'Data Evento'}</p>
+                      </div>
+                      
+                      <h3 className={`${themeAssets.fontTitle} text-4xl mb-4`} style={{ color: themeAssets.accentColor }}>{data.title}</h3>
+
+                      {/* IN-PLACE MESSAGE EDITOR */}
+                      <div className="relative group w-full max-w-sm mb-4">
+                            <div className="flex justify-center gap-2 mb-2 opacity-50 group-hover:opacity-100 transition-opacity">
+                                <button onClick={() => setIsEditingMsg(!isEditingMsg)} className="p-1 bg-gray-100 rounded hover:bg-blue-100 text-xs flex gap-1 items-center"><Edit size={12}/> {isEditingMsg ? 'Chiudi' : 'Modifica'}</button>
+                                <button onClick={() => handleRegenerateMessage('heartfelt')} className="p-1 bg-gray-100 rounded hover:bg-purple-100 text-xs flex gap-1 items-center"><Wand2 size={12}/> AI Dolce</button>
+                                <button onClick={() => handleRegenerateMessage('funny')} className="p-1 bg-gray-100 rounded hover:bg-orange-100 text-xs flex gap-1 items-center"><Dice5 size={12}/> AI Simpatico</button>
+                            </div>
+                            
+                            {isEditingMsg ? (
+                                <textarea 
+                                    className="w-full p-2 border-2 border-blue-400 rounded-lg text-lg font-hand bg-blue-50"
+                                    value={editableMessage}
+                                    onChange={e => setEditableMessage(e.target.value)}
+                                    rows={4}
+                                />
+                            ) : (
+                                <p className="font-script text-2xl whitespace-pre-wrap cursor-pointer hover:bg-yellow-50 rounded p-2 border border-transparent hover:border-yellow-200 transition-all" onClick={() => setIsEditingMsg(true)}>
+                                    {editableMessage}
+                                </p>
+                            )}
+                            {isRegeneratingMsg && <span className="text-xs text-purple-600 font-bold animate-pulse absolute top-full left-1/2 -translate-x-1/2">Scrivendo...</span>}
+                      </div>
+
+                      <div className="flex gap-4 justify-center">
+                          {data.images?.extraImage && <img src={data.images.extraImage} className="h-20 object-contain border p-1" />}
+                          {data.images?.photo && <img src={data.images.photo} className="h-20 object-cover border p-1 shadow-sm" />}
+                      </div>
                  </div>
             </div>
-         </div>
-        
-        <div className="grid md:grid-cols-2 gap-8">
-            <div className="bg-white/90 p-4 rounded-xl shadow-xl">{renderGridCells(false)}</div>
-            <div className="bg-white/90 p-4 rounded-xl shadow-xl h-[500px] overflow-y-auto clue-scroll">
-                <h3 className="font-bold mb-2">Indizi</h3>
-                <div className="space-y-4 text-sm">
-                    <div>
-                        <h4 className="font-bold text-gray-500 text-xs uppercase">Orizzontali</h4>
-                        <ul>{data.words.filter(w => w.direction === Direction.ACROSS).map(w => <li key={w.id}><b className="mr-1">{w.number}.</b>{w.clue}</li>)}</ul>
-                    </div>
-                    <div>
-                        <h4 className="font-bold text-gray-500 text-xs uppercase">Verticali</h4>
-                        <ul>{data.words.filter(w => w.direction === Direction.DOWN).map(w => <li key={w.id}><b className="mr-1">{w.number}.</b>{w.clue}</li>)}</ul>
-                    </div>
+            <p className="text-center text-xs text-gray-400 mt-2">↑ Clicca sul testo per modificarlo. Stampa per vedere l'effetto finale.</p>
+        </div>
+
+        {/* CLUES LIST FOR SCREEN */}
+        <div className="bg-white/90 p-6 rounded-xl shadow-xl max-w-2xl mx-auto">
+            <h3 className="font-bold mb-4 text-center">Indizi</h3>
+            <div className="grid grid-cols-2 gap-8 text-sm">
+                <div>
+                    <h4 className="font-bold text-gray-500 text-xs uppercase border-b mb-2">Orizzontali</h4>
+                    <ul>{data.words.filter(w => w.direction === Direction.ACROSS).map(w => <li key={w.id} className="mb-1"><b className="mr-1">{w.number}.</b>{w.clue}</li>)}</ul>
+                </div>
+                <div>
+                    <h4 className="font-bold text-gray-500 text-xs uppercase border-b mb-2">Verticali</h4>
+                    <ul>{data.words.filter(w => w.direction === Direction.DOWN).map(w => <li key={w.id} className="mb-1"><b className="mr-1">{w.number}.</b>{w.clue}</li>)}</ul>
                 </div>
             </div>
         </div>
@@ -297,13 +312,9 @@ const CrosswordGrid: React.FC<CrosswordGridProps> = ({ data, onComplete }) => {
       <div className="print-sheet hidden print:flex">
          <div className="watermark">{themeAssets.watermark}</div>
          
-         {/* LEFT HALF: BACK COVER (RETRO) */}
-         <div className="print-half justify-end items-center border-r border-gray-300 border-dashed relative z-10">
-            <div className="text-center opacity-30 scale-75">
-                <p className="text-xs uppercase tracking-widest font-sans text-black">Realizzato con</p>
-                <p className="font-bold font-serif text-black">Enigmistica Auguri</p>
-                <div className="mt-2 w-8 h-8 mx-auto border border-black rounded-full flex items-center justify-center text-xs text-black">©</div>
-            </div>
+         {/* LEFT HALF: BACK COVER (RETRO) - EMPTY */}
+         <div className="print-half border-r border-gray-300 border-dashed relative z-10">
+            {/* COMPLETELY EMPTY AS REQUESTED */}
          </div>
 
          {/* RIGHT HALF: FRONT COVER (FRONTE) */}
@@ -311,16 +322,16 @@ const CrosswordGrid: React.FC<CrosswordGridProps> = ({ data, onComplete }) => {
              <div className={`absolute inset-4 ${themeAssets.printBorder} opacity-50 pointer-events-none`}></div>
              
              <div className="mb-12">
-                {data.stickers?.[0] ? <span className="text-[100px]">{data.stickers[0]}</span> : <span className="text-[100px]">{themeAssets.decoration}</span>}
+                {data.stickers?.[0] ? <span className="text-[120px] drop-shadow-lg">{data.stickers[0]}</span> : <span className="text-[120px] drop-shadow-lg">{themeAssets.decoration}</span>}
              </div>
              
              <h1 className={`${themeAssets.fontTitle} text-7xl mb-6 leading-tight`} style={{ color: themeAssets.accentColor }}>Per</h1>
-             <div className="text-5xl font-bold border-b-4 border-black pb-4 px-12 inline-block min-w-[200px] text-black">
+             <div className="text-6xl font-bold border-b-4 border-black pb-4 px-12 inline-block min-w-[200px] text-black">
                  {data.recipientName}
              </div>
              
              <div className="mt-auto opacity-75 font-serif italic text-xl text-black">
-                 Apri per giocare ✨
+                 Una sorpresa da risolvere...
              </div>
          </div>
       </div>
@@ -331,7 +342,7 @@ const CrosswordGrid: React.FC<CrosswordGridProps> = ({ data, onComplete }) => {
 
          {/* LEFT HALF: PUZZLE */}
          <div className="print-half p-8 border-r border-gray-300 border-dashed z-10">
-            <h2 className="text-3xl font-bold text-center mb-6 uppercase tracking-wider" style={{ color: themeAssets.accentColor }}>Il Cruciverba</h2>
+            <h2 className="text-3xl font-bold text-center mb-6 uppercase tracking-wider" style={{ color: themeAssets.accentColor }}>Cruciverba</h2>
             
             <div className="w-full max-w-[90%] mx-auto mb-6 aspect-square bg-white shadow-none border-2 border-gray-800 p-2">
                 {renderGridCells(true)}
@@ -371,21 +382,21 @@ const CrosswordGrid: React.FC<CrosswordGridProps> = ({ data, onComplete }) => {
                  </h3>
                  
                  {/* The Printable Message (No controls here, just text) */}
-                 <div className="font-script text-3xl leading-relaxed whitespace-pre-wrap max-w-sm mx-auto text-black mb-4">
+                 <div className="font-script text-3xl leading-relaxed whitespace-pre-wrap max-w-sm mx-auto text-black mb-8">
                      {editableMessage}
                  </div>
 
-                 {/* Custom Images Row - Horizontal Layout */}
-                 <div className="flex flex-row gap-4 justify-center items-center w-full mt-2">
+                 {/* Custom Images Row - Horizontal Layout - Fixed alignment */}
+                 <div className="flex flex-row gap-8 justify-center items-center w-full mt-2 h-32">
                      {data.images?.extraImage && (
-                        <div className="border border-gray-200 bg-white p-2">
-                            <img src={data.images.extraImage} className="h-24 w-auto object-contain grayscale" />
+                        <div className="border border-gray-200 bg-white p-2 shadow-sm h-full flex items-center">
+                            <img src={data.images.extraImage} className="max-h-24 w-auto object-contain" />
                         </div>
                      )}
                      
                      {data.images?.photo && (
-                        <div className="border-4 border-white shadow bg-white -rotate-2">
-                            <img src={data.images.photo} className="h-28 w-auto object-cover grayscale contrast-125" />
+                        <div className="border-4 border-white shadow bg-white -rotate-3 h-full flex items-center">
+                            <img src={data.images.photo} className="max-h-28 w-auto object-cover contrast-125" />
                         </div>
                      )}
                  </div>
@@ -393,20 +404,18 @@ const CrosswordGrid: React.FC<CrosswordGridProps> = ({ data, onComplete }) => {
 
              {/* Solution Footer (Wheel of Fortune Style) */}
              {data.solution && (
-                <div className="w-full mt-auto pt-4 border-t-2 border-dashed border-gray-400">
-                    <p className="text-xs uppercase font-bold text-black mb-2 tracking-[0.3em]">Soluzione Segreta</p>
-                    <div className="flex gap-2 justify-center">
+                <div className="w-full mt-auto pt-6 border-t-2 border-dashed border-gray-400">
+                    <p className="text-xs uppercase font-bold text-black mb-3 tracking-[0.3em]">{data.stickers?.[1] || '✨'} Soluzione Misteriosa {data.stickers?.[2] || '✨'}</p>
+                    <div className="flex gap-2 justify-center flex-wrap">
                         {Array(data.solution.word.length).fill(0).map((_, i) => (
-                             <div key={i} className="w-8 h-10 border-2 border-black relative bg-white flex items-end justify-center pb-1">
-                                 <span className="absolute top-0.5 left-0.5 text-[7px] text-gray-500 font-bold">{i+1}</span>
-                                 <span className="w-4 h-0.5 bg-black/10 rounded-full"></span>
+                             <div key={i} className="w-10 h-12 border-2 border-black relative bg-white flex items-end justify-center pb-1 shadow-sm">
+                                 <span className="absolute top-0.5 left-0.5 text-[8px] text-gray-500 font-bold">{i+1}</span>
+                                 <span className="w-6 h-0.5 bg-black/10 rounded-full"></span>
                              </div>
                         ))}
                     </div>
                 </div>
              )}
-
-             {data.stickers?.[1] && <div className="absolute bottom-4 right-4 text-3xl opacity-80">{data.stickers[1]}</div>}
          </div>
       </div>
     </>
