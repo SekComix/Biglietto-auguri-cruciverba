@@ -48,6 +48,13 @@ const crosswordSchema = {
   required: ["title", "message", "width", "height", "words"]
 };
 
+const getApiKey = () => {
+  // @ts-ignore
+  const key = process.env.API_KEY;
+  if (!key) throw new Error("API Key mancante");
+  return key;
+};
+
 export const generateCrossword = async (
   mode: 'ai' | 'manual',
   theme: ThemeType,
@@ -60,13 +67,10 @@ export const generateCrossword = async (
     stickers?: string[];
   }
 ): Promise<CrosswordData> => {
-  const apiKey = process.env.API_KEY;
-  if (!apiKey) throw new Error("API Key mancante");
-
+  const apiKey = getApiKey();
   const ai = new GoogleGenAI({ apiKey });
 
   let prompt = "";
-  // Simplified instructions for speed
   const commonInstructions = `
     Tema: ${theme}. Destinatario: ${extraData?.recipientName || 'Anonimo'}.
     JSON valido. Max 12x12.
@@ -116,4 +120,35 @@ export const generateCrossword = async (
     }
     throw error;
   }
+};
+
+export const regenerateGreeting = async (
+    currentMessage: string,
+    theme: string,
+    recipient: string,
+    tone: 'funny' | 'heartfelt' | 'rhyme' = 'heartfelt'
+): Promise<string> => {
+    const apiKey = getApiKey();
+    const ai = new GoogleGenAI({ apiKey });
+
+    const tones = {
+        funny: "divertente e spiritoso",
+        heartfelt: "commovente e dolce",
+        rhyme: "in rima baciata"
+    };
+
+    const prompt = `Scrivi SOLO un breve messaggio di auguri (max 20 parole) per ${recipient}.
+    Occasione: ${theme}. Stile: ${tones[tone]}.
+    Messaggio precedente (da variare): "${currentMessage}"`;
+
+    try {
+        const response = await ai.models.generateContent({
+            model: 'gemini-2.5-flash',
+            contents: prompt,
+        });
+        return response.text?.replace(/"/g, '').trim() || currentMessage;
+    } catch (e) {
+        console.error(e);
+        return currentMessage;
+    }
 };
