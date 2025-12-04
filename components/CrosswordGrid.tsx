@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef, useMemo } from 'react';
 import { CrosswordData, CellData, Direction, ThemeType } from '../types';
 import { regenerateGreeting } from '../services/geminiService';
-import { Printer, Edit, RefreshCw, Wand2, Dice5, Save, ArrowLeft } from 'lucide-react';
+import { Printer, Edit, Wand2, Dice5, Eye, EyeOff } from 'lucide-react';
 
 interface CrosswordGridProps {
   data: CrosswordData;
@@ -54,6 +54,7 @@ const CrosswordGrid: React.FC<CrosswordGridProps> = ({ data, onComplete }) => {
   const [isEditingMsg, setIsEditingMsg] = useState(false);
   const [isRegeneratingMsg, setIsRegeneratingMsg] = useState(false);
   const [showPrintGuide, setShowPrintGuide] = useState(false);
+  const [revealAnswers, setRevealAnswers] = useState(false);
   const inputRefs = useRef<(HTMLInputElement | null)[][]>([]);
 
   const themeAssets = THEME_ASSETS[data.theme] || THEME_ASSETS.generic;
@@ -70,12 +71,10 @@ const CrosswordGrid: React.FC<CrosswordGridProps> = ({ data, onComplete }) => {
         const x = w.direction === Direction.ACROSS ? w.startX + i : w.startX;
         const y = w.direction === Direction.DOWN ? w.startY + i : w.startY;
         
-        // Boundary Check (Safety)
         if (y < data.height && x < data.width) {
             newGrid[y][x].char = w.word[i].toUpperCase();
             newGrid[y][x].partOfWords.push(w.id);
             
-            // Assign Number only at the start
             if (i === 0) {
               newGrid[y][x].number = w.number;
               newGrid[y][x].isWordStart = true;
@@ -97,6 +96,7 @@ const CrosswordGrid: React.FC<CrosswordGridProps> = ({ data, onComplete }) => {
     inputRefs.current = Array(data.height).fill(null).map(() => Array(data.width).fill(null));
     setGrid(newGrid);
     setEditableMessage(data.message);
+    setRevealAnswers(false);
   }, [data]);
 
   const handleCellClick = (x: number, y: number) => {
@@ -117,7 +117,6 @@ const CrosswordGrid: React.FC<CrosswordGridProps> = ({ data, onComplete }) => {
     if (char) {
       let nextX = x, nextY = y;
       if (currentDirection === Direction.ACROSS) nextX++; else nextY++;
-      // Auto-move focus
       if (nextX < data.width && nextY < data.height && grid[nextY][nextX].char) {
           setSelectedCell({ x: nextX, y: nextY });
           inputRefs.current[nextY][nextX]?.focus();
@@ -174,9 +173,10 @@ const CrosswordGrid: React.FC<CrosswordGridProps> = ({ data, onComplete }) => {
              (activeWord.direction === Direction.DOWN && x === activeWord.startX && y >= activeWord.startY && y < activeWord.startY + activeWord.word.length));
           
           if (!cell.char) {
-             // Empty cell styling - Greyed out in print to show boundaries clearly
              return <div key={`${x}-${y}`} className={`${isPrint ? 'bg-gray-100 border border-gray-300' : 'bg-black/5 rounded-sm'}`} />;
           }
+
+          const displayChar = (!isPrint && revealAnswers) ? cell.char : cell.userChar;
 
           return (
             <div
@@ -190,7 +190,6 @@ const CrosswordGrid: React.FC<CrosswordGridProps> = ({ data, onComplete }) => {
                 ${cell.isSolutionCell && isPrint ? 'bg-yellow-50 !border-[3px] !border-black' : ''}
               `}
             >
-              {/* CELL NUMBER: Always visible, Bold, Black */}
               {cell.number && (
                 <span className={`absolute top-0 left-0.5 leading-none z-10 font-sans font-extrabold text-black ${isPrint ? 'text-[9px]' : 'text-[10px] opacity-70'}`}>
                   {cell.number}
@@ -200,9 +199,10 @@ const CrosswordGrid: React.FC<CrosswordGridProps> = ({ data, onComplete }) => {
               {!isPrint ? (
                 <input
                   ref={(el) => { inputRefs.current[y][x] = el; }}
-                  className="w-full h-full bg-transparent text-center outline-none cursor-pointer pt-2"
-                  value={cell.userChar}
+                  className={`w-full h-full bg-transparent text-center outline-none cursor-pointer pt-2 ${revealAnswers ? 'text-blue-600 font-extrabold' : 'text-black'}`}
+                  value={displayChar}
                   maxLength={1}
+                  readOnly={revealAnswers}
                   onChange={(e) => handleInput(x, y, e.target.value)}
                 />
               ) : (
@@ -224,12 +224,11 @@ const CrosswordGrid: React.FC<CrosswordGridProps> = ({ data, onComplete }) => {
               <Printer size={48} className="mx-auto text-blue-600 mb-4" />
               <h3 className="text-2xl font-bold mb-2 text-gray-800">Pronto per la Stampa?</h3>
               <p className="text-gray-600 mb-6">
-                Per ottenere un biglietto pieghevole perfetto, imposta la stampante (o il salvataggio PDF) così:
+                Per ottenere un biglietto pieghevole perfetto:
               </p>
               <ul className="text-left text-sm space-y-2 bg-gray-50 p-4 rounded-lg mb-6 border border-gray-200">
-                  <li className="flex gap-2">📄 <b>Formato:</b> A4 Orizzontale (Landscape)</li>
-                  <li className="flex gap-2">🔄 <b>Fronte/Retro:</b> Sì, lato corto (Short Edge)</li>
-                  <li className="flex gap-2">📐 <b>Margini:</b> Nessuno (o Minimi)</li>
+                  <li className="flex gap-2">📄 <b>Formato:</b> A4 Orizzontale</li>
+                  <li className="flex gap-2">🔄 <b>Fronte/Retro:</b> Sì (Lato Corto)</li>
               </ul>
               <div className="flex gap-3">
                  <button onClick={() => setShowPrintGuide(false)} className="flex-1 py-3 bg-gray-200 font-bold rounded-xl">Annulla</button>
@@ -238,12 +237,24 @@ const CrosswordGrid: React.FC<CrosswordGridProps> = ({ data, onComplete }) => {
            </div>
         </div>
       )}
+      
+      {/* Control Buttons */}
+      <div className="fixed top-4 right-4 z-50 flex gap-2 no-print">
+          <button 
+            onClick={() => setRevealAnswers(!revealAnswers)}
+            className="bg-white/90 backdrop-blur text-gray-700 p-3 rounded-full shadow-lg border hover:bg-gray-50 flex items-center gap-2 font-bold transition-transform hover:scale-105"
+            title="Mostra/Nascondi Soluzioni"
+          >
+             {revealAnswers ? <EyeOff size={20} className="text-blue-600" /> : <Eye size={20} />}
+             <span className="hidden md:inline">{revealAnswers ? 'Nascondi' : 'Soluzioni'}</span>
+          </button>
 
-      <button onClick={() => setShowPrintGuide(true)} className="fixed top-4 right-4 bg-white text-black p-3 rounded-full shadow-lg border z-50 hover:bg-gray-50 no-print flex items-center gap-2 font-bold transition-transform hover:scale-105">
-        <Printer size={20} /> Stampa Biglietto
-      </button>
+          <button onClick={() => setShowPrintGuide(true)} className="bg-blue-600 text-white p-3 rounded-full shadow-lg border border-blue-700 flex items-center gap-2 font-bold transition-transform hover:scale-105">
+            <Printer size={20} /> <span className="hidden md:inline">Stampa</span>
+          </button>
+      </div>
 
-      {/* --- SCREEN MODE (INTERACTIVE PREVIEW) --- */}
+      {/* --- SCREEN MODE --- */}
       <div className="max-w-6xl mx-auto no-print pb-20">
         <div className="bg-white p-6 rounded-xl shadow-2xl mb-8 border-4 border-dashed border-gray-300">
             <h3 className="text-center font-bold text-gray-400 uppercase text-xs mb-4">Anteprima Biglietto (Pagina Interna)</h3>
@@ -263,17 +274,20 @@ const CrosswordGrid: React.FC<CrosswordGridProps> = ({ data, onComplete }) => {
                       
                       <h3 className={`${themeAssets.fontTitle} text-4xl mb-4`} style={{ color: themeAssets.accentColor }}>{data.title}</h3>
 
-                      {/* IN-PLACE MESSAGE EDITOR */}
+                      {/* IN-PLACE MESSAGE EDITOR - EMPHASIZED */}
                       <div className="relative group w-full max-w-sm mb-4">
-                            <div className="flex justify-center gap-2 mb-2 opacity-50 group-hover:opacity-100 transition-opacity">
-                                <button onClick={() => setIsEditingMsg(!isEditingMsg)} className="p-1 bg-gray-100 rounded hover:bg-blue-100 text-xs flex gap-1 items-center"><Edit size={12}/> {isEditingMsg ? 'Chiudi' : 'Modifica'}</button>
-                                <button onClick={() => handleRegenerateMessage('heartfelt')} className="p-1 bg-gray-100 rounded hover:bg-purple-100 text-xs flex gap-1 items-center"><Wand2 size={12}/> AI Dolce</button>
-                                <button onClick={() => handleRegenerateMessage('funny')} className="p-1 bg-gray-100 rounded hover:bg-orange-100 text-xs flex gap-1 items-center"><Dice5 size={12}/> AI Simpatico</button>
+                            <div className="mb-2 p-2 bg-blue-50 rounded-lg border border-blue-100 shadow-sm">
+                                <p className="text-[10px] uppercase font-bold text-blue-600 mb-1">Personalizza il testo con l'IA:</p>
+                                <div className="flex justify-center gap-2">
+                                    <button onClick={() => handleRegenerateMessage('heartfelt')} className="flex-1 p-1 bg-white border rounded hover:bg-purple-50 text-xs flex justify-center gap-1 items-center shadow-sm font-bold text-purple-700"><Wand2 size={12}/> Dolce</button>
+                                    <button onClick={() => handleRegenerateMessage('funny')} className="flex-1 p-1 bg-white border rounded hover:bg-orange-50 text-xs flex justify-center gap-1 items-center shadow-sm font-bold text-orange-700"><Dice5 size={12}/> Simpatico</button>
+                                    <button onClick={() => setIsEditingMsg(!isEditingMsg)} className="flex-1 p-1 bg-white border rounded hover:bg-gray-50 text-xs flex justify-center gap-1 items-center shadow-sm text-gray-700"><Edit size={12}/> A mano</button>
+                                </div>
                             </div>
                             
                             {isEditingMsg ? (
                                 <textarea 
-                                    className="w-full p-2 border-2 border-blue-400 rounded-lg text-lg font-hand bg-blue-50"
+                                    className="w-full p-2 border-2 border-blue-400 rounded-lg text-lg font-hand bg-white"
                                     value={editableMessage}
                                     onChange={e => setEditableMessage(e.target.value)}
                                     rows={4}
@@ -283,7 +297,7 @@ const CrosswordGrid: React.FC<CrosswordGridProps> = ({ data, onComplete }) => {
                                     {editableMessage}
                                 </p>
                             )}
-                            {isRegeneratingMsg && <span className="text-xs text-purple-600 font-bold animate-pulse absolute top-full left-1/2 -translate-x-1/2">Scrivendo...</span>}
+                            {isRegeneratingMsg && <div className="absolute inset-0 bg-white/80 flex items-center justify-center backdrop-blur-sm"><span className="text-sm text-purple-600 font-bold animate-pulse">✨ L'IA sta scrivendo per te...</span></div>}
                       </div>
 
                       <div className="flex gap-4 justify-center">
@@ -294,9 +308,9 @@ const CrosswordGrid: React.FC<CrosswordGridProps> = ({ data, onComplete }) => {
             </div>
         </div>
 
-        {/* CLUES LIST FOR SCREEN */}
+        {/* CLUES LIST */}
         <div className="bg-white/90 p-6 rounded-xl shadow-xl max-w-2xl mx-auto">
-            <h3 className="font-bold mb-4 text-center">Indizi (Lettere)</h3>
+            <h3 className="font-bold mb-4 text-center">Definizioni</h3>
             <div className="grid grid-cols-2 gap-8 text-sm">
                 <div>
                     <h4 className="font-bold text-gray-500 text-xs uppercase border-b mb-2">Orizzontali</h4>
@@ -316,12 +330,10 @@ const CrosswordGrid: React.FC<CrosswordGridProps> = ({ data, onComplete }) => {
       <div className="print-sheet hidden print:flex">
          <div className="watermark">{themeAssets.watermark}</div>
          
-         {/* LEFT HALF: BACK COVER (RETRO) - EMPTY */}
          <div className="print-half border-r border-gray-300 border-dashed relative z-10">
-            {/* COMPLETELY EMPTY AS REQUESTED */}
+            {/* RETRO VUOTO */}
          </div>
 
-         {/* RIGHT HALF: FRONT COVER (FRONTE) */}
          <div className={`print-half flex-col items-center justify-center text-center p-12 m-4 rounded-xl relative z-10`}>
              <div className={`absolute inset-4 ${themeAssets.printBorder} opacity-50 pointer-events-none`}></div>
              
@@ -377,7 +389,7 @@ const CrosswordGrid: React.FC<CrosswordGridProps> = ({ data, onComplete }) => {
              <div className={`absolute inset-4 ${themeAssets.printBorder} opacity-30 pointer-events-none`}></div>
 
              <div className="w-full text-right mb-6">
-                <span className="font-serif italic text-xl border-b border-gray-400 pb-1 text-black">{data.eventDate || new Date().toLocaleDateString()}</span>
+                <span className="font-serif italic text-xl border-b border-gray-400 pb-1 text-black">{data.eventDate}</span>
              </div>
 
              <div className="flex-1 flex flex-col justify-center items-center w-full">
@@ -385,12 +397,10 @@ const CrosswordGrid: React.FC<CrosswordGridProps> = ({ data, onComplete }) => {
                     {data.title}
                  </h3>
                  
-                 {/* The Printable Message (No controls here, just text) */}
                  <div className="font-script text-3xl leading-relaxed whitespace-pre-wrap max-w-sm mx-auto text-black mb-8">
                      {editableMessage}
                  </div>
 
-                 {/* Custom Images Row - Horizontal Layout - Fixed alignment */}
                  <div className="flex flex-row gap-8 justify-center items-center w-full mt-2 h-32">
                      {data.images?.extraImage && (
                         <div className="border border-gray-200 bg-white p-2 shadow-sm h-full flex items-center">
@@ -406,7 +416,6 @@ const CrosswordGrid: React.FC<CrosswordGridProps> = ({ data, onComplete }) => {
                  </div>
              </div>
 
-             {/* Solution Footer (Wheel of Fortune Style) */}
              {data.solution && (
                 <div className="w-full mt-auto pt-6 border-t-2 border-dashed border-gray-400">
                     <p className="text-xs uppercase font-bold text-black mb-3 tracking-[0.3em]">{data.stickers?.[1] || '✨'} Soluzione Misteriosa {data.stickers?.[2] || '✨'}</p>
