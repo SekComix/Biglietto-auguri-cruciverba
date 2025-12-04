@@ -1,7 +1,7 @@
 import { GoogleGenAI, Type } from "@google/genai";
 import { CrosswordData, ManualInput, ThemeType, CustomImages } from '../types';
 
-// SCHEMA SEMPLIFICATO: Rimosso 'message', 'recipientName', etc. L'IA deve solo fare la griglia.
+// SCHEMA OTTIMIZZATO
 const crosswordSchema = {
   type: Type.OBJECT,
   properties: {
@@ -54,6 +54,9 @@ const getApiKey = () => {
   return key;
 };
 
+// Funzione di pausa per il retry
+const sleep = (ms: number) => new Promise(resolve => setTimeout(resolve, ms));
+
 export const generateCrossword = async (
   mode: 'ai' | 'manual',
   theme: ThemeType,
@@ -71,87 +74,97 @@ export const generateCrossword = async (
 
   let prompt = "";
   
-  // Prompt OTTIMIZZATO AL MASSIMO
-  // Non chiediamo titolo o messaggio. Solo la logica della griglia.
+  // Prompt minimalista per ridurre token e carico server
   const commonInstructions = `
-    Sei un motore logico per cruciverba.
-    Output: SOLO JSON.
-    
-    VINCOLI DI VELOCITÀ:
-    1. Griglia MINUSCOLA: Max 8x8.
-    2. Parole: Max 5 o 6 totali.
-    3. Definizioni brevissime.
-    4. Coordinate 0-indexed.
+    Output: SOLO JSON valido. Nessun testo extra.
+    Task: Crea cruciverba compatto.
+    Vincoli: Max 6 parole totali. Griglia max 8x8.
   `;
 
   let solutionInstructions = "";
   if (hiddenSolutionWord) {
     const cleanSol = hiddenSolutionWord.toUpperCase().replace(/[^A-Z]/g, '');
-    solutionInstructions = `
-      La frase segreta è "${cleanSol}".
-      Indica le coordinate (x,y) delle celle che formano questa parola prendendo le lettere dalla griglia.
-      Se non riesci a formarla, ignora il campo 'solution'.
-    `;
+    solutionInstructions = `Parola segreta: "${cleanSol}". Coordinate celle soluzione in 'solution.cells'.`;
   }
 
   if (mode === 'manual') {
     const inputs = inputData as ManualInput[];
     const wordListString = inputs.map(i => `"${i.word.toUpperCase()}" (${i.clue})`).join(", ");
-    prompt = `Crea griglia JSON con queste parole: ${wordListString}. ${commonInstructions} ${solutionInstructions}`;
+    prompt = `Griglia JSON con parole: ${wordListString}. ${commonInstructions} ${solutionInstructions}`;
   } else {
     const topic = inputData as string;
-    prompt = `Crea un Micro-Cruciverba (5 parole) sul tema: "${topic}". Definizioni semplici. ${commonInstructions} ${solutionInstructions}`;
+    prompt = `Cruciverba 6 parole tema: "${topic}". Definizioni brevi. ${commonInstructions} ${solutionInstructions}`;
   }
 
-  try {
-    const response = await ai.models.generateContent({
-      model: 'gemini-2.5-flash',
-      contents: prompt,
-      config: {
-        responseMimeType: "application/json",
-        responseSchema: crosswordSchema,
-        temperature: 0.1, // Bassissima per massima velocità e logica
-      },
-    });
+  // TENTATIVI MULTIPLI (RETRY LOGIC)
+  let attempts = 0;
+  const maxAttempts = 3;
 
-    if (response.text) {
-      const rawData = JSON.parse(response.text);
+  while (attempts < maxAttempts) {
+    try {
+      const response = await ai.models.generateContent({
+        model: 'gemini-2.5-flash',
+        contents: prompt,
+        config: {
+          responseMimeType: "application/json",
+          responseSchema: crosswordSchema,
+          temperature: 0.1,
+        },
+      });
+
+      if (response.text) {
+        const rawData = JSON.parse(response.text);
+        
+        const defaultTitle = theme === 'birthday' ? `Auguri ${extraData?.recipientName}!` : 
+                             theme === 'christmas' ? `Buon Natale ${extraData?.recipientName}!` :
+                             `Per ${extraData?.recipientName}`;
+
+        const defaultMessage = `Un piccolo gioco dedicato a te per celebrare questo giorno speciale. Risolvi il cruciverba e scopri la sorpresa!`;
+
+        const finalData: CrosswordData = {
+            title: defaultTitle,
+            message: defaultMessage,
+            width: rawData.width,
+            height: rawData.height,
+            words: rawData.words.map((w: any, idx: number) => ({ 
+                ...w, 
+                id: `word-${idx}`,
+                word: w.word.toUpperCase().trim() 
+            })),
+            solution: rawData.solution,
+            theme: theme,
+            recipientName: extraData?.recipientName || '',
+            eventDate: extraData?.eventDate || '',
+            images: extraData?.images,
+            stickers: extraData?.stickers
+        };
+        
+        return finalData;
+      }
+      throw new Error("Risposta vuota dall'IA");
+
+    } catch (error: any) {
+      console.error(`Tentativo ${attempts + 1} fallito:`, error);
+      attempts++;
+
+      // Gestione specifica Errori 503 (Overloaded) o 429 (Too Many Requests)
+      if (attempts < maxAttempts && (error.status === 503 || error.status === 429 || error.message?.includes('overloaded'))) {
+         console.log(`Server carico. Attendo ${attempts * 2} secondi prima di riprovare...`);
+         await sleep(2000 * attempts); // Backoff: aspetta 2s, poi 4s
+         continue;
+      }
       
-      // Costruiamo noi l'oggetto finale client-side per risparmiare tempo all'IA
-      const defaultTitle = theme === 'birthday' ? `Auguri ${extraData?.recipientName}!` : 
-                           theme === 'christmas' ? `Buon Natale ${extraData?.recipientName}!` :
-                           `Per ${extraData?.recipientName}`;
-
-      const defaultMessage = `Un piccolo gioco dedicato a te per celebrare questo giorno speciale. Risolvi il cruciverba e scopri la sorpresa!`;
-
-      const finalData: CrosswordData = {
-          title: defaultTitle,
-          message: defaultMessage, // Messaggio standard immediato
-          width: rawData.width,
-          height: rawData.height,
-          words: rawData.words.map((w: any, idx: number) => ({ 
-              ...w, 
-              id: `word-${idx}`,
-              word: w.word.toUpperCase().trim() 
-          })),
-          solution: rawData.solution,
-          theme: theme,
-          recipientName: extraData?.recipientName || '',
-          eventDate: extraData?.eventDate || '',
-          images: extraData?.images,
-          stickers: extraData?.stickers
-      };
-      
-      return finalData;
+      // Se è l'ultimo tentativo o un errore diverso, lancia l'errore
+      if (attempts === maxAttempts) {
+         if (error.status === 503) {
+            throw new Error("I server di Google sono sovraccarichi. Riprova tra un minuto.");
+         }
+         throw error;
+      }
     }
-    throw new Error("Nessuna risposta generata");
-  } catch (error: any) {
-    console.error("Gemini Error:", error);
-    if (error.status === 429) {
-       throw new Error("Troppe richieste. Attendi qualche secondo.");
-    }
-    throw error;
   }
+
+  throw new Error("Impossibile generare il cruciverba al momento.");
 };
 
 export const regenerateGreeting = async (
@@ -163,14 +176,8 @@ export const regenerateGreeting = async (
     const apiKey = getApiKey();
     const ai = new GoogleGenAI({ apiKey });
 
-    const tones = {
-        funny: "divertente e spiritoso",
-        heartfelt: "dolce ed emozionante",
-        rhyme: "una breve rima natalizia/festiva"
-    };
-
-    // Prompt separato per il testo - molto veloce
-    const prompt = `Scrivi un breve messaggio di auguri (max 2 frasi) per ${recipient}. Tema: ${theme}. Stile: ${tones[tone]}.`;
+    // Prompt super veloce per il testo
+    const prompt = `Messaggio auguri breve (max 20 parole) per ${recipient}. Tema: ${theme}. Tono: ${tone}.`;
 
     try {
         const response = await ai.models.generateContent({
