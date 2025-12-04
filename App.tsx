@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import Creator from './components/Creator';
 import CrosswordGrid from './components/CrosswordGrid';
 import { CrosswordData, ThemeType } from './types';
@@ -19,6 +19,27 @@ const App: React.FC = () => {
   const activeTheme = puzzleData?.theme || 'christmas';
   const bgClass = BG_STYLES[activeTheme] || BG_STYLES.christmas;
 
+  // Protezione contro la perdita accidentale dei dati
+  useEffect(() => {
+    const handleBeforeUnload = (e: BeforeUnloadEvent) => {
+      if (puzzleData) {
+        const message = "Sei sicuro di voler uscire? Perderai il tuo cruciverba.";
+        e.preventDefault();
+        e.returnValue = message;
+        return message;
+      }
+    };
+
+    window.addEventListener('beforeunload', handleBeforeUnload);
+    return () => window.removeEventListener('beforeunload', handleBeforeUnload);
+  }, [puzzleData]);
+
+  const handleNewPuzzle = () => {
+      if (window.confirm("Sei sicuro di voler ricominciare? Il cruciverba attuale andrà perso.")) {
+          setPuzzleData(null);
+      }
+  };
+
   return (
     <div className={`min-h-screen ${bgClass} p-4 pb-12 font-body transition-all duration-500`}>
       
@@ -36,7 +57,7 @@ const App: React.FC = () => {
          </div>
          {puzzleData && (
             <button 
-              onClick={() => setPuzzleData(null)}
+              onClick={handleNewPuzzle}
               className="flex items-center gap-2 bg-white/10 hover:bg-white/20 text-white px-4 py-2 rounded-full backdrop-blur-sm transition-all text-sm font-bold shadow-sm border border-white/20"
             >
               <Edit3 size={16} />
@@ -58,7 +79,6 @@ const App: React.FC = () => {
                    activeTheme === 'birthday' ? 'font-fun' : 
                    activeTheme === 'elegant' ? 'font-elegant' : 'font-hand'
                 }`}>{puzzleData.title}</h2>
-                <p className="opacity-90 max-w-lg mx-auto font-medium">{puzzleData.message}</p>
              </div>
              
              <CrosswordGrid 
