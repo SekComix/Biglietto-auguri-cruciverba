@@ -61,54 +61,61 @@ export const generateCrossword = async (
   mode: 'ai' | 'manual',
   theme: ThemeType,
   inputData: string | ManualInput[],
-  hiddenSolutionWord?: string,
-  extraData?: {
+  hiddenSolutionWord: string | undefined,
+  extraData: {
     recipientName: string;
     eventDate: string;
     images?: CustomImages;
     stickers?: string[];
-  }
+  },
+  onStatusUpdate?: (status: string) => void
 ): Promise<CrosswordData> => {
   const apiKey = getApiKey();
   const ai = new GoogleGenAI({ apiKey });
 
   let prompt = "";
   
-  // Prompt minimalista per ridurre token e carico server
+  // Prompt ULTRARAPIDO
+  // 4 parole, griglia 6x6 è quasi istantaneo.
   const commonInstructions = `
-    Output: SOLO JSON valido. Nessun testo extra.
-    Task: Crea cruciverba compatto.
-    Vincoli: Max 6 parole totali. Griglia max 8x8.
+    Output: SOLO JSON.
+    Task: Crea MICRO-cruciverba.
+    Vincoli: 
+    - 4 PAROLE TOTALI.
+    - Griglia 6x6.
+    - Definizioni brevissime (max 3 parole).
   `;
 
   let solutionInstructions = "";
   if (hiddenSolutionWord) {
     const cleanSol = hiddenSolutionWord.toUpperCase().replace(/[^A-Z]/g, '');
-    solutionInstructions = `Parola segreta: "${cleanSol}". Coordinate celle soluzione in 'solution.cells'.`;
+    solutionInstructions = `Parola segreta: "${cleanSol}". Coordinate celle in 'solution.cells'.`;
   }
 
   if (mode === 'manual') {
     const inputs = inputData as ManualInput[];
     const wordListString = inputs.map(i => `"${i.word.toUpperCase()}" (${i.clue})`).join(", ");
-    prompt = `Griglia JSON con parole: ${wordListString}. ${commonInstructions} ${solutionInstructions}`;
+    prompt = `Griglia JSON con queste parole: ${wordListString}. ${commonInstructions} ${solutionInstructions}`;
   } else {
     const topic = inputData as string;
-    prompt = `Cruciverba 6 parole tema: "${topic}". Definizioni brevi. ${commonInstructions} ${solutionInstructions}`;
+    prompt = `Cruciverba 4 parole tema: "${topic}". ${commonInstructions} ${solutionInstructions}`;
   }
 
-  // TENTATIVI MULTIPLI (RETRY LOGIC)
   let attempts = 0;
   const maxAttempts = 3;
 
   while (attempts < maxAttempts) {
     try {
+      attempts++;
+      if (onStatusUpdate) onStatusUpdate(attempts > 1 ? `Tentativo ${attempts} di ${maxAttempts}...` : "Elaborazione in corso...");
+
       const response = await ai.models.generateContent({
         model: 'gemini-2.5-flash',
         contents: prompt,
         config: {
           responseMimeType: "application/json",
           responseSchema: crosswordSchema,
-          temperature: 0.1,
+          temperature: 0.1, // Zero creatività sulla struttura = massima velocità
         },
       });
 
@@ -119,7 +126,7 @@ export const generateCrossword = async (
                              theme === 'christmas' ? `Buon Natale ${extraData?.recipientName}!` :
                              `Per ${extraData?.recipientName}`;
 
-        const defaultMessage = `Un piccolo gioco dedicato a te per celebrare questo giorno speciale. Risolvi il cruciverba e scopri la sorpresa!`;
+        const defaultMessage = `Auguri! Risolvi questo piccolo gioco pensato apposta per te.`;
 
         const finalData: CrosswordData = {
             title: defaultTitle,
@@ -144,27 +151,29 @@ export const generateCrossword = async (
       throw new Error("Risposta vuota dall'IA");
 
     } catch (error: any) {
-      console.error(`Tentativo ${attempts + 1} fallito:`, error);
-      attempts++;
-
-      // Gestione specifica Errori 503 (Overloaded) o 429 (Too Many Requests)
-      if (attempts < maxAttempts && (error.status === 503 || error.status === 429 || error.message?.includes('overloaded'))) {
-         console.log(`Server carico. Attendo ${attempts * 2} secondi prima di riprovare...`);
-         await sleep(2000 * attempts); // Backoff: aspetta 2s, poi 4s
+      console.error(`Tentativo ${attempts} fallito:`, error);
+      
+      const isOverloaded = error.status === 503 || error.status === 429 || error.message?.includes('overloaded');
+      
+      if (attempts < maxAttempts) {
+         if (isOverloaded) {
+             if (onStatusUpdate) onStatusUpdate(`Server carico. Attendo... (${attempts}/${maxAttempts})`);
+             await sleep(1500 * attempts); 
+         } else {
+             // Se è un errore diverso (es. JSON malformato), riprova subito
+             if (onStatusUpdate) onStatusUpdate(`Ricalcolo incroci... (${attempts}/${maxAttempts})`);
+         }
          continue;
       }
       
-      // Se è l'ultimo tentativo o un errore diverso, lancia l'errore
-      if (attempts === maxAttempts) {
-         if (error.status === 503) {
-            throw new Error("I server di Google sono sovraccarichi. Riprova tra un minuto.");
-         }
-         throw error;
+      if (isOverloaded) {
+          throw new Error("I server sono troppo occupati. Riprova tra un istante.");
       }
+      throw error;
     }
   }
 
-  throw new Error("Impossibile generare il cruciverba al momento.");
+  throw new Error("Impossibile generare il cruciverba. Riprova con un argomento più semplice.");
 };
 
 export const regenerateGreeting = async (
@@ -176,8 +185,7 @@ export const regenerateGreeting = async (
     const apiKey = getApiKey();
     const ai = new GoogleGenAI({ apiKey });
 
-    // Prompt super veloce per il testo
-    const prompt = `Messaggio auguri breve (max 20 parole) per ${recipient}. Tema: ${theme}. Tono: ${tone}.`;
+    const prompt = `Messaggio auguri 1 frase per ${recipient}. Tema: ${theme}. Tono: ${tone}.`;
 
     try {
         const response = await ai.models.generateContent({
