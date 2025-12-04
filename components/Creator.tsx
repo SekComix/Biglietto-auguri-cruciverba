@@ -83,7 +83,7 @@ const Creator: React.FC<CreatorProps> = ({ onCreated }) => {
     if (loading) return; 
     
     setLoading(true);
-    setStatusMsg("Inizio creazione...");
+    setStatusMsg("Costruisco la griglia...");
     setError(null);
 
     try {
@@ -112,13 +112,13 @@ const Creator: React.FC<CreatorProps> = ({ onCreated }) => {
           images: { extraImage, photo },
           stickers: selectedStickers
         },
-        (msg) => setStatusMsg(msg) // Callback per aggiornare lo stato
+        (msg) => setStatusMsg(msg)
       );
       
       onCreated(data);
     } catch (err: any) {
       console.error(err);
-      setError(err.message || "Errore sconosciuto. Riprova.");
+      setError(err.message || "Errore. Riprova con meno parole.");
     } finally {
       setLoading(false);
     }
@@ -130,10 +130,16 @@ const Creator: React.FC<CreatorProps> = ({ onCreated }) => {
       {/* Loading Overlay */}
       {loading && (
         <div className="absolute inset-0 bg-white/95 z-50 flex items-center justify-center backdrop-blur-sm cursor-wait">
-             <div className="text-center p-8 bg-white rounded-3xl shadow-xl border-4 border-blue-100 max-w-sm mx-4">
-                 <Loader2 className="w-16 h-16 text-blue-600 animate-spin mx-auto mb-4" />
-                 <h3 className="text-xl font-bold text-gray-800 mb-2">Creazione in corso...</h3>
-                 <p className="text-blue-600 font-bold text-sm animate-pulse">{statusMsg}</p>
+             <div className="text-center p-8 bg-white rounded-3xl shadow-xl border-4 border-blue-100 max-w-sm mx-4 animate-in fade-in zoom-in duration-300">
+                 <div className="relative mb-4 mx-auto w-16 h-16">
+                    <Loader2 className="w-16 h-16 text-blue-600 animate-spin absolute inset-0" />
+                    <Gift className="w-6 h-6 text-blue-600 absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2" />
+                 </div>
+                 <h3 className="text-xl font-bold text-gray-800 mb-2">Un attimo...</h3>
+                 <p className="text-gray-500 text-sm mb-2">{statusMsg}</p>
+                 <div className="w-full bg-gray-200 h-1 rounded-full overflow-hidden">
+                    <div className="h-full bg-blue-500 animate-[pulse_1s_ease-in-out_infinite] w-2/3"></div>
+                 </div>
              </div>
         </div>
       )}
@@ -141,7 +147,7 @@ const Creator: React.FC<CreatorProps> = ({ onCreated }) => {
       <div className={`transition-opacity duration-500 ${loading ? 'opacity-20 pointer-events-none' : 'opacity-100'}`}>
           <div className="text-center mb-8">
             <h2 className="font-bold text-3xl md:text-4xl text-gray-800 mb-2 font-body">Crea il Tuo Biglietto</h2>
-            <p className="text-gray-500">Intelligenza Artificiale v3.0 (Turbo)</p>
+            <p className="text-gray-500">Intelligenza Artificiale v4.0 (Super Veloce)</p>
           </div>
 
           {/* Theme */}
