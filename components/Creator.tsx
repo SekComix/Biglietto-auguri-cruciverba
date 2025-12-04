@@ -39,6 +39,7 @@ const Creator: React.FC<CreatorProps> = ({ onCreated }) => {
   ]);
 
   const [loading, setLoading] = useState(false);
+  const [statusMsg, setStatusMsg] = useState('');
   const [error, setError] = useState<string | null>(null);
 
   // File Handlers
@@ -82,6 +83,7 @@ const Creator: React.FC<CreatorProps> = ({ onCreated }) => {
     if (loading) return; 
     
     setLoading(true);
+    setStatusMsg("Inizio creazione...");
     setError(null);
 
     try {
@@ -109,7 +111,8 @@ const Creator: React.FC<CreatorProps> = ({ onCreated }) => {
           eventDate,
           images: { extraImage, photo },
           stickers: selectedStickers
-        }
+        },
+        (msg) => setStatusMsg(msg) // Callback per aggiornare lo stato
       );
       
       onCreated(data);
@@ -130,7 +133,7 @@ const Creator: React.FC<CreatorProps> = ({ onCreated }) => {
              <div className="text-center p-8 bg-white rounded-3xl shadow-xl border-4 border-blue-100 max-w-sm mx-4">
                  <Loader2 className="w-16 h-16 text-blue-600 animate-spin mx-auto mb-4" />
                  <h3 className="text-xl font-bold text-gray-800 mb-2">Creazione in corso...</h3>
-                 <p className="text-gray-500 text-sm">Se i server sono carichi, potrei metterci qualche secondo in più per riprovare automaticamente.</p>
+                 <p className="text-blue-600 font-bold text-sm animate-pulse">{statusMsg}</p>
              </div>
         </div>
       )}
@@ -138,7 +141,7 @@ const Creator: React.FC<CreatorProps> = ({ onCreated }) => {
       <div className={`transition-opacity duration-500 ${loading ? 'opacity-20 pointer-events-none' : 'opacity-100'}`}>
           <div className="text-center mb-8">
             <h2 className="font-bold text-3xl md:text-4xl text-gray-800 mb-2 font-body">Crea il Tuo Biglietto</h2>
-            <p className="text-gray-500">Intelligenza Artificiale v2.5 (Veloce)</p>
+            <p className="text-gray-500">Intelligenza Artificiale v3.0 (Turbo)</p>
           </div>
 
           {/* Theme */}
