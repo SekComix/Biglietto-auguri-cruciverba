@@ -27,7 +27,8 @@ export interface SolutionData {
 
 export interface CustomImages {
   extraImage?: string; // Base64 string (Logo, QR, Vignetta)
-  photo?: string; // Base64 string (Foto Ricordo)
+  photos?: string[]; // Array of Base64 strings (Collage)
+  photo?: string; // Legacy support
 }
 
 export interface CrosswordData {
