@@ -15,6 +15,7 @@ const BG_STYLES: Record<ThemeType, string> = {
 
 const App: React.FC = () => {
   const [puzzleData, setPuzzleData] = useState<CrosswordData | null>(null);
+  const [isEditing, setIsEditing] = useState(false);
 
   const activeTheme = puzzleData?.theme || 'christmas';
   const bgClass = BG_STYLES[activeTheme] || BG_STYLES.christmas;
@@ -22,7 +23,7 @@ const App: React.FC = () => {
   // Protezione contro la perdita accidentale dei dati
   useEffect(() => {
     const handleBeforeUnload = (e: BeforeUnloadEvent) => {
-      if (puzzleData) {
+      if (puzzleData && !isEditing) {
         const message = "Sei sicuro di voler uscire? Perderai il tuo cruciverba.";
         e.preventDefault();
         e.returnValue = message;
@@ -32,12 +33,22 @@ const App: React.FC = () => {
 
     window.addEventListener('beforeunload', handleBeforeUnload);
     return () => window.removeEventListener('beforeunload', handleBeforeUnload);
-  }, [puzzleData]);
+  }, [puzzleData, isEditing]);
 
   const handleNewPuzzle = () => {
-      if (window.confirm("Sei sicuro di voler ricominciare? Il cruciverba attuale andrà perso.")) {
+      if (window.confirm("Sei sicuro di voler ricominciare da zero?")) {
           setPuzzleData(null);
+          setIsEditing(false);
       }
+  };
+
+  const handleEdit = () => {
+      setIsEditing(true);
+  };
+
+  const handleCreated = (data: CrosswordData) => {
+      setPuzzleData(data);
+      setIsEditing(false);
   };
 
   return (
@@ -55,7 +66,7 @@ const App: React.FC = () => {
               Enigmistica Auguri
             </h1>
          </div>
-         {puzzleData && (
+         {puzzleData && !isEditing && (
             <button 
               onClick={handleNewPuzzle}
               className="flex items-center gap-2 bg-white/10 hover:bg-white/20 text-white px-4 py-2 rounded-full backdrop-blur-sm transition-all text-sm font-bold shadow-sm border border-white/20"
@@ -67,9 +78,12 @@ const App: React.FC = () => {
       </header>
 
       <main className="container mx-auto">
-        {!puzzleData ? (
+        {!puzzleData || isEditing ? (
           <div className="flex flex-col items-center gap-8 animate-fade-in">
-             <Creator onCreated={setPuzzleData} />
+             <Creator 
+                onCreated={handleCreated} 
+                initialData={isEditing ? puzzleData : null}
+             />
           </div>
         ) : (
           <div className="animate-fade-in">
@@ -84,6 +98,7 @@ const App: React.FC = () => {
              <CrosswordGrid 
                 data={puzzleData} 
                 onComplete={() => {}} 
+                onEdit={handleEdit}
              />
           </div>
         )}
