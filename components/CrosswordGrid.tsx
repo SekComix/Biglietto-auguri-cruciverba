@@ -16,10 +16,18 @@ const WowEffect: React.FC<{ theme: ThemeType }> = ({ theme }) => {
     useEffect(() => {
         const count = 30;
         const newParticles = [];
-        const chars = theme === 'christmas' ? ['❄️', '✨', '⚪'] :
-                      theme === 'birthday' ? ['🎊', '🎈', '✨'] :
-                      theme === 'easter' ? ['🌸', '🦋', '🍃'] :
-                      ['✨', '⭐', '💫']; // Elegant
+        let chars = ['✨', '⭐', '💫']; // Generic
+
+        switch(theme) {
+            case 'christmas': chars = ['❄️', '✨', '⚪']; break;
+            case 'birthday': chars = ['🎊', '🎈', '✨']; break;
+            case 'easter': chars = ['🌸', '🦋', '🍃']; break;
+            case 'halloween': chars = ['🦇', '🎃', '👻']; break;
+            case 'graduation': chars = ['🎓', '📜', '🌟']; break;
+            case 'confirmation': chars = ['🕊️', '⚪', '✨']; break;
+            case 'communion': chars = ['🌾', '🕊️', '✨']; break;
+            case 'wedding': chars = ['❤️', '💍', '🕊️']; break;
+        }
 
         for(let i=0; i<count; i++) {
             newParticles.push({
@@ -113,6 +121,46 @@ const THEME_ASSETS: Record<ThemeType, any> = {
     watermark: '🌸',
     accentColor: '#16A34A', 
     bgClass: 'bg-green-50'
+  },
+  halloween: {
+    fontTitle: 'font-christmas', // Looks spooky enough
+    printBorder: 'border-[6px] border-solid border-orange-500',
+    decoration: '🎃',
+    watermark: '👻',
+    accentColor: '#C2410C', // Orange-700
+    bgClass: 'bg-orange-50'
+  },
+  graduation: {
+    fontTitle: 'font-elegant',
+    printBorder: 'border-4 border-double border-red-900',
+    decoration: '🎓',
+    watermark: '📜',
+    accentColor: '#991B1B', // Red-800
+    bgClass: 'bg-red-50'
+  },
+  confirmation: {
+    fontTitle: 'font-script',
+    printBorder: 'border-[3px] border-solid border-gray-400',
+    decoration: '🕊️',
+    watermark: '⛪',
+    accentColor: '#4338CA', // Indigo-700
+    bgClass: 'bg-indigo-50'
+  },
+  communion: {
+    fontTitle: 'font-hand',
+    printBorder: 'border-[5px] border-double border-yellow-500',
+    decoration: '🥖',
+    watermark: '🍇',
+    accentColor: '#CA8A04', // Yellow-600
+    bgClass: 'bg-yellow-50'
+  },
+  wedding: {
+    fontTitle: 'font-script',
+    printBorder: 'border-[1px] border-solid border-rose-300',
+    decoration: '💍',
+    watermark: '❤️',
+    accentColor: '#BE123C', // Rose-700
+    bgClass: 'bg-rose-50'
   },
   elegant: {
     fontTitle: 'font-elegant',
