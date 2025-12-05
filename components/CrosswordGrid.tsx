@@ -14,35 +14,40 @@ const THEME_ASSETS: Record<ThemeType, any> = {
     printBorder: 'border-double border-8 border-red-800',
     decoration: '🎄',
     watermark: '🎄',
-    accentColor: '#165B33'
+    accentColor: '#165B33',
+    bgClass: 'bg-red-50'
   },
   birthday: {
     fontTitle: 'font-fun',
-    printBorder: 'border-dashed border-4 border-pink-500',
-    decoration: '🎈',
-    watermark: '🎂',
-    accentColor: '#FF006E'
+    printBorder: 'border-[6px] border-dashed border-pink-500', // Bordo più spesso e divertente
+    decoration: '🎂',
+    watermark: '🎉',
+    accentColor: '#DB2777', // Pink-600
+    bgClass: 'bg-pink-50'
   },
   easter: {
     fontTitle: 'font-hand',
-    printBorder: 'border-dotted border-8 border-green-400',
-    decoration: '🐰',
-    watermark: '🐣',
-    accentColor: '#3A86FF'
+    printBorder: 'border-[8px] border-dotted border-green-500', // Bordo "uovo di pasqua"
+    decoration: '🐣',
+    watermark: '🌸',
+    accentColor: '#16A34A', // Green-600
+    bgClass: 'bg-green-50'
   },
   elegant: {
     fontTitle: 'font-elegant',
-    printBorder: 'border-4 border-double border-gray-800',
-    decoration: '✨',
-    watermark: '⚜️',
-    accentColor: '#121212'
+    printBorder: 'border-4 border-double border-gray-900', // Doppio bordo classico
+    decoration: '⚜️',
+    watermark: '✨',
+    accentColor: '#111827', // Gray-900
+    bgClass: 'bg-gray-50'
   },
   generic: {
      fontTitle: 'font-body',
      printBorder: 'border-4 border-gray-300',
      decoration: '🎁',
      watermark: '🎁',
-     accentColor: '#000000'
+     accentColor: '#000000',
+     bgClass: 'bg-white'
   }
 };
 
@@ -63,8 +68,14 @@ const CrosswordGrid: React.FC<CrosswordGridProps> = ({ data, onComplete }) => {
   const inputRefs = useRef<(HTMLInputElement | null)[][]>([]);
 
   const themeAssets = THEME_ASSETS[data.theme] || THEME_ASSETS.generic;
+  const isCrossword = data.type === 'crossword';
 
   useEffect(() => {
+    if (!isCrossword) {
+        setEditableMessage(data.message);
+        return;
+    }
+
     // 1. Initialize empty grid
     const newGrid: CellData[][] = Array(data.height).fill(null).map((_, y) =>
       Array(data.width).fill(null).map((_, x) => ({ x, y, userChar: '', partOfWords: [] }))
@@ -163,14 +174,12 @@ const CrosswordGrid: React.FC<CrosswordGridProps> = ({ data, onComplete }) => {
   };
 
   const activeWord = useMemo(() => {
-    if (!selectedCell) return null;
+    if (!selectedCell || !isCrossword) return null;
     const cell = grid[selectedCell.y]?.[selectedCell.x];
     if (!cell || !cell.partOfWords.length) return null;
     return data.words.find(w => cell.partOfWords.includes(w.id) && w.direction === currentDirection) || 
            data.words.find(w => cell.partOfWords.includes(w.id));
-  }, [selectedCell, currentDirection, data]);
-
-  if (!grid.length) return <div>Caricamento...</div>;
+  }, [selectedCell, currentDirection, data, isCrossword]);
 
   const renderGridCells = (isPrint = false) => (
     <div 
@@ -265,19 +274,21 @@ const CrosswordGrid: React.FC<CrosswordGridProps> = ({ data, onComplete }) => {
       {/* --- SCREEN MODE --- */}
       <div className="max-w-6xl mx-auto no-print pb-20">
       
-        {/* NEW TOOLBAR */}
+        {/* TOOLBAR */}
         <div className="bg-white/90 backdrop-blur rounded-full px-6 py-2 mb-6 flex justify-between items-center shadow-lg border-2 border-white/50">
              <div className="flex items-center gap-2 text-sm font-bold text-gray-500 uppercase tracking-widest">
                  <Sparkles size={16} className="text-yellow-500"/> Anteprima
              </div>
              <div className="flex gap-2">
-                 <button 
-                    onClick={() => setRevealAnswers(!revealAnswers)}
-                    className="hover:bg-gray-100 text-gray-700 p-2 px-4 rounded-full flex items-center gap-2 font-bold transition-all text-sm"
-                  >
-                     {revealAnswers ? <EyeOff size={16} className="text-blue-600" /> : <Eye size={16} />}
-                     <span className="hidden sm:inline">{revealAnswers ? 'Nascondi' : 'Soluzioni'}</span>
-                  </button>
+                 {isCrossword && (
+                    <button 
+                        onClick={() => setRevealAnswers(!revealAnswers)}
+                        className="hover:bg-gray-100 text-gray-700 p-2 px-4 rounded-full flex items-center gap-2 font-bold transition-all text-sm"
+                    >
+                        {revealAnswers ? <EyeOff size={16} className="text-blue-600" /> : <Eye size={16} />}
+                        <span className="hidden sm:inline">{revealAnswers ? 'Nascondi' : 'Soluzioni'}</span>
+                    </button>
+                 )}
 
                   <button 
                     onClick={() => setShowPrintGuide(true)} 
@@ -292,13 +303,29 @@ const CrosswordGrid: React.FC<CrosswordGridProps> = ({ data, onComplete }) => {
             <h3 className="text-center font-bold text-gray-400 uppercase text-xs mb-4">Pagina Interna</h3>
             
             <div className="flex flex-col md:flex-row gap-8 bg-white border shadow-sm p-4 min-h-[500px]">
-                 {/* LEFT: GRID */}
-                 <div className="flex-1 border-r border-dashed border-gray-200 pr-4">
-                     <h2 className="text-center font-bold mb-4" style={{ color: themeAssets.accentColor }}>Il Cruciverba</h2>
-                     <div className="max-w-[300px] mx-auto">{renderGridCells(false)}</div>
+                 
+                 {/* LEFT SIDE: GRID or IMAGE */}
+                 <div className="flex-1 border-r border-dashed border-gray-200 pr-4 flex flex-col justify-center items-center relative overflow-hidden">
+                     {isCrossword ? (
+                         <>
+                            <h2 className="text-center font-bold mb-4" style={{ color: themeAssets.accentColor }}>Il Cruciverba</h2>
+                            <div className="max-w-[300px] mx-auto">{renderGridCells(false)}</div>
+                         </>
+                     ) : (
+                         <div className="text-center w-full h-full flex items-center justify-center p-8">
+                             {data.images?.photo ? (
+                                <img src={data.images.photo} className="max-h-80 w-auto object-cover shadow-xl border-8 border-white rotate-2 mx-auto transform transition-transform hover:rotate-0 duration-500" />
+                             ) : (
+                                <div className="text-[180px] leading-none opacity-20 filter grayscale animate-pulse">{themeAssets.decoration}</div>
+                             )}
+                             <div className="absolute bottom-4 left-0 right-0 text-center">
+                                <p className="font-serif italic text-gray-400">Solo per te...</p>
+                             </div>
+                         </div>
+                     )}
                  </div>
 
-                 {/* RIGHT: CONTENT EDITING */}
+                 {/* RIGHT SIDE: CONTENT EDITING */}
                  <div className="flex-1 flex flex-col items-center justify-center text-center">
                       <div className="w-full text-right border-b mb-4">
                          <p className="font-serif italic">{data.eventDate || 'Data Evento'}</p>
@@ -374,42 +401,48 @@ const CrosswordGrid: React.FC<CrosswordGridProps> = ({ data, onComplete }) => {
 
                       <div className="flex gap-4 justify-center">
                           {data.images?.extraImage && <img src={data.images.extraImage} className="h-20 object-contain border p-1" />}
-                          {data.images?.photo && <img src={data.images.photo} className="h-20 object-cover border p-1 shadow-sm" />}
+                          {/* Se Simple Mode, la foto principale è già a sinistra, non la ripetiamo piccola qui */}
+                          {isCrossword && data.images?.photo && <img src={data.images.photo} className="h-20 object-cover border p-1 shadow-sm" />}
                       </div>
                  </div>
             </div>
         </div>
 
-        {/* CLUES LIST */}
-        <div className="bg-white/90 p-6 rounded-xl shadow-xl max-w-2xl mx-auto">
-            <h3 className="font-bold mb-4 text-center">Definizioni</h3>
-            <div className="grid grid-cols-2 gap-8 text-sm">
-                <div>
-                    <h4 className="font-bold text-gray-500 text-xs uppercase border-b mb-2">Orizzontali</h4>
-                    <ul>{data.words.filter(w => w.direction === Direction.ACROSS).map(w => <li key={w.id} className="mb-1"><b className="mr-1">{w.number}.</b>{w.clue} <span className="font-bold text-gray-500">({w.word.length})</span></li>)}</ul>
-                </div>
-                <div>
-                    <h4 className="font-bold text-gray-500 text-xs uppercase border-b mb-2">Verticali</h4>
-                    <ul>{data.words.filter(w => w.direction === Direction.DOWN).map(w => <li key={w.id} className="mb-1"><b className="mr-1">{w.number}.</b>{w.clue} <span className="font-bold text-gray-500">({w.word.length})</span></li>)}</ul>
+        {/* CLUES LIST (Only Crossword) */}
+        {isCrossword && (
+            <div className="bg-white/90 p-6 rounded-xl shadow-xl max-w-2xl mx-auto">
+                <h3 className="font-bold mb-4 text-center">Definizioni</h3>
+                <div className="grid grid-cols-2 gap-8 text-sm">
+                    <div>
+                        <h4 className="font-bold text-gray-500 text-xs uppercase border-b mb-2">Orizzontali</h4>
+                        <ul>{data.words.filter(w => w.direction === Direction.ACROSS).map(w => <li key={w.id} className="mb-1"><b className="mr-1">{w.number}.</b>{w.clue} <span className="font-bold text-gray-500">({w.word.length})</span></li>)}</ul>
+                    </div>
+                    <div>
+                        <h4 className="font-bold text-gray-500 text-xs uppercase border-b mb-2">Verticali</h4>
+                        <ul>{data.words.filter(w => w.direction === Direction.DOWN).map(w => <li key={w.id} className="mb-1"><b className="mr-1">{w.number}.</b>{w.clue} <span className="font-bold text-gray-500">({w.word.length})</span></li>)}</ul>
+                    </div>
                 </div>
             </div>
-        </div>
+        )}
       </div>
 
       {/* --- PRINT MODE (A4 FOLDABLE BOOKLET) --- */}
       
       {/* SHEET 1 (SIDE A): RETRO (Left) + COVER (Right) */}
-      <div className="print-sheet hidden print:flex">
-         <div className="watermark">{themeAssets.watermark}</div>
+      <div className={`print-sheet hidden print:flex ${themeAssets.bgClass}`}>
+         <div className="watermark" style={{ color: themeAssets.accentColor }}>{themeAssets.watermark}</div>
          
          <div className="print-half border-r border-gray-300 border-dashed relative z-10">
-            {/* RETRO VUOTO */}
+            {/* RETRO VUOTO - Potremmo mettere un piccolo logo "Made with AI" in basso */}
+            <div className="mt-auto text-center opacity-50">
+                <p className="text-xs font-sans text-gray-400">Creato con Enigmistica Auguri</p>
+            </div>
          </div>
 
          <div className={`print-half flex-col items-center justify-center text-center p-12 m-4 rounded-xl relative z-10`}>
              <div className={`absolute inset-4 ${themeAssets.printBorder} opacity-50 pointer-events-none`}></div>
              
-             {/* STICKERS ROW - UPDATED TO SHOW ALL SELECTED */}
+             {/* STICKERS ROW */}
              <div className="mb-8 flex justify-center items-center gap-4 flex-wrap max-w-[80%] mx-auto min-h-[120px]">
                 {data.stickers && data.stickers.length > 0 ? (
                     data.stickers.map((s, i) => (
@@ -426,41 +459,57 @@ const CrosswordGrid: React.FC<CrosswordGridProps> = ({ data, onComplete }) => {
              </div>
              
              <div className="mt-auto opacity-75 font-serif italic text-xl text-black">
-                 Una sorpresa da risolvere...
+                 {isCrossword ? "Una sorpresa da risolvere..." : "Un pensiero speciale per te..."}
              </div>
          </div>
       </div>
 
-      {/* SHEET 2 (SIDE B): INSIDE LEFT (Grid) + INSIDE RIGHT (Greetings) */}
-      <div className="print-sheet hidden print:flex">
-         <div className="watermark" style={{ transform: 'translate(-50%, -50%) rotate(10deg)' }}>{themeAssets.watermark}</div>
+      {/* SHEET 2 (SIDE B): INSIDE LEFT + INSIDE RIGHT */}
+      <div className={`print-sheet hidden print:flex ${themeAssets.bgClass}`}>
+         <div className="watermark" style={{ transform: 'translate(-50%, -50%) rotate(10deg)', color: themeAssets.accentColor }}>{themeAssets.watermark}</div>
 
-         {/* LEFT HALF: PUZZLE */}
-         <div className="print-half p-8 border-r border-gray-300 border-dashed z-10">
-            <h2 className="text-3xl font-bold text-center mb-6 uppercase tracking-wider" style={{ color: themeAssets.accentColor }}>Cruciverba</h2>
+         {/* LEFT HALF */}
+         <div className="print-half p-8 border-r border-gray-300 border-dashed z-10 flex flex-col items-center justify-center">
             
-            <div className="w-full max-w-[90%] mx-auto mb-6 aspect-square bg-white shadow-none border-2 border-gray-800 p-2">
-                {renderGridCells(true)}
-            </div>
-
-            <div className="grid grid-cols-2 gap-4 text-[9px] leading-tight font-sans bg-white/80 p-2 rounded-lg flex-1 overflow-hidden">
-                <div>
-                   <h4 className="font-bold border-b border-black mb-1 text-black">Orizzontali</h4>
-                   <ul className="list-none space-y-1 text-black">
-                      {data.words.filter(w => w.direction === Direction.ACROSS).map(w => (
-                          <li key={w.id}><span className="font-bold">{w.number}.</span> {w.clue} <b>({w.word.length})</b></li>
-                      ))}
-                   </ul>
+            {isCrossword ? (
+                <>
+                    <h2 className="text-3xl font-bold text-center mb-6 uppercase tracking-wider" style={{ color: themeAssets.accentColor }}>Cruciverba</h2>
+                    <div className="w-full max-w-[90%] mx-auto mb-6 aspect-square bg-white shadow-none border-2 border-gray-800 p-2">
+                        {renderGridCells(true)}
+                    </div>
+                    <div className="grid grid-cols-2 gap-4 text-[9px] leading-tight font-sans bg-white/80 p-2 rounded-lg flex-1 overflow-hidden w-full">
+                        <div>
+                           <h4 className="font-bold border-b border-black mb-1 text-black">Orizzontali</h4>
+                           <ul className="list-none space-y-1 text-black">
+                              {data.words.filter(w => w.direction === Direction.ACROSS).map(w => (
+                                  <li key={w.id}><span className="font-bold">{w.number}.</span> {w.clue} <b>({w.word.length})</b></li>
+                              ))}
+                           </ul>
+                        </div>
+                        <div>
+                           <h4 className="font-bold border-b border-black mb-1 text-black">Verticali</h4>
+                           <ul className="list-none space-y-1 text-black">
+                              {data.words.filter(w => w.direction === Direction.DOWN).map(w => (
+                                  <li key={w.id}><span className="font-bold">{w.number}.</span> {w.clue} <b>({w.word.length})</b></li>
+                              ))}
+                           </ul>
+                        </div>
+                    </div>
+                </>
+            ) : (
+                // SIMPLE MODE LAYOUT - LARGE PHOTO OR DECORATION
+                <div className="flex-1 flex flex-col justify-center items-center w-full h-full p-4">
+                    {data.images?.photo ? (
+                        <div className="bg-white p-4 shadow-xl border-b-4 border-r-4 border-gray-300 -rotate-1 max-h-full max-w-full flex items-center justify-center">
+                             <img src={data.images.photo} className="max-h-[140mm] max-w-full object-cover" />
+                        </div>
+                    ) : (
+                        <div className="flex flex-col items-center">
+                            <div className="text-[250px] leading-none opacity-40 animate-pulse">{themeAssets.decoration}</div>
+                        </div>
+                    )}
                 </div>
-                <div>
-                   <h4 className="font-bold border-b border-black mb-1 text-black">Verticali</h4>
-                   <ul className="list-none space-y-1 text-black">
-                      {data.words.filter(w => w.direction === Direction.DOWN).map(w => (
-                          <li key={w.id}><span className="font-bold">{w.number}.</span> {w.clue} <b>({w.word.length})</b></li>
-                      ))}
-                   </ul>
-                </div>
-            </div>
+            )}
          </div>
 
          {/* RIGHT HALF: GREETINGS & SOLUTION */}
@@ -476,7 +525,7 @@ const CrosswordGrid: React.FC<CrosswordGridProps> = ({ data, onComplete }) => {
                     {data.title}
                  </h3>
                  
-                 <div className="font-script text-3xl leading-relaxed whitespace-pre-wrap max-w-sm mx-auto text-black mb-8">
+                 <div className="font-script text-4xl leading-relaxed whitespace-pre-wrap max-w-sm mx-auto text-black mb-8">
                      {editableMessage}
                  </div>
 
@@ -487,7 +536,8 @@ const CrosswordGrid: React.FC<CrosswordGridProps> = ({ data, onComplete }) => {
                         </div>
                      )}
                      
-                     {data.images?.photo && (
+                     {/* Se siamo in modalità crossword, mostriamo la foto qui se non c'è spazio a sinistra. Se semplice, è già a sinistra. */}
+                     {isCrossword && data.images?.photo && (
                         <div className="border-4 border-white shadow bg-white -rotate-3 h-full flex items-center">
                             <img src={data.images.photo} className="max-h-28 w-auto object-cover contrast-125" />
                         </div>
@@ -495,7 +545,8 @@ const CrosswordGrid: React.FC<CrosswordGridProps> = ({ data, onComplete }) => {
                  </div>
              </div>
 
-             {data.solution && (
+             {/* Soluzione visibile solo se è un cruciverba */}
+             {isCrossword && data.solution && (
                 <div className="w-full mt-auto pt-6 border-t-2 border-dashed border-gray-400">
                     <p className="text-xs uppercase font-bold text-black mb-3 tracking-[0.3em]">{data.stickers?.[1] || '✨'} Soluzione Misteriosa {data.stickers?.[2] || '✨'}</p>
                     <div className="flex gap-2 justify-center flex-wrap">
