@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { generateCrossword } from '../services/geminiService';
 import { CrosswordData, ManualInput, ThemeType } from '../types';
-import { Loader2, Wand2, Plus, Trash2, Gift, PartyPopper, CalendarHeart, Crown, KeyRound, Image as ImageIcon, Upload, Calendar, AlertCircle, Grid3X3, MailOpen, Images } from 'lucide-react';
+import { Loader2, Wand2, Plus, Trash2, Gift, PartyPopper, CalendarHeart, Crown, KeyRound, Image as ImageIcon, Upload, Calendar, AlertCircle, Grid3X3, MailOpen, Images, Ghost, GraduationCap, ScrollText, HeartHandshake, BookOpen } from 'lucide-react';
 
 interface CreatorProps {
   onCreated: (data: CrosswordData) => void;
@@ -12,6 +12,11 @@ const THEMES: { id: ThemeType; label: string; icon: any; color: string }[] = [
   { id: 'christmas', label: 'Natale', icon: Gift, color: 'bg-red-600' },
   { id: 'birthday', label: 'Compleanno', icon: PartyPopper, color: 'bg-pink-500' },
   { id: 'easter', label: 'Pasqua', icon: CalendarHeart, color: 'bg-green-400' },
+  { id: 'halloween', label: 'Halloween', icon: Ghost, color: 'bg-orange-500' },
+  { id: 'graduation', label: 'Laurea', icon: GraduationCap, color: 'bg-red-700' },
+  { id: 'confirmation', label: 'Cresima', icon: BookOpen, color: 'bg-indigo-400' },
+  { id: 'communion', label: 'Comunione', icon: ScrollText, color: 'bg-yellow-500' },
+  { id: 'wedding', label: 'Matrimonio', icon: HeartHandshake, color: 'bg-rose-400' },
   { id: 'elegant', label: 'Elegante', icon: Crown, color: 'bg-gray-800' },
 ];
 
@@ -19,8 +24,11 @@ const STICKERS = [
     '🎅', '🎄', '🎁', '❄️', '⛄', // Natale
     '🎂', '🎈', '🎉', '🕯️', '🍰', // Compleanno
     '🐣', '🌸', '🐇', '🥚', '🌷', // Pasqua
-    '🥂', '💍', '💎', '⚜️', '🕊️', // Elegante
-    '❤️', '⭐', '🧸', '🚗', '🐶', '🐱', '🦄' // Extra
+    '🎃', '👻', '🕷️', '🕸️', '🧛', // Halloween
+    '🎓', '📜', '🏆', '📚', '🦉', // Laurea
+    '🕊️', '✝️', '⛪', '🥖', '🍇', // Religiosi (Cresima/Comunione)
+    '💍', '❤️', '👰', '🤵', '💒', // Matrimonio
+    '🥂', '💎', '⚜️', '⭐', '🧸'  // Extra
 ];
 
 export const Creator: React.FC<CreatorProps> = ({ onCreated, initialData }) => {
@@ -305,16 +313,16 @@ export const Creator: React.FC<CreatorProps> = ({ onCreated, initialData }) => {
           {/* 2. Theme */}
           <div className="mb-6">
             <label className="block text-xs font-bold text-gray-400 mb-3 uppercase tracking-wider text-center">2. Evento</label>
-            <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+            <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-5 gap-3">
               {THEMES.map((t) => (
                 <button
                   key={t.id}
                   type="button"
                   onClick={() => setTheme(t.id)}
-                  className={`flex flex-col items-center justify-center p-3 rounded-xl transition-all ${theme === t.id ? `${t.color} text-white scale-105 shadow-lg` : 'bg-gray-100 hover:bg-gray-200'}`}
+                  className={`flex flex-col items-center justify-center p-2 rounded-xl transition-all ${theme === t.id ? `${t.color} text-white scale-105 shadow-lg` : 'bg-gray-100 hover:bg-gray-200'}`}
                 >
-                  <t.icon size={24} className="mb-2" />
-                  <span className="text-xs font-bold">{t.label}</span>
+                  <t.icon size={20} className="mb-1" />
+                  <span className="text-[10px] font-bold">{t.label}</span>
                 </button>
               ))}
             </div>
