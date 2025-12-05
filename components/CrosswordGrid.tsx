@@ -303,6 +303,15 @@ const CrosswordGrid: React.FC<CrosswordGridProps> = ({ data, onComplete }) => {
                       <div className="w-full text-right border-b mb-4">
                          <p className="font-serif italic">{data.eventDate || 'Data Evento'}</p>
                       </div>
+
+                      {/* STICKERS IN PREVIEW */}
+                      {data.stickers && data.stickers.length > 0 && (
+                          <div className="flex gap-2 mb-2 justify-center">
+                              {data.stickers.map((s, i) => (
+                                  <span key={i} className="text-3xl drop-shadow-sm">{s}</span>
+                              ))}
+                          </div>
+                      )}
                       
                       <h3 className={`${themeAssets.fontTitle} text-4xl mb-4`} style={{ color: themeAssets.accentColor }}>{data.title}</h3>
 
@@ -400,8 +409,15 @@ const CrosswordGrid: React.FC<CrosswordGridProps> = ({ data, onComplete }) => {
          <div className={`print-half flex-col items-center justify-center text-center p-12 m-4 rounded-xl relative z-10`}>
              <div className={`absolute inset-4 ${themeAssets.printBorder} opacity-50 pointer-events-none`}></div>
              
-             <div className="mb-12">
-                {data.stickers?.[0] ? <span className="text-[120px] drop-shadow-lg">{data.stickers[0]}</span> : <span className="text-[120px] drop-shadow-lg">{themeAssets.decoration}</span>}
+             {/* STICKERS ROW - UPDATED TO SHOW ALL SELECTED */}
+             <div className="mb-12 flex justify-center items-center gap-6 flex-wrap max-w-[80%] mx-auto min-h-[150px]">
+                {data.stickers && data.stickers.length > 0 ? (
+                    data.stickers.map((s, i) => (
+                        <span key={i} className="text-[90px] leading-none drop-shadow-md">{s}</span>
+                    ))
+                ) : (
+                    <span className="text-[120px] drop-shadow-lg">{themeAssets.decoration}</span>
+                )}
              </div>
              
              <h1 className={`${themeAssets.fontTitle} text-7xl mb-6 leading-tight`} style={{ color: themeAssets.accentColor }}>Per</h1>
