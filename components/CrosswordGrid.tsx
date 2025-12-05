@@ -1,11 +1,12 @@
 import React, { useState, useEffect, useRef, useMemo } from 'react';
 import { CrosswordData, CellData, Direction, ThemeType } from '../types';
 import { regenerateGreeting } from '../services/geminiService';
-import { Printer, Edit, Wand2, Dice5, Eye, EyeOff, Sparkles, Send } from 'lucide-react';
+import { Printer, Edit, Wand2, Dice5, Eye, EyeOff, Sparkles, Send, Settings } from 'lucide-react';
 
 interface CrosswordGridProps {
   data: CrosswordData;
   onComplete: () => void;
+  onEdit: () => void; // Nuova prop per la modifica
 }
 
 const THEME_ASSETS: Record<ThemeType, any> = {
@@ -51,7 +52,7 @@ const THEME_ASSETS: Record<ThemeType, any> = {
   }
 };
 
-const CrosswordGrid: React.FC<CrosswordGridProps> = ({ data, onComplete }) => {
+const CrosswordGrid: React.FC<CrosswordGridProps> = ({ data, onComplete, onEdit }) => {
   const [grid, setGrid] = useState<CellData[][]>([]);
   const [selectedCell, setSelectedCell] = useState<{ x: number; y: number } | null>(null);
   const [currentDirection, setCurrentDirection] = useState<Direction>(Direction.ACROSS);
@@ -280,6 +281,15 @@ const CrosswordGrid: React.FC<CrosswordGridProps> = ({ data, onComplete }) => {
                  <Sparkles size={16} className="text-yellow-500"/> Anteprima
              </div>
              <div className="flex gap-2">
+                 
+                 {/* EDIT BUTTON */}
+                 <button 
+                    onClick={onEdit} 
+                    className="hover:bg-gray-100 text-gray-700 p-2 px-4 rounded-full flex items-center gap-2 font-bold transition-all text-sm border border-gray-200"
+                  >
+                    <Settings size={16} /> <span className="hidden sm:inline">Modifica Dati</span>
+                  </button>
+
                  {isCrossword && (
                     <button 
                         onClick={() => setRevealAnswers(!revealAnswers)}
