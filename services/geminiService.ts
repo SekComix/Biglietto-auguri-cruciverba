@@ -2,7 +2,6 @@ import { GoogleGenAI, Type } from "@google/genai";
 import { CrosswordData, ManualInput, ThemeType, CustomImages } from '../types';
 
 // --- SCHEMA SEMPLIFICATO (SOLO TESTO) ---
-// Chiediamo all'IA solo parole e definizioni. Niente coordinate.
 const wordListSchema = {
   type: Type.OBJECT,
   properties: {
@@ -29,15 +28,12 @@ const getApiKey = () => {
 };
 
 // --- MOTORE DI LAYOUT LOCALE ---
-// Questo algoritmo sostituisce l'IA nel compito difficile di incastrare le parole.
-
 type GridCell = { char: string; wordId?: string };
 type Grid = Map<string, GridCell>; // key: "x,y"
 
 const DIRECTIONS = ['across', 'down'] as const;
 
 function generateLayout(wordsInput: {word: string, clue: string}[], maxGridSize = 12): any[] {
-    // Ordina le parole dalla più lunga alla più corta per facilitare gli incroci
     const wordsToPlace = [...wordsInput]
         .map(w => ({ ...w, word: w.word.toUpperCase().replace(/[^A-Z]/g, '').trim() }))
         .filter(w => w.word.length > 1)
@@ -48,7 +44,6 @@ function generateLayout(wordsInput: {word: string, clue: string}[], maxGridSize 
     const grid: Grid = new Map();
     const placedWords: any[] = [];
     
-    // Posiziona la prima parola al centro
     const firstWord = wordsToPlace[0];
     const startX = Math.floor(maxGridSize / 2) - Math.floor(firstWord.word.length / 2);
     const startY = Math.floor(maxGridSize / 2);
@@ -62,16 +57,10 @@ function generateLayout(wordsInput: {word: string, clue: string}[], maxGridSize 
         number: 1 
     });
 
-    // Tenta di posizionare le altre parole
     for (let i = 1; i < wordsToPlace.length; i++) {
         const currentWord = wordsToPlace[i];
         let placed = false;
-
-        // Cerca un incrocio con le parole già piazzate
-        // Iteriamo su tutte le celle occupate
         const occupiedCoords = Array.from(grid.keys());
-        
-        // Shuffle coordinate per variare layout
         occupiedCoords.sort(() => Math.random() - 0.5);
 
         for (const coordKey of occupiedCoords) {
@@ -79,18 +68,10 @@ function generateLayout(wordsInput: {word: string, clue: string}[], maxGridSize 
             const [cx, cy] = coordKey.split(',').map(Number);
             const charOnGrid = grid.get(coordKey)?.char;
 
-            // Cerca se la parola corrente contiene questo carattere
             for (let charIdx = 0; charIdx < currentWord.word.length; charIdx++) {
                 if (currentWord.word[charIdx] === charOnGrid) {
-                    // Trovato possibile incrocio!
-                    // Se la lettera sulla griglia fa parte di una parola orizzontale, proviamo a metterci in verticale
-                    // Purtroppo la map semplice non ci dice la direzione, ma possiamo dedurla controllando i vicini
-                    
-                    // Semplificazione: proviamo entrambe le direzioni
                     const directionsToTry = ['down', 'across'];
-                    
                     for (const dir of directionsToTry) {
-                        // Calcola startX/Y ipotetici
                         const testStartX = dir === 'across' ? cx - charIdx : cx;
                         const testStartY = dir === 'down' ? cy - charIdx : cy;
 
@@ -112,13 +93,10 @@ function generateLayout(wordsInput: {word: string, clue: string}[], maxGridSize 
             }
         }
 
-        // Se non siamo riusciti ad incrociarla, la posizioniamo "fluttuante" sotto tutto
-        // per non perdere la parola. Meglio un cruciverba imperfetto che un errore.
         if (!placed) {
              const maxY = Math.max(...placedWords.map(w => w.startY + (w.direction === 'down' ? w.word.length : 0)), 0);
-             const safeY = maxY + 2; // Lascia una riga vuota
+             const safeY = maxY + 2; 
              const safeX = 2; 
-             
              placeWordOnGrid(grid, currentWord.word, safeX, safeY, 'across');
              placedWords.push({
                 ...currentWord,
@@ -129,7 +107,6 @@ function generateLayout(wordsInput: {word: string, clue: string}[], maxGridSize 
              });
         }
     }
-
     return placedWords;
 }
 
@@ -139,17 +116,10 @@ function isValidPlacement(grid: Grid, word: string, startX: number, startY: numb
         const y = direction === 'down' ? startY + i : startY;
         const key = `${x},${y}`;
         const existing = grid.get(key);
-
-        // 1. Collisione lettera diversa
         if (existing && existing.char !== word[i]) return false;
-
-        // 2. Controllo vicini (non vogliamo creare parole accidentali di 2 lettere)
-        // Se la cella è vuota (non è un incrocio), controlliamo che non abbia vicini perpendicolari
         if (!existing) {
-            // Se stiamo piazzando orizzontale, controlla sopra e sotto
             if (direction === 'across') {
                 if (grid.has(`${x},${y-1}`) || grid.has(`${x},${y+1}`)) return false;
-                // Controlla anche prima dell'inizio e dopo la fine per evitare parole unite
                 if (i === 0 && grid.has(`${x-1},${y}`)) return false;
                 if (i === word.length - 1 && grid.has(`${x+1},${y}`)) return false;
             } else {
@@ -170,12 +140,9 @@ function placeWordOnGrid(grid: Grid, word: string, startX: number, startY: numbe
     }
 }
 
-// Calcolo bounding box per normalizzare coordinate (rimuovere spazi negativi)
 function normalizeCoordinates(placedWords: any[]) {
     if (placedWords.length === 0) return { words: [], width: 10, height: 10 };
-    
     let minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity;
-
     placedWords.forEach(w => {
         const endX = w.direction === 'across' ? w.startX + w.word.length : w.startX + 1;
         const endY = w.direction === 'down' ? w.startY + w.word.length : w.startY + 1;
@@ -184,29 +151,22 @@ function normalizeCoordinates(placedWords: any[]) {
         maxX = Math.max(maxX, endX);
         maxY = Math.max(maxY, endY);
     });
-
-    // Aggiungi padding
     const padding = 1;
     const width = (maxX - minX) + padding * 2;
     const height = (maxY - minY) + padding * 2;
-
     const normalizedWords = placedWords.map(w => ({
         ...w,
         startX: w.startX - minX + padding,
         startY: w.startY - minY + padding
     }));
-
     return { words: normalizedWords, width, height };
 }
 
-// Funzione Client-Side per trovare la soluzione nella griglia generata
 const findSolutionInGrid = (words: any[], hiddenWord: string): any => {
     if (!hiddenWord) return null;
-    
     const targetChars = hiddenWord.toUpperCase().replace(/[^A-Z]/g, '').split('');
     const solutionCells: any[] = [];
     const usedCoords = new Set<string>();
-
     const gridMap: Record<string, string> = {};
     words.forEach((w: any) => {
         for(let i=0; i<w.word.length; i++) {
@@ -215,10 +175,8 @@ const findSolutionInGrid = (words: any[], hiddenWord: string): any => {
             gridMap[`${x},${y}`] = w.word[i];
         }
     });
-
     for (let i = 0; i < targetChars.length; i++) {
         const char = targetChars[i];
-        
         for (const key in gridMap) {
             if (gridMap[key] === char && !usedCoords.has(key)) {
                 const [x, y] = key.split(',').map(Number);
@@ -228,16 +186,15 @@ const findSolutionInGrid = (words: any[], hiddenWord: string): any => {
             }
         }
     }
-
+    // Ritorna la soluzione solo se abbiamo trovato TUTTE le lettere
+    // O almeno la maggior parte. Per ora ritorniamo quello che troviamo.
     if (solutionCells.length > 0) {
-        return {
-            word: hiddenWord.toUpperCase(),
-            cells: solutionCells
-        };
+        return { word: hiddenWord.toUpperCase(), cells: solutionCells };
     }
     return null;
 };
 
+// --- MAIN FUNCTION ---
 export const generateCrossword = async (
   mode: 'ai' | 'manual',
   theme: ThemeType,
@@ -254,7 +211,8 @@ export const generateCrossword = async (
   const apiKey = getApiKey();
   const ai = new GoogleGenAI({ apiKey });
 
-  // 1. GENERAZIONE PAROLE (Veloce)
+  // NOTA: Cache disabilitata temporaneamente per permettere testing
+  
   let generatedWords: {word: string, clue: string}[] = [];
 
   if (mode === 'manual') {
@@ -264,7 +222,18 @@ export const generateCrossword = async (
         .map(i => ({ word: i.word.toUpperCase().trim(), clue: i.clue }));
   } else {
       const topic = inputData as string;
+      
+      // Costruiamo un prompt che guidi l'IA a usare le lettere della soluzione
+      const solutionChars = hiddenSolutionWord 
+        ? hiddenSolutionWord.toUpperCase().replace(/[^A-Z]/g, '').split('').join(', ')
+        : '';
+        
+      const lettersInstruction = solutionChars 
+        ? `IMPORTANTE: Devi generare parole che contengano le seguenti lettere sparse: ${solutionChars}. È fondamentale per il gioco.` 
+        : '';
+
       const prompt = `Genera una lista di 6-8 parole e definizioni per un cruciverba sul tema: "${topic}". 
+      ${lettersInstruction}
       Output JSON array di oggetti {word, clue}. 
       Parole semplici, definizioni divertenti.`;
 
@@ -277,7 +246,7 @@ export const generateCrossword = async (
             config: {
                 responseMimeType: "application/json",
                 responseSchema: wordListSchema,
-                temperature: 0.7,
+                temperature: 0.8, // Leggermente più creativo per trovare parole varie
             },
         });
 
@@ -295,19 +264,22 @@ export const generateCrossword = async (
       throw new Error("Nessuna parola generata.");
   }
 
-  // 2. LAYOUT GRIGLIA (Istantaneo, Locale)
   if (onStatusUpdate) onStatusUpdate("Calcolo incroci...");
-  
-  // Aggiungi un piccolo ritardo artificiale per far leggere il messaggio (UX)
   await new Promise(r => setTimeout(r, 500));
 
   const placedWordsRaw = generateLayout(generatedWords);
   const { words, width, height } = normalizeCoordinates(placedWordsRaw);
 
-  // 3. SOLUZIONE
   const calculatedSolution = hiddenSolutionWord 
       ? findSolutionInGrid(words, hiddenSolutionWord) 
       : null;
+
+  // Formattiamo le parole finali
+  const finalWords = words.map((w: any, idx: number) => ({ 
+      ...w, 
+      id: `word-${idx}`,
+      word: w.word.toUpperCase().trim() 
+  }));
 
   const defaultTitle = theme === 'birthday' ? `Auguri ${extraData?.recipientName}!` : 
                        theme === 'christmas' ? `Buon Natale ${extraData?.recipientName}!` :
@@ -318,19 +290,15 @@ export const generateCrossword = async (
   return {
       title: defaultTitle,
       message: defaultMessage,
-      width: Math.max(width, 8), // Min size per estetica
-      height: Math.max(height, 8),
-      words: words.map((w: any, idx: number) => ({ 
-          ...w, 
-          id: `word-${idx}`,
-          word: w.word.toUpperCase().trim() 
-      })),
-      solution: calculatedSolution, 
       theme: theme,
       recipientName: extraData?.recipientName || '',
       eventDate: extraData?.eventDate || '',
       images: extraData?.images,
-      stickers: extraData?.stickers
+      stickers: extraData?.stickers,
+      words: finalWords,
+      width: Math.max(width, 8),
+      height: Math.max(height, 8),
+      solution: calculatedSolution,
   };
 };
 
