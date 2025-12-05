@@ -134,7 +134,7 @@ const CrosswordGrid: React.FC<CrosswordGridProps> = ({ data, onComplete }) => {
       if (tone === 'custom' && !customPromptText.trim()) return;
 
       setIsRegeneratingMsg(true);
-      setCustomPromptMode(false); // Close the custom input if open
+      setCustomPromptMode(false); 
       
       try {
           const newMsg = await regenerateGreeting(
@@ -145,7 +145,7 @@ const CrosswordGrid: React.FC<CrosswordGridProps> = ({ data, onComplete }) => {
               tone === 'custom' ? customPromptText : undefined
           );
           setEditableMessage(newMsg);
-          setCustomPromptText(""); // Reset custom input
+          setCustomPromptText(""); 
       } catch (e) {
           console.error(e);
       } finally {
@@ -265,7 +265,7 @@ const CrosswordGrid: React.FC<CrosswordGridProps> = ({ data, onComplete }) => {
       {/* --- SCREEN MODE --- */}
       <div className="max-w-6xl mx-auto no-print pb-20">
       
-        {/* NEW TOOLBAR - Buttons moved here from fixed position */}
+        {/* NEW TOOLBAR */}
         <div className="bg-white/90 backdrop-blur rounded-full px-6 py-2 mb-6 flex justify-between items-center shadow-lg border-2 border-white/50">
              <div className="flex items-center gap-2 text-sm font-bold text-gray-500 uppercase tracking-widest">
                  <Sparkles size={16} className="text-yellow-500"/> Anteprima
@@ -308,7 +308,7 @@ const CrosswordGrid: React.FC<CrosswordGridProps> = ({ data, onComplete }) => {
                       {data.stickers && data.stickers.length > 0 && (
                           <div className="flex gap-2 mb-2 justify-center">
                               {data.stickers.map((s, i) => (
-                                  <span key={i} className="text-3xl drop-shadow-sm">{s}</span>
+                                  <span key={i} className="text-4xl drop-shadow-sm select-none hover:scale-110 transition-transform cursor-default">{s}</span>
                               ))}
                           </div>
                       )}
@@ -410,13 +410,13 @@ const CrosswordGrid: React.FC<CrosswordGridProps> = ({ data, onComplete }) => {
              <div className={`absolute inset-4 ${themeAssets.printBorder} opacity-50 pointer-events-none`}></div>
              
              {/* STICKERS ROW - UPDATED TO SHOW ALL SELECTED */}
-             <div className="mb-12 flex justify-center items-center gap-6 flex-wrap max-w-[80%] mx-auto min-h-[150px]">
+             <div className="mb-8 flex justify-center items-center gap-4 flex-wrap max-w-[80%] mx-auto min-h-[120px]">
                 {data.stickers && data.stickers.length > 0 ? (
                     data.stickers.map((s, i) => (
-                        <span key={i} className="text-[90px] leading-none drop-shadow-md">{s}</span>
+                        <span key={i} className="text-7xl leading-none drop-shadow-md select-none">{s}</span>
                     ))
                 ) : (
-                    <span className="text-[120px] drop-shadow-lg">{themeAssets.decoration}</span>
+                    <span className="text-[100px] drop-shadow-lg">{themeAssets.decoration}</span>
                 )}
              </div>
              
