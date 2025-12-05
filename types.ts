@@ -31,6 +31,7 @@ export interface CustomImages {
 }
 
 export interface CrosswordData {
+  type: 'crossword' | 'simple'; // NUOVO CAMPO
   title: string;
   recipientName: string;
   eventDate: string; // Data dell'evento (es. 25 Dicembre 2024)
