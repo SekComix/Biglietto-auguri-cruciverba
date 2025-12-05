@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef, useMemo } from 'react';
 import { CrosswordData, CellData, Direction, ThemeType } from '../types';
 import { regenerateGreeting } from '../services/geminiService';
-import { Printer, Edit, Wand2, Dice5, Eye, EyeOff, Sparkles, Send, Settings } from 'lucide-react';
+import { Printer, Edit, Wand2, Dice5, Eye, EyeOff, Sparkles, Send, Settings, ArrowRight, RefreshCw } from 'lucide-react';
 
 interface CrosswordGridProps {
   data: CrosswordData;
@@ -123,11 +123,11 @@ const THEME_ASSETS: Record<ThemeType, any> = {
     bgClass: 'bg-green-50'
   },
   halloween: {
-    fontTitle: 'font-christmas', // Looks spooky enough
+    fontTitle: 'font-christmas', 
     printBorder: 'border-[6px] border-solid border-orange-500',
     decoration: '🎃',
-    watermark: '👻',
-    accentColor: '#C2410C', // Orange-700
+    watermark: '🕸️',
+    accentColor: '#C2410C', 
     bgClass: 'bg-orange-50'
   },
   graduation: {
@@ -135,7 +135,7 @@ const THEME_ASSETS: Record<ThemeType, any> = {
     printBorder: 'border-4 border-double border-red-900',
     decoration: '🎓',
     watermark: '📜',
-    accentColor: '#991B1B', // Red-800
+    accentColor: '#991B1B', 
     bgClass: 'bg-red-50'
   },
   confirmation: {
@@ -143,7 +143,7 @@ const THEME_ASSETS: Record<ThemeType, any> = {
     printBorder: 'border-[3px] border-solid border-gray-400',
     decoration: '🕊️',
     watermark: '⛪',
-    accentColor: '#4338CA', // Indigo-700
+    accentColor: '#4338CA', 
     bgClass: 'bg-indigo-50'
   },
   communion: {
@@ -151,7 +151,7 @@ const THEME_ASSETS: Record<ThemeType, any> = {
     printBorder: 'border-[5px] border-double border-yellow-500',
     decoration: '🥖',
     watermark: '🍇',
-    accentColor: '#CA8A04', // Yellow-600
+    accentColor: '#CA8A04', 
     bgClass: 'bg-yellow-50'
   },
   wedding: {
@@ -159,7 +159,7 @@ const THEME_ASSETS: Record<ThemeType, any> = {
     printBorder: 'border-[1px] border-solid border-rose-300',
     decoration: '💍',
     watermark: '❤️',
-    accentColor: '#BE123C', // Rose-700
+    accentColor: '#BE123C', 
     bgClass: 'bg-rose-50'
   },
   elegant: {
@@ -198,7 +198,7 @@ const CrosswordGrid: React.FC<CrosswordGridProps> = ({ data, onComplete, onEdit 
 
   const themeAssets = THEME_ASSETS[data.theme] || THEME_ASSETS.generic;
   const isCrossword = data.type === 'crossword';
-  const photos = data.images?.photos || (data.images?.photo ? [data.images.photo] : []); // Compatibilità
+  const photos = data.images?.photos || (data.images?.photo ? [data.images.photo] : []);
 
   useEffect(() => {
     if (!isCrossword) {
@@ -338,39 +338,63 @@ const CrosswordGrid: React.FC<CrosswordGridProps> = ({ data, onComplete, onEdit 
               key={`${x}-${y}`}
               onClick={() => !isPrint && handleCellClick(x, y)}
               className={`
-                relative flex items-center justify-center text-lg md:text-xl font-bold uppercase select-none
-                ${isPrint ? 'bg-white border-2 border-black text-black h-full' : 'bg-white rounded-md shadow-sm cursor-pointer transition-colors'}
-                ${isSelected ? 'bg-yellow-200' : ''}
-                ${isInActiveWord ? 'brightness-95' : ''}
-                ${cell.isSolutionCell && isPrint ? 'bg-yellow-50 !border-[3px] !border-black' : ''}
-                ${cell.isSolutionCell && !isPrint ? 'ring-2 ring-yellow-400 ring-inset' : ''}
+                relative flex items-center justify-center 
+                ${isPrint ? 'border-r border-b border-black text-black' : 
+                  `w-full h-full text-xl md:text-2xl font-bold cursor-pointer transition-all select-none
+                   ${isSelected ? 'bg-yellow-200 scale-105 z-10 shadow-lg ring-2 ring-yellow-400' : ''}
+                   ${isInActiveWord ? 'bg-blue-50' : 'bg-white'}
+                   ${!isSelected && !isInActiveWord ? 'hover:bg-gray-50' : ''}
+                  `
+                }
               `}
+              style={isPrint ? { width: '100%', height: '100%' } : {}}
             >
+              {/* Number */}
               {cell.number && (
-                <span className={`absolute top-0 left-0.5 leading-none z-10 font-sans font-extrabold text-black ${isPrint ? 'text-[9px]' : 'text-[10px] opacity-70'}`}>
+                <span className={`absolute top-0 left-0 leading-none ${isPrint ? 'text-[8px] md:text-[10px] p-[1px]' : 'text-[10px] p-0.5 text-gray-500 font-bold'}`}>
                   {cell.number}
                 </span>
               )}
-
-              {/* Soluzione Number */}
-              {cell.isSolutionCell && (
-                  <span className={`absolute bottom-0 right-0.5 font-bold z-10 flex items-center justify-center
-                    ${isPrint ? 'text-[7px] text-gray-600 bg-white px-0.5 border border-gray-400' : 'text-[8px] bg-yellow-400 text-yellow-900 w-3 h-3 rounded-full'}
-                  `}>
-                      {cell.solutionIndex}
-                  </span>
-              )}
               
-              {!isPrint ? (
-                <input
-                  ref={(el) => { inputRefs.current[y][x] = el; }}
-                  className={`w-full h-full bg-transparent text-center outline-none cursor-pointer pt-2 ${revealAnswers ? 'text-blue-600 font-extrabold' : 'text-black'}`}
-                  value={displayChar}
-                  maxLength={1}
-                  readOnly={revealAnswers}
-                  onChange={(e) => handleInput(x, y, e.target.value)}
-                />
-              ) : null}
+              {/* Solution Cell Indicator */}
+              {cell.isSolutionCell && isPrint && (
+                   <div className="absolute inset-0 bg-yellow-200/50 print:bg-yellow-100/30 -z-10" />
+              )}
+              {cell.isSolutionCell && isPrint && cell.solutionIndex && (
+                   <div className="absolute bottom-0 right-0 text-[8px] p-[1px] font-bold text-gray-500">{cell.solutionIndex}</div>
+              )}
+
+              {/* Input logic or display char */}
+              {isPrint ? (
+                  // Print mode: Empty or Solution if revealed (usually empty for crossword)
+                  <span className="font-bold text-lg">{revealAnswers ? cell.char : ''}</span>
+              ) : (
+                  // Interactive mode
+                  isSelected ? (
+                    <input
+                      ref={(el) => { inputRefs.current[y][x] = el; }}
+                      type="text"
+                      maxLength={1}
+                      className="w-full h-full text-center bg-transparent outline-none uppercase font-bold text-inherit"
+                      value={cell.userChar}
+                      onChange={(e) => handleInput(x, y, e.target.value)}
+                      onKeyDown={(e) => {
+                          if (e.key === 'Backspace' && !cell.userChar) {
+                              const prevX = currentDirection === Direction.ACROSS ? x - 1 : x;
+                              const prevY = currentDirection === Direction.DOWN ? y - 1 : y;
+                              if (prevX >= 0 && prevY >= 0 && grid[prevY][prevX].char) {
+                                  setSelectedCell({ x: prevX, y: prevY });
+                                  inputRefs.current[prevY][prevX]?.focus();
+                              }
+                          }
+                      }}
+                    />
+                  ) : (
+                     <span className={`${cell.userChar ? 'text-black' : 'text-transparent'}`}>
+                        {displayChar}
+                     </span>
+                  )
+              )}
             </div>
           );
         })
@@ -378,336 +402,277 @@ const CrosswordGrid: React.FC<CrosswordGridProps> = ({ data, onComplete, onEdit 
     </div>
   );
 
+  const renderClues = () => {
+     const across = data.words.filter(w => w.direction === Direction.ACROSS).sort((a,b) => a.number - b.number);
+     const down = data.words.filter(w => w.direction === Direction.DOWN).sort((a,b) => a.number - b.number);
+     
+     return (
+         <div className="grid grid-cols-2 gap-4 text-xs md:text-sm">
+             <div>
+                 <h4 className="font-bold border-b border-black mb-1">ORIZZONTALI</h4>
+                 <ul className="space-y-1">
+                     {across.map(w => (
+                         <li key={w.id}><span className="font-bold mr-1">{w.number}.</span>{w.clue}</li>
+                     ))}
+                 </ul>
+             </div>
+             <div>
+                 <h4 className="font-bold border-b border-black mb-1">VERTICALI</h4>
+                 <ul className="space-y-1">
+                     {down.map(w => (
+                         <li key={w.id}><span className="font-bold mr-1">{w.number}.</span>{w.clue}</li>
+                     ))}
+                 </ul>
+             </div>
+         </div>
+     );
+  };
+
   return (
-    <>
-      {/* --- PRINT GUIDE MODAL --- */}
-      {showPrintGuide && (
-        <div className="fixed inset-0 bg-black/80 z-[100] flex items-center justify-center p-4">
-           <div className="bg-white rounded-2xl max-w-md w-full p-6 text-center shadow-2xl animate-fade-in">
-              <Printer size={48} className="mx-auto text-blue-600 mb-4" />
-              <h3 className="text-2xl font-bold mb-2 text-gray-800">Pronto per la Stampa?</h3>
-              <p className="text-gray-600 mb-6">
-                Per ottenere un biglietto pieghevole perfetto:
-              </p>
-              <ul className="text-left text-sm space-y-2 bg-gray-50 p-4 rounded-lg mb-6 border border-gray-200">
-                  <li className="flex gap-2">📄 <b>Formato:</b> A4 Orizzontale</li>
-                  <li className="flex gap-2">🔄 <b>Fronte/Retro:</b> Sì (Lato Corto)</li>
-              </ul>
-              <div className="flex gap-3">
-                 <button onClick={() => setShowPrintGuide(false)} className="flex-1 py-3 bg-gray-200 font-bold rounded-xl">Annulla</button>
-                 <button onClick={triggerPrint} className="flex-1 py-3 bg-blue-600 text-white font-bold rounded-xl hover:bg-blue-700">STAMPA ORA</button>
-              </div>
+    <div className="flex flex-col items-center gap-8 w-full max-w-6xl mx-auto pb-10">
+       <WowEffect theme={data.theme} />
+       
+       {/* Actions Bar */}
+       <div className="flex flex-wrap gap-2 justify-center z-10 sticky top-4">
+            <button onClick={onEdit} className="bg-white/90 backdrop-blur shadow-md px-4 py-2 rounded-full font-bold hover:scale-105 transition-transform flex items-center gap-2 text-gray-700">
+                <Edit size={16} /> Modifica
+            </button>
+            <button onClick={() => setShowPrintGuide(true)} className="bg-blue-600 text-white px-6 py-2 rounded-full font-bold shadow-lg hover:bg-blue-700 hover:scale-105 transition-transform flex items-center gap-2">
+                <Printer size={18} /> STAMPA BIGLIETTO
+            </button>
+            <button onClick={() => setRevealAnswers(!revealAnswers)} className="bg-white/90 backdrop-blur shadow-md px-4 py-2 rounded-full font-bold hover:scale-105 transition-transform flex items-center gap-2 text-gray-700">
+                {revealAnswers ? <EyeOff size={16}/> : <Eye size={16}/>} {revealAnswers ? 'Nascondi' : 'Soluzione'}
+            </button>
+       </div>
+
+       {showPrintGuide && (
+           <div className="fixed inset-0 bg-black/80 z-50 flex items-center justify-center p-4 backdrop-blur-sm animate-fade-in" onClick={() => setShowPrintGuide(false)}>
+               <div className="bg-white rounded-3xl p-8 max-w-md text-center shadow-2xl relative" onClick={e => e.stopPropagation()}>
+                    <Printer className="w-16 h-16 mx-auto mb-4 text-blue-500" />
+                    <h3 className="text-2xl font-bold mb-2">Pronto per la Stampa!</h3>
+                    <p className="text-gray-600 mb-6">
+                        Il biglietto è ottimizzato per <b>fogli A4 orizzontali</b>.
+                        <br/>Una volta stampato, piegalo a metà per creare un libretto.
+                    </p>
+                    <div className="flex flex-col gap-3">
+                        <button onClick={triggerPrint} className="w-full bg-blue-600 text-white py-3 rounded-xl font-bold hover:bg-blue-700 shadow-lg">
+                            🖨️ Stampa Ora
+                        </button>
+                        <button onClick={() => setShowPrintGuide(false)} className="w-full bg-gray-100 text-gray-600 py-3 rounded-xl font-bold hover:bg-gray-200">
+                            Chiudi
+                        </button>
+                    </div>
+               </div>
            </div>
-        </div>
-      )}
-      
-      {/* --- SCREEN MODE --- */}
-      <div className="max-w-6xl mx-auto no-print pb-20 relative">
-        <WowEffect theme={data.theme} />
-      
-        {/* TOOLBAR */}
-        <div className="bg-white/90 backdrop-blur rounded-full px-6 py-2 mb-6 flex justify-between items-center shadow-lg border-2 border-white/50 relative z-10">
-             <div className="flex items-center gap-2 text-sm font-bold text-gray-500 uppercase tracking-widest">
-                 <Sparkles size={16} className="text-yellow-500"/> Anteprima
-             </div>
-             <div className="flex gap-2">
-                 
-                 {/* EDIT BUTTON */}
-                 <button 
-                    onClick={onEdit} 
-                    className="hover:bg-gray-100 text-gray-700 p-2 px-4 rounded-full flex items-center gap-2 font-bold transition-all text-sm border border-gray-200"
-                  >
-                    <Settings size={16} /> <span className="hidden sm:inline">Modifica Dati</span>
-                  </button>
+       )}
 
-                 {isCrossword && (
-                    <button 
-                        onClick={() => setRevealAnswers(!revealAnswers)}
-                        className="hover:bg-gray-100 text-gray-700 p-2 px-4 rounded-full flex items-center gap-2 font-bold transition-all text-sm"
-                    >
-                        {revealAnswers ? <EyeOff size={16} className="text-blue-600" /> : <Eye size={16} />}
-                        <span className="hidden sm:inline">{revealAnswers ? 'Nascondi' : 'Soluzioni'}</span>
-                    </button>
-                 )}
-
-                  <button 
-                    onClick={() => setShowPrintGuide(true)} 
-                    className="bg-blue-600 hover:bg-blue-700 text-white p-2 px-4 rounded-full shadow-md flex items-center gap-2 font-bold transition-all text-sm"
-                  >
-                    <Printer size={16} /> <span className="hidden sm:inline">Stampa</span>
-                  </button>
-             </div>
-        </div>
-      
-        <div className="bg-white p-6 rounded-xl shadow-2xl mb-8 border-4 border-dashed border-gray-300 relative z-10">
-            <h3 className="text-center font-bold text-gray-400 uppercase text-xs mb-4">Pagina Interna</h3>
-            
-            <div className="flex flex-col md:flex-row gap-8 bg-white border shadow-sm p-4 min-h-[500px]">
-                 
-                 {/* LEFT SIDE: GRID or IMAGE */}
-                 <div className="flex-1 border-r border-dashed border-gray-200 pr-4 flex flex-col justify-center items-center relative overflow-hidden">
-                     {isCrossword ? (
-                         <>
-                            <h2 className="text-center font-bold mb-4" style={{ color: themeAssets.accentColor }}>Il Cruciverba</h2>
-                            <div className="max-w-[300px] mx-auto">{renderGridCells(false)}</div>
-                         </>
-                     ) : (
-                         <div className="text-center w-full h-full flex items-center justify-center p-8">
-                             {photos.length > 0 ? (
-                                <div className="max-h-80 w-auto aspect-square shadow-xl border-8 border-white rotate-2 mx-auto transform transition-transform hover:rotate-0 duration-500 bg-white">
-                                    <PhotoCollage photos={photos} />
-                                </div>
-                             ) : (
-                                <div className="text-[180px] leading-none opacity-20 filter grayscale animate-pulse">{themeAssets.decoration}</div>
-                             )}
-                             <div className="absolute bottom-4 left-0 right-0 text-center">
-                                <p className="font-serif italic text-gray-400">Solo per te...</p>
-                             </div>
-                         </div>
-                     )}
-                 </div>
-
-                 {/* RIGHT SIDE: CONTENT EDITING */}
-                 <div className="flex-1 flex flex-col items-center justify-center text-center">
-                      <div className="w-full text-right border-b mb-4">
-                         <p className="font-serif italic">{data.eventDate || 'Data Evento'}</p>
-                      </div>
-
-                      {/* STICKERS IN PREVIEW */}
-                      {data.stickers && data.stickers.length > 0 && (
-                          <div className="flex gap-2 mb-2 justify-center">
-                              {data.stickers.map((s, i) => (
-                                  <span key={i} className="text-4xl drop-shadow-sm select-none hover:scale-110 transition-transform cursor-default">{s}</span>
-                              ))}
-                          </div>
-                      )}
-                      
-                      <h3 className={`${themeAssets.fontTitle} text-4xl mb-4`} style={{ color: themeAssets.accentColor }}>{data.title}</h3>
-
-                      {/* MESSAGE EDITOR */}
-                      <div className="relative group w-full max-w-sm mb-4">
-                            {!customPromptMode ? (
-                                <div className="mb-2 p-2 bg-blue-50 rounded-lg border border-blue-100 shadow-sm transition-all">
-                                    <p className="text-[10px] uppercase font-bold text-blue-600 mb-1">Cambia testo:</p>
-                                    <div className="grid grid-cols-2 gap-2 mb-2">
-                                        <button onClick={() => handleRegenerateMessage('heartfelt')} className="p-1.5 bg-white border rounded hover:bg-purple-50 text-xs flex justify-center gap-1 items-center shadow-sm font-bold text-purple-700"><Wand2 size={12}/> Dolce</button>
-                                        <button onClick={() => handleRegenerateMessage('funny')} className="p-1.5 bg-white border rounded hover:bg-orange-50 text-xs flex justify-center gap-1 items-center shadow-sm font-bold text-orange-700"><Dice5 size={12}/> Simpatico</button>
-                                    </div>
-                                    <div className="flex gap-2">
-                                        <button onClick={() => setCustomPromptMode(true)} className="flex-1 p-1.5 bg-white border rounded hover:bg-green-50 text-xs flex justify-center gap-1 items-center shadow-sm font-bold text-green-700"><Sparkles size={12}/> Magic</button>
-                                        <button onClick={() => setIsEditingMsg(!isEditingMsg)} className="flex-1 p-1.5 bg-white border rounded hover:bg-gray-50 text-xs flex justify-center gap-1 items-center shadow-sm text-gray-700"><Edit size={12}/> A mano</button>
-                                    </div>
-                                </div>
-                            ) : (
-                                <div className="mb-2 p-2 bg-green-50 rounded-lg border border-green-200 shadow-sm animate-fade-in">
-                                    <p className="text-[10px] uppercase font-bold text-green-800 mb-1">Cosa devo scrivere?</p>
-                                    <div className="flex gap-1">
-                                        <input 
-                                            autoFocus
-                                            type="text" 
-                                            className="flex-1 text-xs p-2 rounded border focus:ring-2 focus:ring-green-400 outline-none" 
-                                            placeholder="Es. Da Zio Pino, parla di vino..."
-                                            value={customPromptText}
-                                            onChange={(e) => setCustomPromptText(e.target.value)}
-                                            onKeyDown={(e) => e.key === 'Enter' && handleRegenerateMessage('custom')}
-                                        />
-                                        <button 
-                                            onClick={() => handleRegenerateMessage('custom')}
-                                            disabled={!customPromptText.trim()} 
-                                            className="bg-green-600 text-white p-2 rounded hover:bg-green-700 disabled:opacity-50"
-                                        >
-                                            <Send size={14}/>
-                                        </button>
-                                    </div>
-                                    <button onClick={() => setCustomPromptMode(false)} className="text-[10px] text-gray-500 underline mt-1 w-full text-center">Annulla</button>
-                                </div>
-                            )}
-                            
-                            {/* Text Display Area */}
-                            {isEditingMsg ? (
-                                <textarea 
-                                    className="w-full p-2 border-2 border-blue-400 rounded-lg text-lg font-hand bg-white"
-                                    value={editableMessage}
-                                    onChange={e => setEditableMessage(e.target.value)}
-                                    rows={4}
-                                />
-                            ) : (
-                                <p className="font-script text-2xl whitespace-pre-wrap cursor-pointer hover:bg-yellow-50 rounded p-2 border border-transparent hover:border-yellow-200 transition-all min-h-[80px] flex items-center justify-center" onClick={() => setIsEditingMsg(true)}>
-                                    {editableMessage}
-                                </p>
-                            )}
-                            
-                            {/* Loading State */}
-                            {isRegeneratingMsg && <div className="absolute inset-0 bg-white/90 z-10 flex items-center justify-center backdrop-blur-sm rounded-lg border border-purple-200"><span className="text-sm text-purple-600 font-bold animate-pulse flex flex-col items-center gap-1"><Sparkles className="animate-spin"/> Scrivo...</span></div>}
-                      </div>
-
-                      <div className="flex gap-4 justify-center">
-                          {data.images?.extraImage && <img src={data.images.extraImage} className="h-20 object-contain border p-1" />}
-                          {/* Se Simple Mode, la foto principale è già a sinistra, non la ripetiamo piccola qui */}
-                          {isCrossword && photos.length > 0 && (
-                            <div className="h-20 w-20 border p-1 shadow-sm">
-                                <PhotoCollage photos={photos} />
-                            </div>
-                          )}
-                      </div>
-                 </div>
-            </div>
-        </div>
-
-        {/* CLUES LIST (Only Crossword) */}
-        {isCrossword && (
-            <div className="bg-white/90 p-6 rounded-xl shadow-xl max-w-2xl mx-auto relative z-10">
-                <h3 className="font-bold mb-4 text-center">Definizioni</h3>
-                <div className="grid grid-cols-2 gap-8 text-sm">
-                    <div>
-                        <h4 className="font-bold text-gray-500 text-xs uppercase border-b mb-2">Orizzontali</h4>
-                        <ul>{data.words.filter(w => w.direction === Direction.ACROSS).map(w => <li key={w.id} className="mb-1"><b className="mr-1">{w.number}.</b>{w.clue} <span className="font-bold text-gray-500">({w.word.length})</span></li>)}</ul>
+       {/* MAIN SCREEN LAYOUT */}
+       <div className={`w-full grid grid-cols-1 lg:grid-cols-2 gap-8 items-start relative z-10 ${isCrossword ? '' : 'max-w-2xl'}`}>
+           
+           {/* Left/Top: Greeting Card Side */}
+           <div className="bg-white p-6 md:p-8 rounded-3xl shadow-xl border-4 border-white transform rotate-[-1deg] hover:rotate-0 transition-transform duration-500">
+                <div className={`border-2 ${data.theme === 'birthday' ? 'border-dashed border-pink-300' : 'border-double border-gray-200'} rounded-2xl p-6 h-full flex flex-col items-center text-center relative overflow-hidden`}>
+                    
+                    {/* Decorative Corner */}
+                    <div className="absolute top-0 right-0 p-4 opacity-20 text-6xl select-none pointer-events-none">
+                        {themeAssets.decoration}
                     </div>
-                    <div>
-                        <h4 className="font-bold text-gray-500 text-xs uppercase border-b mb-2">Verticali</h4>
-                        <ul>{data.words.filter(w => w.direction === Direction.DOWN).map(w => <li key={w.id} className="mb-1"><b className="mr-1">{w.number}.</b>{w.clue} <span className="font-bold text-gray-500">({w.word.length})</span></li>)}</ul>
-                    </div>
-                </div>
-            </div>
-        )}
-      </div>
 
-      {/* --- PRINT MODE (A4 FOLDABLE BOOKLET) --- */}
-      
-      {/* SHEET 1 (SIDE A): RETRO (Left) + COVER (Right) */}
-      <div className={`print-sheet hidden print:flex ${themeAssets.bgClass}`}>
-         <div className="watermark" style={{ color: themeAssets.accentColor }}>{themeAssets.watermark}</div>
-         
-         <div className="print-half border-r border-gray-300 border-dashed relative z-10">
-            {/* RETRO VUOTO - Potremmo mettere un piccolo logo "Made with AI" in basso */}
-            <div className="mt-auto text-center opacity-50">
-                <p className="text-xs font-sans text-gray-400">Creato con Enigmistica Auguri</p>
-            </div>
-         </div>
-
-         <div className={`print-half flex-col items-center justify-center text-center p-12 m-4 rounded-xl relative z-10`}>
-             <div className={`absolute inset-4 ${themeAssets.printBorder} opacity-50 pointer-events-none`}></div>
-             
-             {/* STICKERS ROW */}
-             <div className="mb-8 flex justify-center items-center gap-4 flex-wrap max-w-[80%] mx-auto min-h-[120px]">
-                {data.stickers && data.stickers.length > 0 ? (
-                    data.stickers.map((s, i) => (
-                        <span key={i} className="text-7xl leading-none drop-shadow-md select-none">{s}</span>
-                    ))
-                ) : (
-                    <span className="text-[100px] drop-shadow-lg">{themeAssets.decoration}</span>
-                )}
-             </div>
-             
-             <h1 className={`${themeAssets.fontTitle} text-7xl mb-6 leading-tight`} style={{ color: themeAssets.accentColor }}>Per</h1>
-             <div className="text-6xl font-bold border-b-4 border-black pb-4 px-12 inline-block min-w-[200px] text-black">
-                 {data.recipientName}
-             </div>
-             
-             <div className="mt-auto opacity-75 font-serif italic text-xl text-black">
-                 {isCrossword ? "Una sorpresa da risolvere..." : "Un pensiero speciale per te..."}
-             </div>
-         </div>
-      </div>
-
-      {/* SHEET 2 (SIDE B): INSIDE LEFT + INSIDE RIGHT */}
-      <div className={`print-sheet hidden print:flex ${themeAssets.bgClass}`}>
-         <div className="watermark" style={{ transform: 'translate(-50%, -50%) rotate(10deg)', color: themeAssets.accentColor }}>{themeAssets.watermark}</div>
-
-         {/* LEFT HALF */}
-         <div className="print-half p-8 border-r border-gray-300 border-dashed z-10 flex flex-col items-center justify-center">
-            
-            {isCrossword ? (
-                <>
-                    <h2 className="text-3xl font-bold text-center mb-6 uppercase tracking-wider" style={{ color: themeAssets.accentColor }}>Cruciverba</h2>
-                    <div className="w-full max-w-[90%] mx-auto mb-6 aspect-square bg-white shadow-none border-2 border-gray-800 p-2">
-                        {renderGridCells(true)}
-                    </div>
-                    <div className="grid grid-cols-2 gap-4 text-[9px] leading-tight font-sans bg-white/80 p-2 rounded-lg flex-1 overflow-hidden w-full">
-                        <div>
-                           <h4 className="font-bold border-b border-black mb-1 text-black">Orizzontali</h4>
-                           <ul className="list-none space-y-1 text-black">
-                              {data.words.filter(w => w.direction === Direction.ACROSS).map(w => (
-                                  <li key={w.id}><span className="font-bold">{w.number}.</span> {w.clue} <b>({w.word.length})</b></li>
-                              ))}
-                           </ul>
-                        </div>
-                        <div>
-                           <h4 className="font-bold border-b border-black mb-1 text-black">Verticali</h4>
-                           <ul className="list-none space-y-1 text-black">
-                              {data.words.filter(w => w.direction === Direction.DOWN).map(w => (
-                                  <li key={w.id}><span className="font-bold">{w.number}.</span> {w.clue} <b>({w.word.length})</b></li>
-                              ))}
-                           </ul>
-                        </div>
-                    </div>
-                </>
-            ) : (
-                // SIMPLE MODE LAYOUT - LARGE COLLAGE OR DECORATION
-                <div className="flex-1 flex flex-col justify-center items-center w-full h-full p-4">
-                    {photos.length > 0 ? (
-                        <div className="bg-white p-4 shadow-xl border-b-4 border-r-4 border-gray-300 -rotate-1 w-full max-h-full flex items-center justify-center aspect-square">
+                    {/* Image / Collage */}
+                    {data.images?.extraImage && (
+                        <img src={data.images.extraImage} className="max-h-32 mb-4 object-contain" />
+                    )}
+                    {photos.length > 0 && (
+                        <div className="w-full aspect-[4/3] mb-6 rounded-xl overflow-hidden shadow-inner border border-gray-100">
                              <PhotoCollage photos={photos} />
-                        </div>
-                    ) : (
-                        <div className="flex flex-col items-center">
-                            <div className="text-[250px] leading-none opacity-40 animate-pulse">{themeAssets.decoration}</div>
                         </div>
                     )}
-                </div>
-            )}
-         </div>
 
-         {/* RIGHT HALF: GREETINGS & SOLUTION */}
-         <div className={`print-half items-center text-center p-10 flex flex-col relative z-10`}>
-             <div className={`absolute inset-4 ${themeAssets.printBorder} opacity-30 pointer-events-none`}></div>
-
-             <div className="w-full text-right mb-6">
-                <span className="font-serif italic text-xl border-b border-gray-400 pb-1 text-black">{data.eventDate}</span>
-             </div>
-
-             <div className="flex-1 flex flex-col justify-center items-center w-full">
-                 <h3 className={`${themeAssets.fontTitle} text-5xl mb-6 leading-tight`} style={{ color: themeAssets.accentColor }}>
-                    {data.title}
-                 </h3>
-                 
-                 <div className="font-script text-4xl leading-relaxed whitespace-pre-wrap max-w-sm mx-auto text-black mb-8">
-                     {editableMessage}
-                 </div>
-
-                 <div className="flex flex-row gap-8 justify-center items-center w-full mt-2 h-32">
-                     {data.images?.extraImage && (
-                        <div className="border border-gray-200 bg-white p-2 shadow-sm h-full flex items-center">
-                            <img src={data.images.extraImage} className="max-h-24 w-auto object-contain" />
-                        </div>
-                     )}
-                     
-                     {/* Se siamo in modalità crossword, mostriamo il collage qui se non c'è spazio a sinistra. Se semplice, è già a sinistra. */}
-                     {isCrossword && photos.length > 0 && (
-                        <div className="border-4 border-white shadow bg-white -rotate-3 h-full aspect-square">
-                             <PhotoCollage photos={photos} />
-                        </div>
-                     )}
-                 </div>
-             </div>
-
-             {/* Soluzione visibile solo se è un cruciverba */}
-             {isCrossword && data.solution && (
-                <div className="w-full mt-auto pt-6 border-t-2 border-dashed border-gray-400">
-                    <p className="text-xs uppercase font-bold text-black mb-3 tracking-[0.3em]">{data.stickers?.[1] || '✨'} Soluzione Misteriosa {data.stickers?.[2] || '✨'}</p>
-                    <div className="flex gap-2 justify-center flex-wrap">
-                        {Array(data.solution.word.length).fill(0).map((_, i) => (
-                             <div key={i} className="w-10 h-12 border-2 border-black relative bg-white flex items-end justify-center pb-1 shadow-sm">
-                                 <span className="absolute top-0.5 left-0.5 text-[8px] text-gray-500 font-bold">{i+1}</span>
-                                 <span className="w-6 h-0.5 bg-black/10 rounded-full"></span>
+                    {/* Greeting Message */}
+                    <div className="relative group w-full">
+                        {isEditingMsg ? (
+                             <div className="animate-fade-in w-full">
+                                <textarea 
+                                    className="w-full p-3 bg-gray-50 border rounded-xl text-center font-hand text-xl focus:ring-2 ring-blue-300 outline-none resize-none"
+                                    rows={4}
+                                    value={editableMessage}
+                                    onChange={(e) => setEditableMessage(e.target.value)}
+                                />
+                                <div className="flex gap-2 mt-2 justify-center">
+                                    <button onClick={() => setIsEditingMsg(false)} className="bg-green-500 text-white px-3 py-1 rounded-lg text-sm font-bold shadow">Salva</button>
+                                </div>
                              </div>
-                        ))}
+                        ) : (
+                            <div className="relative">
+                                <p className={`text-xl md:text-2xl mb-4 leading-relaxed ${themeAssets.fontTitle} cursor-pointer hover:bg-yellow-50 rounded-lg p-2 transition-colors`} onClick={() => setIsEditingMsg(true)}>
+                                    "{editableMessage}"
+                                </p>
+                                <button 
+                                    onClick={() => setIsEditingMsg(true)}
+                                    className="absolute -top-2 -right-2 bg-gray-100 p-1.5 rounded-full opacity-0 group-hover:opacity-100 transition-opacity shadow-sm hover:bg-blue-100 text-blue-600"
+                                    title="Modifica testo manualmente"
+                                >
+                                    <Edit size={12} />
+                                </button>
+                            </div>
+                        )}
                     </div>
+
+                    {/* AI Rewrite Tools */}
+                    {isEditingMsg && (
+                        <div className="mt-4 p-3 bg-blue-50 rounded-xl w-full border border-blue-100">
+                            <span className="text-xs font-bold text-blue-800 uppercase mb-2 block flex items-center gap-1 justify-center"><Wand2 size={12}/> Riscrivi con AI</span>
+                            <div className="flex flex-wrap gap-2 justify-center mb-2">
+                                <button disabled={isRegeneratingMsg} onClick={() => handleRegenerateMessage('funny')} className="text-xs bg-white px-2 py-1 rounded border hover:bg-blue-100">😂 Divertente</button>
+                                <button disabled={isRegeneratingMsg} onClick={() => handleRegenerateMessage('heartfelt')} className="text-xs bg-white px-2 py-1 rounded border hover:bg-blue-100">❤️ Commovente</button>
+                                <button disabled={isRegeneratingMsg} onClick={() => handleRegenerateMessage('rhyme')} className="text-xs bg-white px-2 py-1 rounded border hover:bg-blue-100">🎵 Rima</button>
+                                <button disabled={isRegeneratingMsg} onClick={() => setCustomPromptMode(!customPromptMode)} className="text-xs bg-white px-2 py-1 rounded border hover:bg-blue-100">✨ Custom</button>
+                            </div>
+                            {customPromptMode && (
+                                <div className="flex gap-1">
+                                    <input 
+                                        type="text" 
+                                        placeholder="Es: come un pirata..." 
+                                        className="flex-1 text-xs p-1 rounded border"
+                                        value={customPromptText}
+                                        onChange={(e) => setCustomPromptText(e.target.value)}
+                                    />
+                                    <button onClick={() => handleRegenerateMessage('custom')} disabled={!customPromptText} className="bg-blue-600 text-white p-1 rounded"><ArrowRight size={12}/></button>
+                                </div>
+                            )}
+                            {isRegeneratingMsg && <div className="text-xs text-center text-blue-500 mt-1 font-bold animate-pulse">Generazione in corso...</div>}
+                        </div>
+                    )}
+                    
+                    {/* Stickers */}
+                    {data.stickers && data.stickers.length > 0 && (
+                        <div className="flex flex-wrap justify-center gap-2 mt-auto pt-4">
+                            {data.stickers.map((s, i) => (
+                                <span key={i} className="text-3xl animate-[bounce_2s_infinite]" style={{ animationDelay: `${i * 0.2}s` }}>{s}</span>
+                            ))}
+                        </div>
+                    )}
+
                 </div>
-             )}
-         </div>
-      </div>
-    </>
+           </div>
+
+           {/* Right/Bottom: Crossword Grid */}
+           {isCrossword && (
+             <div className="bg-white/95 backdrop-blur p-6 md:p-8 rounded-3xl shadow-xl border-4 border-white/50 transform rotate-[1deg] hover:rotate-0 transition-transform duration-500">
+                 
+                 {/* Solution Hints */}
+                 {data.solution && (
+                     <div className="mb-4 bg-yellow-50 border border-yellow-200 p-3 rounded-xl text-center">
+                         <span className="text-xs font-bold text-yellow-800 uppercase tracking-wider block mb-1">Obiettivo Segreto</span>
+                         <div className="flex justify-center gap-1">
+                             {data.solution.word.split('').map((char, i) => (
+                                 <div key={i} className={`w-6 h-6 flex items-center justify-center border rounded ${revealAnswers ? 'bg-yellow-200 border-yellow-400' : 'bg-white border-gray-300 text-transparent'}`}>
+                                     <span className="font-bold text-sm">{char}</span>
+                                 </div>
+                             ))}
+                         </div>
+                     </div>
+                 )}
+
+                 {renderGridCells()}
+
+                 {/* Interactive Clue */}
+                 <div className="mt-6 bg-gray-50 rounded-xl p-4 min-h-[80px] flex items-center justify-center text-center shadow-inner border border-gray-100">
+                      {activeWord ? (
+                          <div>
+                              <span className="block text-xs font-bold text-gray-400 uppercase mb-1">{activeWord.number}. {activeWord.direction === Direction.ACROSS ? 'ORIZZONTALE' : 'VERTICALE'}</span>
+                              <p className="font-medium text-lg text-gray-800">{activeWord.clue}</p>
+                          </div>
+                      ) : (
+                          <p className="text-gray-400 italic text-sm">Seleziona una casella per vedere la definizione</p>
+                      )}
+                 </div>
+             </div>
+           )}
+       </div>
+
+       {/* --- PRINT LAYOUT (A4 Landscape) --- */}
+       {/* This section is completely hidden on screen and only appears when printing */}
+       <div className="hidden print:flex print-sheet">
+           {/* Watermark Overlay for the whole sheet */}
+           <div className="watermark">{themeAssets.watermark}</div>
+
+           {/* LEFT HALF: COVER / GREETINGS */}
+           <div className={`print-half ${themeAssets.printBorder} border-r-0 flex flex-col justify-between items-center text-center`}>
+               {/* Header */}
+               <div className="mt-4">
+                   <h1 className={`text-4xl ${themeAssets.fontTitle} mb-2`}>{data.title}</h1>
+                   <p className="text-sm text-gray-500 uppercase tracking-widest">{data.eventDate}</p>
+               </div>
+
+               {/* Central Visual */}
+               <div className="flex-1 flex flex-col justify-center items-center w-full px-8 py-4">
+                    {photos.length > 0 ? (
+                        <div className="w-full aspect-[4/3] rounded-xl overflow-hidden shadow-sm border border-gray-200">
+                            <PhotoCollage photos={photos} />
+                        </div>
+                    ) : data.images?.extraImage ? (
+                        <img src={data.images.extraImage} className="max-h-64 object-contain" />
+                    ) : (
+                        <div className="text-9xl opacity-20 filter grayscale">{themeAssets.decoration}</div>
+                    )}
+               </div>
+
+               {/* Message */}
+               <div className="mb-8 w-3/4">
+                   <p className={`text-xl leading-relaxed italic ${themeAssets.fontTitle}`}>
+                       "{editableMessage}"
+                   </p>
+               </div>
+
+               {/* Footer Stickers */}
+               <div className="flex gap-4 mb-4 text-4xl">
+                   {data.stickers?.slice(0,5).map((s,i) => <span key={i}>{s}</span>)}
+               </div>
+           </div>
+
+           {/* RIGHT HALF: CROSSWORD */}
+           {isCrossword ? (
+               <div className={`print-half ${themeAssets.printBorder} flex flex-col`}>
+                   <div className="flex justify-between items-end mb-4 border-b-2 border-black pb-2">
+                       <h2 className="text-2xl font-bold uppercase tracking-tighter">Cruciverba</h2>
+                       <span className="text-xs">Risolvi e scopri il messaggio segreto</span>
+                   </div>
+
+                   {/* Grid */}
+                   <div className="flex-1 flex items-center justify-center mb-4">
+                        <div style={{ width: '90%' }}>
+                            {renderGridCells(true)}
+                        </div>
+                   </div>
+
+                   {/* Clues */}
+                   <div className="mt-auto bg-white/50 p-4 text-left">
+                       {renderClues()}
+                   </div>
+
+                   {/* Solution Dashes */}
+                   {data.solution && (
+                       <div className="mt-4 p-2 border-t-2 border-dotted border-black text-center">
+                           <span className="text-[10px] font-bold uppercase block mb-1">Soluzione Nascosta:</span>
+                           <div className="flex justify-center gap-2">
+                               {data.solution.word.split('').map((_, i) => (
+                                   <div key={i} className="w-6 h-6 border-b-2 border-black"></div>
+                               ))}
+                           </div>
+                       </div>
+                   )}
+               </div>
+           ) : (
+               // If simple card, right side can be a place for handwritten notes
+               <div className={`print-half ${themeAssets.printBorder} flex flex-col items-center justify-center opacity-50`}>
+                   <div className="border-4 border-dashed border-gray-300 w-full h-full rounded-xl flex items-center justify-center">
+                       <p className="text-xl font-hand text-gray-400 rotate-[-5deg]">Spazio per dedica a mano...</p>
+                   </div>
+               </div>
+           )}
+       </div>
+    </div>
   );
 };
 
