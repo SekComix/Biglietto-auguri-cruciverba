@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import { generateCrossword } from '../services/geminiService';
 import { CrosswordData, ManualInput, ThemeType } from '../types';
 import { Loader2, Wand2, Plus, Trash2, Gift, PartyPopper, CalendarHeart, Crown, KeyRound, Image as ImageIcon, Upload, Calendar, AlertCircle, Grid3X3, MailOpen } from 'lucide-react';
@@ -32,6 +32,14 @@ const Creator: React.FC<CreatorProps> = ({ onCreated }) => {
   const [photo, setPhoto] = useState<string | undefined>(undefined);
   const [selectedStickers, setSelectedStickers] = useState<string[]>([]);
 
+  // States
+  const [loading, setLoading] = useState(false);
+  const [statusMsg, setStatusMsg] = useState('');
+  const [error, setError] = useState<string | null>(null);
+  
+  // Image Processing State
+  const [processingImg, setProcessingImg] = useState<'extra' | 'photo' | null>(null);
+
   // Manual Words
   const [manualWords, setManualWords] = useState<ManualInput[]>([
     { word: '', clue: '' },
@@ -39,21 +47,53 @@ const Creator: React.FC<CreatorProps> = ({ onCreated }) => {
     { word: '', clue: '' }
   ]);
 
-  const [loading, setLoading] = useState(false);
-  const [statusMsg, setStatusMsg] = useState('');
-  const [error, setError] = useState<string | null>(null);
-
-  // File Handlers
+  // File Handlers with Compression
   const handleImageUpload = (e: React.ChangeEvent<HTMLInputElement>, type: 'extra' | 'photo') => {
     const file = e.target.files?.[0];
-    if (file) {
-      const reader = new FileReader();
-      reader.onloadend = () => {
-        if (type === 'extra') setExtraImage(reader.result as string);
-        else setPhoto(reader.result as string);
+    if (!file) return;
+
+    setProcessingImg(type);
+
+    const reader = new FileReader();
+    reader.onload = (event) => {
+      const img = new Image();
+      img.onload = () => {
+        const canvas = document.createElement('canvas');
+        let width = img.width;
+        let height = img.height;
+        
+        // Resize logic: Max 1200px
+        const MAX_SIZE = 1200;
+        if (width > MAX_SIZE || height > MAX_SIZE) {
+          if (width > height) {
+            height *= MAX_SIZE / width;
+            width = MAX_SIZE;
+          } else {
+            width *= MAX_SIZE / height;
+            height = MAX_SIZE;
+          }
+        }
+        
+        canvas.width = width;
+        canvas.height = height;
+        const ctx = canvas.getContext('2d');
+        ctx?.drawImage(img, 0, 0, width, height);
+        
+        // Compress to JPEG 0.8
+        const dataUrl = canvas.toDataURL('image/jpeg', 0.8);
+        
+        if (type === 'extra') setExtraImage(dataUrl);
+        else setPhoto(dataUrl);
+        
+        setProcessingImg(null);
       };
-      reader.readAsDataURL(file);
-    }
+      img.src = event.target?.result as string;
+    };
+    reader.onerror = () => {
+        setError("Errore caricamento immagine");
+        setProcessingImg(null);
+    };
+    reader.readAsDataURL(file);
   };
 
   const toggleSticker = (sticker: string) => {
@@ -81,7 +121,7 @@ const Creator: React.FC<CreatorProps> = ({ onCreated }) => {
 
   const handleGenerate = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (loading) return; 
+    if (loading || processingImg) return; 
     
     setLoading(true);
     setStatusMsg(contentType === 'crossword' ? "Costruisco la griglia..." : "Creo il biglietto...");
@@ -284,13 +324,46 @@ const Creator: React.FC<CreatorProps> = ({ onCreated }) => {
 
           {/* Visuals */}
           <div className="grid grid-cols-2 gap-4 mb-6">
-              <div className="border-2 border-dashed border-gray-300 rounded-xl p-4 text-center hover:bg-gray-50 cursor-pointer relative transition-colors group">
+              {/* Box Logo/Disegno */}
+              <div className="border-2 border-dashed border-gray-300 rounded-xl p-4 text-center hover:bg-gray-50 cursor-pointer relative transition-colors group overflow-hidden h-32 flex items-center justify-center">
                     <input type="file" accept="image/*" onChange={(e) => handleImageUpload(e, 'extra')} className="absolute inset-0 opacity-0 cursor-pointer z-10" />
-                    {extraImage ? <img src={extraImage} className="h-16 mx-auto object-contain" /> : <div className="flex flex-col items-center group-hover:scale-105 transition-transform"><Upload className="text-gray-400 mb-1"/><span className="text-[10px] font-bold text-gray-500 uppercase">Logo / Disegno</span></div>}
+                    {processingImg === 'extra' ? (
+                       <div className="flex flex-col items-center text-blue-500">
+                          <Loader2 className="animate-spin mb-1"/>
+                          <span className="text-[10px] font-bold">Elaborazione...</span>
+                       </div>
+                    ) : extraImage ? (
+                        <div className="relative w-full h-full group-hover:scale-95 transition-transform">
+                             <img src={extraImage} className="h-full w-full object-contain mx-auto" />
+                             <div className="absolute inset-0 bg-black/20 opacity-0 group-hover:opacity-100 flex items-center justify-center text-white text-xs font-bold transition-opacity">Modifica</div>
+                        </div>
+                    ) : (
+                        <div className="flex flex-col items-center group-hover:scale-105 transition-transform">
+                             <Upload className="text-gray-400 mb-1"/>
+                             <span className="text-[10px] font-bold text-gray-500 uppercase">Logo / Disegno</span>
+                        </div>
+                    )}
               </div>
-              <div className="border-2 border-dashed border-gray-300 rounded-xl p-4 text-center hover:bg-gray-50 cursor-pointer relative transition-colors group">
+
+              {/* Box Foto Ricordo */}
+              <div className="border-2 border-dashed border-gray-300 rounded-xl p-4 text-center hover:bg-gray-50 cursor-pointer relative transition-colors group overflow-hidden h-32 flex items-center justify-center">
                     <input type="file" accept="image/*" onChange={(e) => handleImageUpload(e, 'photo')} className="absolute inset-0 opacity-0 cursor-pointer z-10" />
-                    {photo ? <img src={photo} className="h-16 mx-auto object-cover rounded shadow-sm" /> : <div className="flex flex-col items-center group-hover:scale-105 transition-transform"><ImageIcon className="text-gray-400 mb-1"/><span className="text-[10px] font-bold text-gray-500 uppercase">Foto Ricordo</span></div>}
+                    {processingImg === 'photo' ? (
+                       <div className="flex flex-col items-center text-blue-500">
+                          <Loader2 className="animate-spin mb-1"/>
+                          <span className="text-[10px] font-bold">Elaborazione...</span>
+                       </div>
+                    ) : photo ? (
+                        <div className="relative w-full h-full group-hover:scale-95 transition-transform">
+                             <img src={photo} className="h-full w-full object-cover rounded mx-auto" />
+                             <div className="absolute inset-0 bg-black/20 opacity-0 group-hover:opacity-100 flex items-center justify-center text-white text-xs font-bold transition-opacity">Modifica</div>
+                        </div>
+                    ) : (
+                        <div className="flex flex-col items-center group-hover:scale-105 transition-transform">
+                             <ImageIcon className="text-gray-400 mb-1"/>
+                             <span className="text-[10px] font-bold text-gray-500 uppercase">Foto Ricordo</span>
+                        </div>
+                    )}
               </div>
           </div>
 
@@ -331,8 +404,8 @@ const Creator: React.FC<CreatorProps> = ({ onCreated }) => {
 
           <button
               type="submit"
-              disabled={loading}
-              className={`w-full py-4 rounded-xl text-white font-bold text-lg shadow-xl flex items-center justify-center gap-2 transition-all active:scale-95 ${loading ? 'bg-gray-400 cursor-not-allowed' : 'bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700'}`}
+              disabled={loading || !!processingImg}
+              className={`w-full py-4 rounded-xl text-white font-bold text-lg shadow-xl flex items-center justify-center gap-2 transition-all active:scale-95 ${loading || !!processingImg ? 'bg-gray-400 cursor-not-allowed' : 'bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700'}`}
             >
               <Wand2 /> GENERA BIGLIETTO
           </button>
