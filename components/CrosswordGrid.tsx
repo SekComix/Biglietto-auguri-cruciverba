@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef, useMemo } from 'react';
 import { CrosswordData, CellData, Direction, ThemeType } from '../types';
 import { regenerateGreeting } from '../services/geminiService';
-import { Printer, Edit, Wand2, Dice5, Eye, EyeOff, Sparkles, Send, Settings, ArrowRight, RefreshCw } from 'lucide-react';
+import { Printer, Edit, Wand2, Eye, EyeOff } from 'lucide-react';
 
 interface CrosswordGridProps {
   data: CrosswordData;
@@ -489,7 +489,7 @@ const CrosswordGrid: React.FC<CrosswordGridProps> = ({ data, onComplete, onEdit 
                     )}
 
                     {/* Greeting Message */}
-                    <div className="relative group w-full">
+                    <div className="relative group w-full mb-auto">
                         {isEditingMsg ? (
                              <div className="animate-fade-in w-full">
                                 <textarea 
@@ -518,37 +518,24 @@ const CrosswordGrid: React.FC<CrosswordGridProps> = ({ data, onComplete, onEdit 
                         )}
                     </div>
 
-                    {/* AI Rewrite Tools */}
+                    {/* AI Rewrite Tools (Always visible when editing message, or if message is empty) */}
                     {isEditingMsg && (
-                        <div className="mt-4 p-3 bg-blue-50 rounded-xl w-full border border-blue-100">
+                        <div className="mt-4 p-3 bg-blue-50 rounded-xl w-full border border-blue-100 mb-4">
                             <span className="text-xs font-bold text-blue-800 uppercase mb-2 block flex items-center gap-1 justify-center"><Wand2 size={12}/> Riscrivi con AI</span>
                             <div className="flex flex-wrap gap-2 justify-center mb-2">
                                 <button disabled={isRegeneratingMsg} onClick={() => handleRegenerateMessage('funny')} className="text-xs bg-white px-2 py-1 rounded border hover:bg-blue-100">😂 Divertente</button>
                                 <button disabled={isRegeneratingMsg} onClick={() => handleRegenerateMessage('heartfelt')} className="text-xs bg-white px-2 py-1 rounded border hover:bg-blue-100">❤️ Commovente</button>
                                 <button disabled={isRegeneratingMsg} onClick={() => handleRegenerateMessage('rhyme')} className="text-xs bg-white px-2 py-1 rounded border hover:bg-blue-100">🎵 Rima</button>
-                                <button disabled={isRegeneratingMsg} onClick={() => setCustomPromptMode(!customPromptMode)} className="text-xs bg-white px-2 py-1 rounded border hover:bg-blue-100">✨ Custom</button>
                             </div>
-                            {customPromptMode && (
-                                <div className="flex gap-1">
-                                    <input 
-                                        type="text" 
-                                        placeholder="Es: come un pirata..." 
-                                        className="flex-1 text-xs p-1 rounded border"
-                                        value={customPromptText}
-                                        onChange={(e) => setCustomPromptText(e.target.value)}
-                                    />
-                                    <button onClick={() => handleRegenerateMessage('custom')} disabled={!customPromptText} className="bg-blue-600 text-white p-1 rounded"><ArrowRight size={12}/></button>
-                                </div>
-                            )}
                             {isRegeneratingMsg && <div className="text-xs text-center text-blue-500 mt-1 font-bold animate-pulse">Generazione in corso...</div>}
                         </div>
                     )}
                     
                     {/* Stickers */}
                     {data.stickers && data.stickers.length > 0 && (
-                        <div className="flex flex-wrap justify-center gap-2 mt-auto pt-4">
+                        <div className="flex flex-wrap justify-center gap-3 mt-4 pt-4 border-t border-gray-100 w-full">
                             {data.stickers.map((s, i) => (
-                                <span key={i} className="text-3xl animate-[bounce_2s_infinite]" style={{ animationDelay: `${i * 0.2}s` }}>{s}</span>
+                                <span key={i} className="text-4xl animate-[bounce_2s_infinite]" style={{ animationDelay: `${i * 0.2}s` }}>{s}</span>
                             ))}
                         </div>
                     )}
@@ -626,7 +613,7 @@ const CrosswordGrid: React.FC<CrosswordGridProps> = ({ data, onComplete, onEdit 
                </div>
 
                {/* Footer Stickers */}
-               <div className="flex gap-4 mb-4 text-4xl">
+               <div className="flex gap-4 mb-4 text-4xl justify-center">
                    {data.stickers?.slice(0,5).map((s,i) => <span key={i}>{s}</span>)}
                </div>
            </div>
