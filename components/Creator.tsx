@@ -1,10 +1,11 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { generateCrossword } from '../services/geminiService';
 import { CrosswordData, ManualInput, ThemeType } from '../types';
 import { Loader2, Wand2, Plus, Trash2, Gift, PartyPopper, CalendarHeart, Crown, KeyRound, Image as ImageIcon, Upload, Calendar, AlertCircle, Grid3X3, MailOpen } from 'lucide-react';
 
 interface CreatorProps {
   onCreated: (data: CrosswordData) => void;
+  initialData?: CrosswordData | null; // Props per la modifica
 }
 
 const THEMES: { id: ThemeType; label: string; icon: any; color: string }[] = [
@@ -16,7 +17,7 @@ const THEMES: { id: ThemeType; label: string; icon: any; color: string }[] = [
 
 const STICKERS = ['🎅', '🎄', '🎁', '🎂', '🎈', '🎉', '🐣', '🌸', '🥂', '❤️', '⭐', '🕯️', '🕊️', '🧸', '🍰', '💍'];
 
-const Creator: React.FC<CreatorProps> = ({ onCreated }) => {
+const Creator: React.FC<CreatorProps> = ({ onCreated, initialData }) => {
   const [contentType, setContentType] = useState<'crossword' | 'simple'>('crossword');
   const [mode, setMode] = useState<'ai' | 'manual'>('ai');
   const [theme, setTheme] = useState<ThemeType>('christmas');
@@ -46,6 +47,30 @@ const Creator: React.FC<CreatorProps> = ({ onCreated }) => {
     { word: '', clue: '' },
     { word: '', clue: '' }
   ]);
+
+  // INITIALIZATION FOR EDIT MODE
+  useEffect(() => {
+    if (initialData) {
+        setContentType(initialData.type);
+        setRecipientName(initialData.recipientName);
+        setEventDate(initialData.eventDate);
+        setTheme(initialData.theme);
+        setExtraImage(initialData.images?.extraImage);
+        setPhoto(initialData.images?.photo);
+        setSelectedStickers(initialData.stickers || []);
+        
+        if (initialData.type === 'crossword') {
+            if (initialData.originalMode) setMode(initialData.originalMode);
+            if (initialData.originalHiddenSolution) setHiddenSolution(initialData.originalHiddenSolution);
+            
+            if (initialData.originalMode === 'manual' && Array.isArray(initialData.originalInput)) {
+                setManualWords(initialData.originalInput as ManualInput[]);
+            } else if (typeof initialData.originalInput === 'string') {
+                setTopic(initialData.originalInput);
+            }
+        }
+    }
+  }, [initialData]);
 
   // File Handlers with Compression
   const handleImageUpload = (e: React.ChangeEvent<HTMLInputElement>, type: 'extra' | 'photo') => {
@@ -104,6 +129,11 @@ const Creator: React.FC<CreatorProps> = ({ onCreated }) => {
         setSelectedStickers([...selectedStickers, sticker]);
       }
     }
+  };
+
+  const removeImage = (type: 'extra' | 'photo') => {
+      if (type === 'extra') setExtraImage(undefined);
+      else setPhoto(undefined);
   };
 
   const addRow = () => setManualWords([...manualWords, { word: '', clue: '' }]);
@@ -335,6 +365,7 @@ const Creator: React.FC<CreatorProps> = ({ onCreated }) => {
                     ) : extraImage ? (
                         <div className="relative w-full h-full group-hover:scale-95 transition-transform">
                              <img src={extraImage} className="h-full w-full object-contain mx-auto" />
+                             <button type="button" onClick={(e) => { e.preventDefault(); removeImage('extra'); }} className="absolute top-1 right-1 bg-red-500 text-white rounded-full p-1 z-20 hover:bg-red-600"><Trash2 size={12}/></button>
                              <div className="absolute inset-0 bg-black/20 opacity-0 group-hover:opacity-100 flex items-center justify-center text-white text-xs font-bold transition-opacity">Modifica</div>
                         </div>
                     ) : (
@@ -356,6 +387,7 @@ const Creator: React.FC<CreatorProps> = ({ onCreated }) => {
                     ) : photo ? (
                         <div className="relative w-full h-full group-hover:scale-95 transition-transform">
                              <img src={photo} className="h-full w-full object-cover rounded mx-auto" />
+                             <button type="button" onClick={(e) => { e.preventDefault(); removeImage('photo'); }} className="absolute top-1 right-1 bg-red-500 text-white rounded-full p-1 z-20 hover:bg-red-600"><Trash2 size={12}/></button>
                              <div className="absolute inset-0 bg-black/20 opacity-0 group-hover:opacity-100 flex items-center justify-center text-white text-xs font-bold transition-opacity">Modifica</div>
                         </div>
                     ) : (
@@ -407,7 +439,7 @@ const Creator: React.FC<CreatorProps> = ({ onCreated }) => {
               disabled={loading || !!processingImg}
               className={`w-full py-4 rounded-xl text-white font-bold text-lg shadow-xl flex items-center justify-center gap-2 transition-all active:scale-95 ${loading || !!processingImg ? 'bg-gray-400 cursor-not-allowed' : 'bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700'}`}
             >
-              <Wand2 /> GENERA BIGLIETTO
+              <Wand2 /> {initialData ? "RIGENERA BIGLIETTO" : "GENERA BIGLIETTO"}
           </button>
       </div>
     </form>
