@@ -188,12 +188,22 @@ const CrosswordGrid: React.FC<CrosswordGridProps> = ({ data, onComplete }) => {
                 ${isSelected ? 'bg-yellow-200' : ''}
                 ${isInActiveWord ? 'brightness-95' : ''}
                 ${cell.isSolutionCell && isPrint ? 'bg-yellow-50 !border-[3px] !border-black' : ''}
+                ${cell.isSolutionCell && !isPrint ? 'ring-2 ring-yellow-400 ring-inset' : ''}
               `}
             >
               {cell.number && (
                 <span className={`absolute top-0 left-0.5 leading-none z-10 font-sans font-extrabold text-black ${isPrint ? 'text-[9px]' : 'text-[10px] opacity-70'}`}>
                   {cell.number}
                 </span>
+              )}
+
+              {/* Soluzione Number (Visibile anche a schermo ora) */}
+              {cell.isSolutionCell && (
+                  <span className={`absolute bottom-0 right-0.5 font-bold z-10 flex items-center justify-center
+                    ${isPrint ? 'text-[7px] text-gray-600 bg-white px-0.5 border border-gray-400' : 'text-[8px] bg-yellow-400 text-yellow-900 w-3 h-3 rounded-full'}
+                  `}>
+                      {cell.solutionIndex}
+                  </span>
               )}
               
               {!isPrint ? (
@@ -205,9 +215,7 @@ const CrosswordGrid: React.FC<CrosswordGridProps> = ({ data, onComplete }) => {
                   readOnly={revealAnswers}
                   onChange={(e) => handleInput(x, y, e.target.value)}
                 />
-              ) : (
-                cell.isSolutionCell && <span className="absolute bottom-0 right-0.5 text-[7px] font-bold text-gray-600 bg-white px-0.5 border border-gray-400">{cell.solutionIndex}</span>
-              )}
+              ) : null}
             </div>
           );
         })
