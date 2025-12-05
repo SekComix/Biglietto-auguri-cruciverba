@@ -1,11 +1,11 @@
 import React, { useState, useEffect } from 'react';
 import { generateCrossword } from '../services/geminiService';
 import { CrosswordData, ManualInput, ThemeType } from '../types';
-import { Loader2, Wand2, Plus, Trash2, Gift, PartyPopper, CalendarHeart, Crown, KeyRound, Image as ImageIcon, Upload, Calendar, AlertCircle, Grid3X3, MailOpen, Images, Ghost, GraduationCap, ScrollText, HeartHandshake, BookOpen } from 'lucide-react';
+import { Loader2, Wand2, Plus, Trash2, Gift, PartyPopper, CalendarHeart, Crown, KeyRound, Image as ImageIcon, Upload, Calendar, AlertCircle, Grid3X3, MailOpen, Images, Ghost, GraduationCap, ScrollText, HeartHandshake, BookOpen, Search, X } from 'lucide-react';
 
 interface CreatorProps {
   onCreated: (data: CrosswordData) => void;
-  initialData?: CrosswordData | null; // Props per la modifica
+  initialData?: CrosswordData | null;
 }
 
 const THEMES: { id: ThemeType; label: string; icon: any; color: string }[] = [
@@ -20,29 +20,50 @@ const THEMES: { id: ThemeType; label: string; icon: any; color: string }[] = [
   { id: 'elegant', label: 'Elegante', icon: Crown, color: 'bg-gray-800' },
 ];
 
-const STICKERS = [
-    // Natale
-    '🎅', '🎄', '🎁', '❄️', '⛄', '🦌', '🧦', '🍪', '🥛', '🔔', '🕯️', '🌟',
-    // Compleanno
-    '🎂', '🎈', '🎉', '🕯️', '🍰', '🥳', '🎁', '👑', '🧢', '🎺', '🎊',
-    // Pasqua
-    '🐣', '🌸', '🐇', '🥚', '🌷', '🍫', '🌻', '🐞', '🦋', '🌱', '🕊️',
-    // Halloween
-    '🎃', '👻', '🕷️', '🕸️', '🧛', '🍬', '🦇', '💀', '🌙', '🐈‍⬛', '🧙‍♀️',
-    // Laurea
-    '🎓', '📜', '🏆', '📚', '🦉', '✏️', '🧠', '💼', '🥇', '🏫', '👩‍🎓', '👨‍🎓',
-    // Religiosi (Cresima/Comunione)
-    '🕊️', '✝️', '⛪', '🥖', '🍇', '🕯️', '👼', '🙌', '🛐', '🌅', '💒',
-    // Matrimonio/Amore
-    '💍', '❤️', '👰', '🤵', '💒', '💐', '💌', '💑', '🥂', '💞', '💘',
-    // Animali
-    '🐶', '🐱', '🦄', '🦁', '🐢', '🦖', '🐬', '🌲', '🌵', '🌈', '🐼', '🐨',
-    // Cibo & Drink
-    '🍕', '🍔', '🍟', '🍦', '🍩', '🍪', '🍫', '🍷', '🍺', '☕', '🍹', '🍓',
-    // Sport & Hobby
-    '⚽', '🏀', '🎾', '🏐', '🎮', '🎨', '🎸', '✈️', '🚗', '🏖️', '📸', '🚲',
-    // Simboli & Extra
-    '⭐', '🌟', '✨', '💫', '💎', '⚜️', '🍀', '🎵', '🎶', '☀️', '💣', '💯'
+// Stickers mappati con tag per la ricerca
+const STICKER_DATA = [
+    { char: '🎅', tags: 'natale babbo christmas santa' },
+    { char: '🎄', tags: 'natale albero tree christmas' },
+    { char: '🎁', tags: 'regalo pacco dono gift' },
+    { char: '❄️', tags: 'neve freddo inverno snow' },
+    { char: '⛄', tags: 'pupazzo neve inverno' },
+    { char: '🦌', tags: 'renna rudolph animale' },
+    { char: '🎂', tags: 'torta compleanno cibo dolce' },
+    { char: '🎈', tags: 'palloncino festa compleanno' },
+    { char: '🎉', tags: 'festa coriandoli party' },
+    { char: '🕯️', tags: 'candela luce' },
+    { char: '🥂', tags: 'brindisi bicchieri cin cin' },
+    { char: '🎓', tags: 'laurea tocco scuola' },
+    { char: '📜', tags: 'pergamena diploma laurea' },
+    { char: '🏆', tags: 'coppa trofeo vittoria' },
+    { char: '💍', tags: 'anello matrimonio fidanzamento' },
+    { char: '❤️', tags: 'cuore amore love' },
+    { char: '👰', tags: 'sposa matrimonio' },
+    { char: '🤵', tags: 'sposo matrimonio' },
+    { char: '🎃', tags: 'zucca halloween' },
+    { char: '👻', tags: 'fantasma halloween paura' },
+    { char: '✝️', tags: 'croce religione gesù' },
+    { char: '🕊️', tags: 'colomba pace cresima' },
+    { char: '🐶', tags: 'cane animale cucciolo' },
+    { char: '🐱', tags: 'gatto animale micio' },
+    { char: '⚽', tags: 'calcio pallone sport' },
+    { char: '🍕', tags: 'pizza cibo fame' },
+    { char: '⭐', tags: 'stella star' },
+    { char: '🌈', tags: 'arcobaleno' },
+    { char: '🍀', tags: 'fortuna quadrifoglio' },
+    { char: '🚗', tags: 'auto macchina viaggio' },
+    { char: '✈️', tags: 'aereo viaggio vacanza' },
+    { char: '📷', tags: 'foto camera' },
+    { char: '🎮', tags: 'gioco videogiochi' },
+    { char: '🎸', tags: 'chitarra musica strumento' },
+    { char: '💰', tags: 'soldi ricchezza' },
+    { char: '👑', tags: 'corona re regina' },
+    { char: '👶', tags: 'neonato bambino' },
+    { char: '💊', tags: 'medicina dottore' },
+    { char: '🍦', tags: 'gelato dolce' },
+    { char: '☕', tags: 'caffe colazione' },
+    { char: '🦁', tags: 'leone animale' },
+    { char: '🦄', tags: 'unicorno fantasia' }
 ];
 
 export const Creator: React.FC<CreatorProps> = ({ onCreated, initialData }) => {
@@ -58,16 +79,24 @@ export const Creator: React.FC<CreatorProps> = ({ onCreated, initialData }) => {
 
   // Visual Assets
   const [extraImage, setExtraImage] = useState<string | undefined>(undefined);
-  const [photos, setPhotos] = useState<string[]>([]); // Array per collage
+  const [photos, setPhotos] = useState<string[]>([]); 
   const [selectedStickers, setSelectedStickers] = useState<string[]>([]);
+
+  // Search Sticker State
+  const [stickerSearch, setStickerSearch] = useState('');
 
   // States
   const [loading, setLoading] = useState(false);
   const [statusMsg, setStatusMsg] = useState('');
   const [error, setError] = useState<string | null>(null);
   
-  // Image Processing State
-  const [processingImg, setProcessingImg] = useState<'extra' | 'photo' | null>(null);
+  // Image Processing State - More detailed
+  const [processingState, setProcessingState] = useState<{
+      active: boolean;
+      type: 'extra' | 'photo' | null;
+      current: number;
+      total: number;
+  }>({ active: false, type: null, current: 0, total: 0 });
 
   // Manual Words
   const [manualWords, setManualWords] = useState<ManualInput[]>([
@@ -100,81 +129,123 @@ export const Creator: React.FC<CreatorProps> = ({ onCreated, initialData }) => {
     }
   }, [initialData]);
 
-  // File Handlers with Compression and Multi-upload
-  const handleImageUpload = (e: React.ChangeEvent<HTMLInputElement>, type: 'extra' | 'photo') => {
+  // --- IMAGE PROCESSING HELPERS ---
+  const processImageFile = (file: File): Promise<string> => {
+      return new Promise((resolve, reject) => {
+          const reader = new FileReader();
+          reader.onload = (event) => {
+              const img = new Image();
+              img.onload = () => {
+                  const canvas = document.createElement('canvas');
+                  let width = img.width;
+                  let height = img.height;
+                  
+                  // Resize logic: Max 1000px (ridotto leggermente per sicurezza su mobile)
+                  const MAX_SIZE = 1000;
+                  if (width > MAX_SIZE || height > MAX_SIZE) {
+                      if (width > height) {
+                          height *= MAX_SIZE / width;
+                          width = MAX_SIZE;
+                      } else {
+                          width *= MAX_SIZE / height;
+                          height = MAX_SIZE;
+                      }
+                  }
+                  
+                  canvas.width = width;
+                  canvas.height = height;
+                  const ctx = canvas.getContext('2d');
+                  if (!ctx) { reject("Canvas error"); return; }
+                  
+                  // Sfondo bianco per PNG trasparenti convertiti in JPEG
+                  ctx.fillStyle = "#FFFFFF";
+                  ctx.fillRect(0, 0, width, height);
+                  ctx.drawImage(img, 0, 0, width, height);
+                  
+                  // Compress to JPEG 0.75 for balance
+                  const dataUrl = canvas.toDataURL('image/jpeg', 0.75);
+                  resolve(dataUrl);
+              };
+              img.onerror = () => reject("Image load error");
+              img.src = event.target?.result as string;
+          };
+          reader.onerror = () => reject("File read error");
+          reader.readAsDataURL(file);
+      });
+  };
+
+  const handleImageUpload = async (e: React.ChangeEvent<HTMLInputElement>, type: 'extra' | 'photo') => {
     const files = e.target.files;
     if (!files || files.length === 0) return;
 
-    setProcessingImg(type);
-
+    // Reset error
+    setError(null);
     const fileArray = Array.from(files);
-    // Limite collage a 9 foto
-    const filesToProcess = type === 'photo' ? fileArray.slice(0, 9 - (photos.length)) : [fileArray[0]];
-
-    if (filesToProcess.length === 0) {
-        setProcessingImg(null);
-        return;
+    
+    // Determine files to process based on limits
+    let filesToProcess = fileArray;
+    if (type === 'photo') {
+        // Max 9 total
+        const remainingSlots = 9 - photos.length;
+        if (remainingSlots <= 0) {
+            setError("Hai già raggiunto il limite di 9 foto.");
+            return;
+        }
+        filesToProcess = fileArray.slice(0, remainingSlots);
+    } else {
+        filesToProcess = [fileArray[0]]; // Single file for extra
     }
 
-    let processedCount = 0;
+    // Set Loading State
+    setProcessingState({
+        active: true,
+        type,
+        current: 0,
+        total: filesToProcess.length
+    });
+
     const newPhotos: string[] = [];
 
-    filesToProcess.forEach(file => {
-        const reader = new FileReader();
-        reader.onload = (event) => {
-          const img = new Image();
-          img.onload = () => {
-            const canvas = document.createElement('canvas');
-            let width = img.width;
-            let height = img.height;
+    // SEQUENTIAL PROCESSING LOOP (Crucial for performance)
+    for (let i = 0; i < filesToProcess.length; i++) {
+        setProcessingState(prev => ({ ...prev, current: i + 1 }));
+        
+        try {
+            // Piccolo delay per permettere alla UI di aggiornarsi
+            await new Promise(r => setTimeout(r, 50));
             
-            // Resize logic: Max 1200px
-            const MAX_SIZE = 1200;
-            if (width > MAX_SIZE || height > MAX_SIZE) {
-              if (width > height) {
-                height *= MAX_SIZE / width;
-                width = MAX_SIZE;
-              } else {
-                width *= MAX_SIZE / height;
-                height = MAX_SIZE;
-              }
-            }
-            
-            canvas.width = width;
-            canvas.height = height;
-            const ctx = canvas.getContext('2d');
-            ctx?.drawImage(img, 0, 0, width, height);
-            
-            // Compress to JPEG 0.8
-            const dataUrl = canvas.toDataURL('image/jpeg', 0.8);
+            const dataUrl = await processImageFile(filesToProcess[i]);
             
             if (type === 'extra') {
                 setExtraImage(dataUrl);
-                setProcessingImg(null); // Extra è singolo, finisce qui
             } else {
                 newPhotos.push(dataUrl);
-                processedCount++;
-                if (processedCount === filesToProcess.length) {
-                    setPhotos(prev => [...prev, ...newPhotos].slice(0, 9));
-                    setProcessingImg(null);
-                }
             }
-          };
-          img.src = event.target?.result as string;
-        };
-        reader.onerror = () => {
-            setError("Errore caricamento immagine");
-            setProcessingImg(null);
-        };
-        reader.readAsDataURL(file);
-    });
+        } catch (err) {
+            console.error(`Errore caricamento foto ${i+1}:`, err);
+            // Non blocchiamo tutto, ma notifichiamo alla fine se necessario
+        }
+    }
+
+    if (type === 'photo' && newPhotos.length > 0) {
+        setPhotos(prev => [...prev, ...newPhotos].slice(0, 9));
+    }
+
+    if (newPhotos.length < filesToProcess.length && type === 'photo') {
+        setError("Alcune foto non sono state caricate correttamente. Riprova.");
+    }
+
+    // Reset Loading State
+    setProcessingState({ active: false, type: null, current: 0, total: 0 });
+    // Reset input value to allow re-uploading same file if needed
+    e.target.value = '';
   };
 
   const toggleSticker = (sticker: string) => {
     if (selectedStickers.includes(sticker)) {
       setSelectedStickers(selectedStickers.filter(s => s !== sticker));
     } else {
-      if (selectedStickers.length < 5) { // Aumentato a 5
+      if (selectedStickers.length < 5) {
         setSelectedStickers([...selectedStickers, sticker]);
       }
     }
@@ -200,7 +271,7 @@ export const Creator: React.FC<CreatorProps> = ({ onCreated, initialData }) => {
 
   const handleGenerate = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (loading || processingImg) return; 
+    if (loading || processingState.active) return; 
     
     setLoading(true);
     setStatusMsg(contentType === 'crossword' ? "Costruisco la griglia..." : "Creo il biglietto...");
@@ -272,6 +343,11 @@ export const Creator: React.FC<CreatorProps> = ({ onCreated, initialData }) => {
         </div>
     );
   };
+
+  // Filter Stickers
+  const filteredStickers = stickerSearch.trim() === '' 
+      ? STICKER_DATA 
+      : STICKER_DATA.filter(s => s.tags.includes(stickerSearch.toLowerCase()) || s.char.includes(stickerSearch));
 
   return (
     <form onSubmit={handleGenerate} className={`max-w-3xl mx-auto bg-white/95 backdrop-blur p-6 md:p-8 rounded-3xl shadow-2xl border-2 border-white/50 relative overflow-hidden transition-all`}>
@@ -431,8 +507,8 @@ export const Creator: React.FC<CreatorProps> = ({ onCreated, initialData }) => {
               {/* Box Logo/Disegno */}
               <div className="border-2 border-dashed border-gray-300 rounded-xl p-4 text-center hover:bg-gray-50 cursor-pointer relative transition-colors group overflow-hidden h-32 flex items-center justify-center">
                     <input type="file" accept="image/*" onChange={(e) => handleImageUpload(e, 'extra')} className="absolute inset-0 opacity-0 cursor-pointer z-10" />
-                    {processingImg === 'extra' ? (
-                       <div className="flex flex-col items-center text-blue-500">
+                    {processingState.active && processingState.type === 'extra' ? (
+                       <div className="flex flex-col items-center text-blue-500 animate-pulse">
                           <Loader2 className="animate-spin mb-1"/>
                           <span className="text-[10px] font-bold">Elaborazione...</span>
                        </div>
@@ -455,10 +531,17 @@ export const Creator: React.FC<CreatorProps> = ({ onCreated, initialData }) => {
                     {/* Input accetta MULTIPLE */}
                     <input type="file" accept="image/*" multiple onChange={(e) => handleImageUpload(e, 'photo')} className="absolute inset-0 opacity-0 cursor-pointer z-10" />
                     
-                    {processingImg === 'photo' ? (
-                       <div className="flex flex-col items-center text-blue-500">
+                    {processingState.active && processingState.type === 'photo' ? (
+                       <div className="flex flex-col items-center text-blue-500 w-full px-4">
                           <Loader2 className="animate-spin mb-1"/>
-                          <span className="text-[10px] font-bold">Elaborazione Collage...</span>
+                          <span className="text-[10px] font-bold block">Elaborazione...</span>
+                          <div className="w-full bg-gray-200 h-1.5 rounded-full mt-2 overflow-hidden">
+                              <div 
+                                className="bg-blue-500 h-full transition-all duration-300"
+                                style={{ width: `${(processingState.current / processingState.total) * 100}%` }}
+                              ></div>
+                          </div>
+                          <span className="text-[9px] text-gray-400 mt-1">{processingState.current} di {processingState.total}</span>
                        </div>
                     ) : photos.length > 0 ? (
                         <div className="relative w-full h-full">
@@ -475,7 +558,7 @@ export const Creator: React.FC<CreatorProps> = ({ onCreated, initialData }) => {
               </div>
           </div>
 
-          {/* Stickers */}
+          {/* Stickers Section */}
           <div className="mb-6 bg-gray-50 p-3 rounded-xl border border-gray-100">
              <div className="flex justify-between items-center mb-2">
                 <label className="text-xs font-bold text-gray-400 uppercase">Decorazioni</label>
@@ -483,21 +566,46 @@ export const Creator: React.FC<CreatorProps> = ({ onCreated, initialData }) => {
                     {selectedStickers.length}/5
                 </span>
              </div>
-             <div className="flex flex-wrap gap-2 justify-center max-h-32 overflow-y-auto p-1 custom-scrollbar">
-                {STICKERS.map(s => (
-                    <button 
-                        key={s} 
-                        type="button" 
-                        onClick={() => toggleSticker(s)} 
-                        disabled={!selectedStickers.includes(s) && selectedStickers.length >= 5}
-                        className={`text-2xl p-2 rounded-full transition-all duration-300 
-                            ${selectedStickers.includes(s) ? 'bg-white shadow-md scale-110 ring-2 ring-blue-200' : 'opacity-60 hover:opacity-100 hover:scale-105'}
-                            ${!selectedStickers.includes(s) && selectedStickers.length >= 5 ? 'opacity-20 cursor-not-allowed' : ''}
-                        `}
-                    >
-                        {s}
-                    </button>
-                ))}
+             
+             {/* Sticker Search Bar */}
+             <div className="relative mb-3">
+                 <Search className="absolute left-2 top-2 text-gray-400" size={16} />
+                 <input 
+                    type="text" 
+                    placeholder="Cerca (es. torta, natale, cuore...)" 
+                    className="w-full pl-8 pr-8 py-1.5 text-sm rounded-lg border border-gray-200 focus:border-blue-400 outline-none"
+                    value={stickerSearch}
+                    onChange={(e) => setStickerSearch(e.target.value)}
+                 />
+                 {stickerSearch && (
+                     <button type="button" onClick={() => setStickerSearch('')} className="absolute right-2 top-2 text-gray-400 hover:text-gray-600">
+                         <X size={16}/>
+                     </button>
+                 )}
+             </div>
+
+             <div className="flex flex-wrap gap-2 justify-center max-h-48 overflow-y-auto p-2 border border-gray-100 rounded-lg bg-white custom-scrollbar">
+                {filteredStickers.length > 0 ? (
+                    filteredStickers.map((s, idx) => (
+                        <button 
+                            key={`${s.char}-${idx}`} 
+                            type="button" 
+                            onClick={() => toggleSticker(s.char)} 
+                            disabled={!selectedStickers.includes(s.char) && selectedStickers.length >= 5}
+                            className={`text-2xl w-10 h-10 flex items-center justify-center rounded-full transition-all duration-200
+                                ${selectedStickers.includes(s.char) ? 'bg-blue-100 shadow-sm scale-110 ring-2 ring-blue-300' : 'hover:bg-gray-100 hover:scale-110'}
+                                ${!selectedStickers.includes(s.char) && selectedStickers.length >= 5 ? 'opacity-30 cursor-not-allowed grayscale' : ''}
+                            `}
+                            title={s.tags}
+                        >
+                            {s.char}
+                        </button>
+                    ))
+                ) : (
+                    <div className="text-center py-4 text-gray-400 text-xs italic w-full">
+                        Nessuna decorazione trovata per "{stickerSearch}"
+                    </div>
+                )}
             </div>
           </div>
 
@@ -511,8 +619,8 @@ export const Creator: React.FC<CreatorProps> = ({ onCreated, initialData }) => {
 
           <button
               type="submit"
-              disabled={loading || !!processingImg}
-              className={`w-full py-4 rounded-xl text-white font-bold text-lg shadow-xl flex items-center justify-center gap-2 transition-all active:scale-95 ${loading || !!processingImg ? 'bg-gray-400 cursor-not-allowed' : 'bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700'}`}
+              disabled={loading || processingState.active}
+              className={`w-full py-4 rounded-xl text-white font-bold text-lg shadow-xl flex items-center justify-center gap-2 transition-all active:scale-95 ${loading || processingState.active ? 'bg-gray-400 cursor-not-allowed' : 'bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700'}`}
             >
               <Wand2 /> {initialData ? "RIGENERA BIGLIETTO" : "GENERA BIGLIETTO"}
           </button>
