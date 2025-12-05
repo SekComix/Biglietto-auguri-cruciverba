@@ -5,6 +5,8 @@ export enum Direction {
 
 export type ThemeType = 'christmas' | 'easter' | 'birthday' | 'elegant' | 'generic' | 'halloween' | 'graduation' | 'confirmation' | 'communion' | 'wedding';
 
+export type ToneType = 'funny' | 'heartfelt' | 'rhyme' | 'surprise';
+
 export interface WordEntry {
   id: string;
   word: string;
@@ -48,6 +50,7 @@ export interface CrosswordData {
   originalInput?: string | ManualInput[];
   originalMode?: 'ai' | 'manual';
   originalHiddenSolution?: string;
+  originalTone?: ToneType;
 }
 
 export interface CellData {
