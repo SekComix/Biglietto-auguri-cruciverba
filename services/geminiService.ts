@@ -186,8 +186,6 @@ const findSolutionInGrid = (words: any[], hiddenWord: string): any => {
             }
         }
     }
-    // Ritorna la soluzione solo se abbiamo trovato TUTTE le lettere
-    // O almeno la maggior parte. Per ora ritorniamo quello che troviamo.
     if (solutionCells.length > 0) {
         return { word: hiddenWord.toUpperCase(), cells: solutionCells };
     }
@@ -223,7 +221,6 @@ export const generateCrossword = async (
   } else {
       const topic = inputData as string;
       
-      // Costruiamo un prompt che guidi l'IA a usare le lettere della soluzione
       const solutionChars = hiddenSolutionWord 
         ? hiddenSolutionWord.toUpperCase().replace(/[^A-Z]/g, '').split('').join(', ')
         : '';
@@ -246,7 +243,7 @@ export const generateCrossword = async (
             config: {
                 responseMimeType: "application/json",
                 responseSchema: wordListSchema,
-                temperature: 0.8, // Leggermente più creativo per trovare parole varie
+                temperature: 0.8,
             },
         });
 
@@ -274,7 +271,6 @@ export const generateCrossword = async (
       ? findSolutionInGrid(words, hiddenSolutionWord) 
       : null;
 
-  // Formattiamo le parole finali
   const finalWords = words.map((w: any, idx: number) => ({ 
       ...w, 
       id: `word-${idx}`,
@@ -306,17 +302,40 @@ export const regenerateGreeting = async (
     currentMessage: string,
     theme: string,
     recipient: string,
-    tone: 'funny' | 'heartfelt' | 'rhyme' = 'heartfelt'
+    tone: 'funny' | 'heartfelt' | 'rhyme' | 'custom',
+    customPrompt?: string
 ): Promise<string> => {
     const apiKey = getApiKey();
     const ai = new GoogleGenAI({ apiKey });
+    
+    let instructions = "";
+    if (tone === 'custom' && customPrompt) {
+      instructions = `Istruzioni specifiche dell'utente: "${customPrompt}".`;
+    } else {
+      instructions = `Tono desiderato: ${tone}.`;
+    }
+
+    const prompt = `
+    Sei un assistente che scrive biglietti di auguri.
+    Scrivi UN SOLO breve messaggio di auguri (massimo 15-20 parole) per ${recipient}.
+    Evento/Tema: ${theme}.
+    ${instructions}
+    
+    IMPORTANTE:
+    - Restituisci SOLO il testo del messaggio. 
+    - NON scrivere elenchi puntati.
+    - NON scrivere opzioni multiple.
+    - NON mettere virgolette.
+    `;
+
     try {
         const response = await ai.models.generateContent({
             model: 'gemini-2.5-flash',
-            contents: `Auguri brevi (max 15 parole) per ${recipient}, tema ${theme}, tono ${tone}.`,
+            contents: prompt,
         });
         return response.text?.replace(/"/g, '').trim() || currentMessage;
     } catch (e) {
+        console.error(e);
         return currentMessage;
     }
 };
