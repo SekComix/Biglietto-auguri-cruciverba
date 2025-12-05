@@ -3,7 +3,7 @@ export enum Direction {
   DOWN = 'down'
 }
 
-export type ThemeType = 'christmas' | 'easter' | 'birthday' | 'elegant' | 'generic';
+export type ThemeType = 'christmas' | 'easter' | 'birthday' | 'elegant' | 'generic' | 'halloween' | 'graduation' | 'confirmation' | 'communion' | 'wedding';
 
 export interface WordEntry {
   id: string;
