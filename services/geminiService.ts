@@ -27,6 +27,49 @@ const getApiKey = () => {
   return key;
 };
 
+// --- FALLBACK MESSAGES ---
+const FALLBACK_GREETINGS: Record<string, string[]> = {
+    christmas: [
+        "Ti auguro un Natale pieno di gioia, calore e momenti indimenticabili!",
+        "Che la magia delle feste porti serenità a te e alla tua famiglia. Auguri!",
+        "Sotto l'albero spero tu trovi felicità e sorrisi. Buon Natale!",
+        "Un mondo di auguri per un Natale scintillante e felice.",
+        "Che questo Natale brilli di luce, amore e allegria!"
+    ],
+    birthday: [
+        "Buon Compleanno! Che la tua giornata sia speciale come te.",
+        "Cento di questi giorni! Ti auguro un anno pieno di successi.",
+        "Tanti auguri! Festeggia alla grande e goditi ogni momento.",
+        "Un altro anno è passato, ma sei sempre fantastico! Auguri!",
+        "Auguri di cuore! Che tutti i tuoi desideri si avverino oggi."
+    ],
+    easter: [
+        "Buona Pasqua! Che sia una giornata piena di dolcezza.",
+        "Auguri di una serena e felice Pasqua a te e ai tuoi cari.",
+        "Tra colombe e uova di cioccolato, ti auguro una Pasqua speciale!",
+        "Che la pace e la gioia della Pasqua siano con te oggi."
+    ],
+    elegant: [
+        "I miei più sinceri auguri per questa occasione speciale.",
+        "Con l'augurio che la serenità possa accompagnarti sempre.",
+        "Un pensiero gentile per augurarti il meglio in questo giorno.",
+        "Auguri raffinati per una persona di grande stile."
+    ],
+    generic: [
+        "Tanti auguri! Spero che questa giornata ti porti tanta felicità.",
+        "Un pensiero speciale per te in questo giorno di festa.",
+        "Con affetto, ti auguro il meglio oggi e sempre!",
+        "Che sia un giorno indimenticabile. Auguri di cuore!"
+    ]
+};
+
+const getRandomFallback = (theme: string): string => {
+    const keys = Object.keys(FALLBACK_GREETINGS);
+    const key = keys.includes(theme) ? theme : 'generic';
+    const messages = FALLBACK_GREETINGS[key];
+    return messages[Math.floor(Math.random() * messages.length)];
+};
+
 // --- HELPER TIMEOUT ---
 const withTimeout = <T>(promise: Promise<T>, ms: number, errorMessage: string): Promise<T> => {
     let timeoutId: any;
@@ -328,25 +371,19 @@ export const regenerateGreeting = async (
     
     let instructions = "";
     if (tone === 'custom' && customPrompt) {
-      instructions = `Usa queste istruzioni: "${customPrompt}".`;
+      instructions = `Istruzioni specifiche: "${customPrompt}".`;
     } else {
-      instructions = `Tono: ${tone}.`;
+      instructions = `Stile: ${tone}.`;
     }
 
-    // Prompt rafforzato per variare il messaggio
+    // Prompt semplificato per evitare blocchi
     const prompt = `
-    Sei un creativo copywriter per biglietti di auguri.
-    Il tuo compito è scrivere un messaggio ORIGINALE e UNICO per ${recipient}.
-    
-    Tono desiderato: ${tone}.
+    Scrivi un breve messaggio di auguri originale per ${recipient}.
     Evento: ${theme}.
     ${instructions}
     
-    Regole ferree:
-    1. Scrivi SOLO il testo del messaggio (niente "Ecco il messaggio:" o virgolette).
-    2. Lunghezza massima: 25 parole.
-    3. NON ripetere frasi generiche come "Tanti auguri". Sii specifico e creativo.
-    4. Inventa qualcosa di diverso dal solito.
+    Massimo 25 parole. Solo testo semplice.
+    Seed casuale: ${Math.random()}
     `;
 
     try {
@@ -354,18 +391,28 @@ export const regenerateGreeting = async (
             model: 'gemini-2.5-flash',
             contents: prompt,
             config: { 
-                maxOutputTokens: 200, // Aumentato per evitare tagli
-                temperature: 1.0 // Massima creatività
+                temperature: 0.9 // Alta creatività ma bilanciata
+                // Rimosso maxOutputTokens per evitare output vuoti se il modello sfora
             } 
         });
 
+        // Timeout 15s
         const response: any = await withTimeout(apiCall, 15000, "Timeout");
         const newText = response.text?.replace(/"/g, '').trim();
 
-        // Se l'IA ritorna vuoto, tieni il vecchio, altrimenti ritorna il nuovo
-        return newText || currentMessage;
+        if (!newText || newText === currentMessage) {
+            throw new Error("Messaggio vuoto o identico");
+        }
+
+        return newText;
     } catch (e) {
-        console.error("Errore rigenerazione messaggio:", e);
-        return currentMessage;
+        console.error("Errore o Timeout rigenerazione (uso fallback):", e);
+        // Fallback locale per garantire che qualcosa cambi sempre
+        let fallback = getRandomFallback(theme);
+        // Assicuriamoci che il fallback non sia identico a quello corrente
+        if (fallback === currentMessage) {
+             fallback = getRandomFallback(theme);
+        }
+        return fallback;
     }
 };
