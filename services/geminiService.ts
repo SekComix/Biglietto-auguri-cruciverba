@@ -49,6 +49,36 @@ const FALLBACK_GREETINGS: Record<string, string[]> = {
         "Tra colombe e uova di cioccolato, ti auguro una Pasqua speciale!",
         "Che la pace e la gioia della Pasqua siano con te oggi."
     ],
+    halloween: [
+        "Dolcetto o scherzetto? Ti auguro un Halloween spaventosamente divertente!",
+        "Una notte da brividi e risate! Buon Halloween!",
+        "Che la magia di Halloween ti porti tanti dolci e zero brutti scherzi.",
+        "Streghe, fantasmi e zucche... oggi tutto è permesso. Buon Halloween!"
+    ],
+    graduation: [
+        "Congratulazioni Dottore! Hai raggiunto un traguardo straordinario.",
+        "Tutti i tuoi sacrifici sono stati ripagati. Ad Maiora!",
+        "Oggi festeggiamo il tuo successo e il tuo futuro radioso. Congratulazioni!",
+        "Sei l'orgoglio di tutti noi. Auguri per la tua Laurea!"
+    ],
+    confirmation: [
+        "Che lo Spirito Santo ti guidi sempre nel cammino della vita.",
+        "Tanti auguri per la tua Santa Cresima, giorno di gioia e consapevolezza.",
+        "Un giorno importante per la tua crescita spirituale. Auguri di cuore!",
+        "Che la luce di questo giorno ti accompagni per sempre."
+    ],
+    communion: [
+        "Auguri per la tua Prima Comunione, un incontro speciale con Gesù.",
+        "Che la gioia di questo giorno resti per sempre nel tuo cuore.",
+        "Un passo importante nella fede. Tanti auguri per la tua Comunione!",
+        "Possa la purezza di oggi accompagnarti ogni giorno."
+    ],
+    wedding: [
+        "Che il vostro amore sia eterno e sempre pieno di gioia. Viva gli sposi!",
+        "Oggi inizia la vostra avventura più bella. Tanti auguri di felicità!",
+        "Che la vostra vita insieme sia una meravigliosa favola. Congratulazioni!",
+        "Due cuori, un'unica anima. Felicitazioni per il vostro Matrimonio!"
+    ],
     elegant: [
         "I miei più sinceri auguri per questa occasione speciale.",
         "Con l'augurio che la serenità possa accompagnarti sempre.",
@@ -348,10 +378,17 @@ export const generateCrossword = async (
   }
 
   // Costruzione Titolo
-  const defaultTitle = theme === 'birthday' ? `Buon Compleanno ${extraData?.recipientName}!` : 
-                       theme === 'christmas' ? `Buon Natale ${extraData?.recipientName}!` :
-                       theme === 'easter' ? `Buona Pasqua ${extraData?.recipientName}!` :
-                       `Per ${extraData?.recipientName}`;
+  let defaultTitle = `Per ${extraData?.recipientName}`;
+  switch(theme) {
+      case 'birthday': defaultTitle = `Buon Compleanno ${extraData?.recipientName}!`; break;
+      case 'christmas': defaultTitle = `Buon Natale ${extraData?.recipientName}!`; break;
+      case 'easter': defaultTitle = `Buona Pasqua ${extraData?.recipientName}!`; break;
+      case 'halloween': defaultTitle = `Buon Halloween ${extraData?.recipientName}!`; break;
+      case 'graduation': defaultTitle = `Congratulazioni Dott. ${extraData?.recipientName}!`; break;
+      case 'confirmation': defaultTitle = `Santa Cresima di ${extraData?.recipientName}`; break;
+      case 'communion': defaultTitle = `Prima Comunione di ${extraData?.recipientName}`; break;
+      case 'wedding': defaultTitle = `Viva gli Sposi!`; break;
+  }
 
   const defaultMessage = `Tanti auguri! Ecco un pensiero speciale per te.`;
   
