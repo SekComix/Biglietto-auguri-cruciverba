@@ -170,6 +170,7 @@ const CrosswordGrid: React.FC<CrosswordGridProps> = ({ data, onComplete, onEdit 
       try {
           const newMsg = await regenerateGreeting(editableMessage, data.theme, data.recipientName, tone, tone === 'custom' ? customPromptText : undefined);
           setEditableMessage(newMsg);
+          setCustomPromptText("");
       } catch (e) { console.error(e); } finally { setIsRegeneratingMsg(false); }
   };
 
@@ -234,7 +235,7 @@ const CrosswordGrid: React.FC<CrosswordGridProps> = ({ data, onComplete, onEdit 
                         <p className={`text-xl ${themeAssets.fontTitle} mb-2 cursor-pointer hover:bg-yellow-50 p-1 rounded`} onClick={() => setIsEditingMsg(true)}>"{editableMessage}"</p>
                     )}
 
-                    {/* AI TOOLS RESTORED & VISIBLE */}
+                    {/* AI TOOLS VISIBLE FOR BOTH CROSSWORD AND SIMPLE */}
                     <div className="flex flex-wrap gap-2 justify-center mt-2 pt-2 border-t border-gray-100 w-full">
                         <span className="text-[10px] text-gray-400 w-full">Suggerimenti AI:</span>
                         <button disabled={isRegeneratingMsg} onClick={() => handleRegenerateMessage('funny')} className="text-xs bg-gray-100 px-2 py-1 rounded hover:bg-blue-100">😂 Simpatico</button>
@@ -259,7 +260,7 @@ const CrosswordGrid: React.FC<CrosswordGridProps> = ({ data, onComplete, onEdit 
            )}
        </div>
 
-       {/* PRINT LAYOUT - FIXED MARGINS */}
+       {/* PRINT LAYOUT - FIXED MARGINS & PHOTO HEIGHT */}
        <div className="hidden print:flex print-sheet" style={{ width: '270mm', height: '190mm', margin: '10mm auto', overflow: 'hidden' }}>
            <div className="watermark">{themeAssets.watermark}</div>
            
@@ -270,11 +271,11 @@ const CrosswordGrid: React.FC<CrosswordGridProps> = ({ data, onComplete, onEdit 
                
                <div className="flex-1 flex items-center justify-center w-full overflow-hidden mb-2">
                    {photos.length > 0 ? (
-                       <div className="w-[80%] aspect-square border rounded-lg overflow-hidden shadow-sm">
+                       <div className="w-[80%] max-h-[85mm] aspect-[4/3] border rounded-lg overflow-hidden shadow-sm">
                            <PhotoCollage photos={photos} />
                        </div>
                    ) : data.images?.extraImage ? (
-                       <img src={data.images.extraImage} className="h-40 object-contain" />
+                       <img src={data.images.extraImage} className="max-h-[85mm] object-contain" />
                    ) : <div className="text-8xl opacity-10">{themeAssets.decoration}</div>}
                </div>
                
