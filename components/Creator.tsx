@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { generateCrossword } from '../services/geminiService';
 import { CrosswordData, ManualInput, ThemeType } from '../types';
-import { Loader2, Wand2, Plus, Trash2, Gift, PartyPopper, CalendarHeart, Crown, KeyRound, Image as ImageIcon, Upload, Calendar, AlertCircle } from 'lucide-react';
+import { Loader2, Wand2, Plus, Trash2, Gift, PartyPopper, CalendarHeart, Crown, KeyRound, Image as ImageIcon, Upload, Calendar, AlertCircle, Grid3X3, MailOpen } from 'lucide-react';
 
 interface CreatorProps {
   onCreated: (data: CrosswordData) => void;
@@ -14,9 +14,10 @@ const THEMES: { id: ThemeType; label: string; icon: any; color: string }[] = [
   { id: 'elegant', label: 'Elegante', icon: Crown, color: 'bg-gray-800' },
 ];
 
-const STICKERS = ['🎅', '🎄', '🎁', '🎂', '🎈', '🎉', '🐣', '🌸', '🥂', '❤️', '⭐', '🕯️'];
+const STICKERS = ['🎅', '🎄', '🎁', '🎂', '🎈', '🎉', '🐣', '🌸', '🥂', '❤️', '⭐', '🕯️', '🕊️', '🧸', '🍰', '💍'];
 
 const Creator: React.FC<CreatorProps> = ({ onCreated }) => {
+  const [contentType, setContentType] = useState<'crossword' | 'simple'>('crossword');
   const [mode, setMode] = useState<'ai' | 'manual'>('ai');
   const [theme, setTheme] = useState<ThemeType>('christmas');
   
@@ -83,18 +84,21 @@ const Creator: React.FC<CreatorProps> = ({ onCreated }) => {
     if (loading) return; 
     
     setLoading(true);
-    setStatusMsg("Costruisco la griglia...");
+    setStatusMsg(contentType === 'crossword' ? "Costruisco la griglia..." : "Creo il biglietto...");
     setError(null);
 
     try {
       let inputData: string | ManualInput[] = topic;
       
-      if (mode === 'manual') {
-        const validWords = manualWords.filter(w => w.word.trim() && w.clue.trim());
-        if (validWords.length < 2) throw new Error("Inserisci almeno 2 parole complete.");
-        inputData = validWords;
-      } else {
-        if (!topic.trim()) throw new Error("Inserisci un argomento.");
+      // Validazione specifica per cruciverba
+      if (contentType === 'crossword') {
+          if (mode === 'manual') {
+            const validWords = manualWords.filter(w => w.word.trim() && w.clue.trim());
+            if (validWords.length < 2) throw new Error("Inserisci almeno 2 parole complete.");
+            inputData = validWords;
+          } else {
+            if (!topic.trim()) throw new Error("Inserisci un argomento per il cruciverba.");
+          }
       }
 
       if (!recipientName.trim()) throw new Error("Inserisci il nome del festeggiato.");
@@ -110,7 +114,8 @@ const Creator: React.FC<CreatorProps> = ({ onCreated }) => {
           recipientName,
           eventDate,
           images: { extraImage, photo },
-          stickers: selectedStickers
+          stickers: selectedStickers,
+          contentType // Passiamo il tipo
         },
         (msg) => setStatusMsg(msg)
       );
@@ -147,12 +152,37 @@ const Creator: React.FC<CreatorProps> = ({ onCreated }) => {
       <div className={`transition-opacity duration-500 ${loading ? 'opacity-20 pointer-events-none' : 'opacity-100'}`}>
           <div className="text-center mb-8">
             <h2 className="font-bold text-3xl md:text-4xl text-gray-800 mb-2 font-body">Crea il Tuo Biglietto</h2>
-            <p className="text-gray-500">Intelligenza Artificiale v4.0 (Super Veloce)</p>
+            <p className="text-gray-500">Suite Creativa v5.0</p>
           </div>
 
-          {/* Theme */}
+          {/* 1. Content Type Selection */}
           <div className="mb-6">
-            <label className="block text-xs font-bold text-gray-400 mb-3 uppercase tracking-wider text-center">1. Evento</label>
+            <label className="block text-xs font-bold text-gray-400 mb-3 uppercase tracking-wider text-center">1. Cosa vuoi creare?</label>
+            <div className="flex gap-4">
+                <button
+                   type="button"
+                   onClick={() => setContentType('crossword')}
+                   className={`flex-1 p-4 rounded-xl border-2 transition-all flex flex-col items-center gap-2 ${contentType === 'crossword' ? 'border-blue-500 bg-blue-50 text-blue-700' : 'border-gray-200 hover:border-blue-300'}`}
+                >
+                    <Grid3X3 size={28} />
+                    <span className="font-bold">Cruciverba</span>
+                    <span className="text-[10px] uppercase font-bold text-gray-400">Gioco + Auguri</span>
+                </button>
+                <button
+                   type="button"
+                   onClick={() => setContentType('simple')}
+                   className={`flex-1 p-4 rounded-xl border-2 transition-all flex flex-col items-center gap-2 ${contentType === 'simple' ? 'border-purple-500 bg-purple-50 text-purple-700' : 'border-gray-200 hover:border-purple-300'}`}
+                >
+                    <MailOpen size={28} />
+                    <span className="font-bold">Biglietto Classico</span>
+                    <span className="text-[10px] uppercase font-bold text-gray-400">Solo Auguri</span>
+                </button>
+            </div>
+          </div>
+
+          {/* 2. Theme */}
+          <div className="mb-6">
+            <label className="block text-xs font-bold text-gray-400 mb-3 uppercase tracking-wider text-center">2. Evento</label>
             <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
               {THEMES.map((t) => (
                 <button
@@ -196,63 +226,67 @@ const Creator: React.FC<CreatorProps> = ({ onCreated }) => {
             </div>
           </div>
 
-          {/* Mode */}
-          <div className="mb-6 bg-gray-50 p-4 rounded-xl border border-gray-100">
-            <div className="flex bg-white rounded-lg p-1 mb-4 border border-gray-200 shadow-sm">
-                <button type="button" onClick={() => setMode('ai')} className={`flex-1 py-2 rounded-md font-bold text-sm transition-all ${mode === 'ai' ? 'bg-blue-100 text-blue-700 shadow-sm' : 'text-gray-400 hover:text-gray-600'}`}>✨ AI Magic</button>
-                <button type="button" onClick={() => setMode('manual')} className={`flex-1 py-2 rounded-md font-bold text-sm transition-all ${mode === 'manual' ? 'bg-blue-100 text-blue-700 shadow-sm' : 'text-gray-400 hover:text-gray-600'}`}>📝 Manuale</button>
-            </div>
-
-            {mode === 'ai' ? (
-                <textarea
-                    rows={2}
-                    className="w-full p-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-blue-500 outline-none resize-none"
-                    placeholder="Argomento (es: Zio Carlo, ama la pesca e il vino...)"
-                    value={topic}
-                    onChange={(e) => setTopic(e.target.value)}
-                />
-            ) : (
-                <div className="space-y-2">
-                    {manualWords.map((item, idx) => (
-                        <div key={idx} className="flex gap-2 relative">
-                            <div className="relative w-1/3">
-                                <input 
-                                    placeholder="PAROLA" 
-                                    value={item.word} 
-                                    onChange={(e) => handleManualChange(idx, 'word', e.target.value)} 
-                                    className="w-full p-2 border rounded-lg font-bold uppercase focus:border-blue-400 outline-none pr-8" 
-                                />
-                                {item.word.length > 0 && (
-                                    <span className="absolute right-2 top-2.5 text-[10px] text-gray-400 font-bold">{item.word.length}</span>
-                                )}
-                            </div>
-                            <input placeholder="Indizio" value={item.clue} onChange={(e) => handleManualChange(idx, 'clue', e.target.value)} className="flex-1 p-2 border rounded-lg focus:border-blue-400 outline-none" />
-                            {manualWords.length > 2 && <button type="button" onClick={() => removeRow(idx)}><Trash2 size={18} className="text-gray-400 hover:text-red-500" /></button>}
-                        </div>
-                    ))}
-                    <button type="button" onClick={addRow} className="text-blue-500 text-sm font-bold flex items-center gap-1 mt-2 hover:bg-blue-50 p-2 rounded-lg transition-colors"><Plus size={16}/> Aggiungi riga</button>
+          {/* Mode (ONLY FOR CROSSWORD) */}
+          {contentType === 'crossword' && (
+              <div className="mb-6 bg-gray-50 p-4 rounded-xl border border-gray-100 animate-fade-in">
+                <div className="flex bg-white rounded-lg p-1 mb-4 border border-gray-200 shadow-sm">
+                    <button type="button" onClick={() => setMode('ai')} className={`flex-1 py-2 rounded-md font-bold text-sm transition-all ${mode === 'ai' ? 'bg-blue-100 text-blue-700 shadow-sm' : 'text-gray-400 hover:text-gray-600'}`}>✨ AI Magic</button>
+                    <button type="button" onClick={() => setMode('manual')} className={`flex-1 py-2 rounded-md font-bold text-sm transition-all ${mode === 'manual' ? 'bg-blue-100 text-blue-700 shadow-sm' : 'text-gray-400 hover:text-gray-600'}`}>📝 Manuale</button>
                 </div>
-            )}
-          </div>
 
-          {/* Solution */}
-          <div className="mb-6 p-3 bg-yellow-50 rounded-xl border border-yellow-200">
-              <label className="flex items-center gap-2 text-sm font-bold text-yellow-800 mb-2"><KeyRound size={16}/> Parola Nascosta (Opzionale)</label>
-              <input 
-                type="text" 
-                placeholder="SOLUZIONE SEGRETA" 
-                className="w-full p-2 border border-yellow-300 rounded uppercase font-bold text-center tracking-widest focus:ring-2 focus:ring-yellow-400 outline-none bg-white"
-                value={hiddenSolution}
-                onChange={(e) => setHiddenSolution(e.target.value)}
-                maxLength={15}
-              />
-          </div>
+                {mode === 'ai' ? (
+                    <textarea
+                        rows={2}
+                        className="w-full p-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-blue-500 outline-none resize-none"
+                        placeholder="Argomento (es: Zio Carlo, ama la pesca e il vino...)"
+                        value={topic}
+                        onChange={(e) => setTopic(e.target.value)}
+                    />
+                ) : (
+                    <div className="space-y-2">
+                        {manualWords.map((item, idx) => (
+                            <div key={idx} className="flex gap-2 relative">
+                                <div className="relative w-1/3">
+                                    <input 
+                                        placeholder="PAROLA" 
+                                        value={item.word} 
+                                        onChange={(e) => handleManualChange(idx, 'word', e.target.value)} 
+                                        className="w-full p-2 border rounded-lg font-bold uppercase focus:border-blue-400 outline-none pr-8" 
+                                    />
+                                    {item.word.length > 0 && (
+                                        <span className="absolute right-2 top-2.5 text-[10px] text-gray-400 font-bold">{item.word.length}</span>
+                                    )}
+                                </div>
+                                <input placeholder="Indizio" value={item.clue} onChange={(e) => handleManualChange(idx, 'clue', e.target.value)} className="flex-1 p-2 border rounded-lg focus:border-blue-400 outline-none" />
+                                {manualWords.length > 2 && <button type="button" onClick={() => removeRow(idx)}><Trash2 size={18} className="text-gray-400 hover:text-red-500" /></button>}
+                            </div>
+                        ))}
+                        <button type="button" onClick={addRow} className="text-blue-500 text-sm font-bold flex items-center gap-1 mt-2 hover:bg-blue-50 p-2 rounded-lg transition-colors"><Plus size={16}/> Aggiungi riga</button>
+                    </div>
+                )}
+              </div>
+          )}
+
+          {/* Solution (ONLY FOR CROSSWORD) */}
+          {contentType === 'crossword' && (
+              <div className="mb-6 p-3 bg-yellow-50 rounded-xl border border-yellow-200 animate-fade-in">
+                  <label className="flex items-center gap-2 text-sm font-bold text-yellow-800 mb-2"><KeyRound size={16}/> Parola Nascosta (Opzionale)</label>
+                  <input 
+                    type="text" 
+                    placeholder="SOLUZIONE SEGRETA" 
+                    className="w-full p-2 border border-yellow-300 rounded uppercase font-bold text-center tracking-widest focus:ring-2 focus:ring-yellow-400 outline-none bg-white"
+                    value={hiddenSolution}
+                    onChange={(e) => setHiddenSolution(e.target.value)}
+                    maxLength={15}
+                  />
+              </div>
+          )}
 
           {/* Visuals */}
           <div className="grid grid-cols-2 gap-4 mb-6">
               <div className="border-2 border-dashed border-gray-300 rounded-xl p-4 text-center hover:bg-gray-50 cursor-pointer relative transition-colors group">
                     <input type="file" accept="image/*" onChange={(e) => handleImageUpload(e, 'extra')} className="absolute inset-0 opacity-0 cursor-pointer z-10" />
-                    {extraImage ? <img src={extraImage} className="h-16 mx-auto object-contain" /> : <div className="flex flex-col items-center group-hover:scale-105 transition-transform"><Upload className="text-gray-400 mb-1"/><span className="text-[10px] font-bold text-gray-500 uppercase">QR / Vignetta</span></div>}
+                    {extraImage ? <img src={extraImage} className="h-16 mx-auto object-contain" /> : <div className="flex flex-col items-center group-hover:scale-105 transition-transform"><Upload className="text-gray-400 mb-1"/><span className="text-[10px] font-bold text-gray-500 uppercase">Logo / Disegno</span></div>}
               </div>
               <div className="border-2 border-dashed border-gray-300 rounded-xl p-4 text-center hover:bg-gray-50 cursor-pointer relative transition-colors group">
                     <input type="file" accept="image/*" onChange={(e) => handleImageUpload(e, 'photo')} className="absolute inset-0 opacity-0 cursor-pointer z-10" />
