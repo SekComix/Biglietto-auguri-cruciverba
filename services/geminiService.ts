@@ -263,6 +263,7 @@ export const generateCrossword = async (
     eventDate: string;
     images?: CustomImages;
     stickers?: string[];
+    contentType: 'crossword' | 'simple'; // NUOVO PARAMETRO
   },
   onStatusUpdate?: (status: string) => void
 ): Promise<CrosswordData> => {
@@ -270,81 +271,92 @@ export const generateCrossword = async (
   const ai = new GoogleGenAI({ apiKey });
   
   let generatedWords: {word: string, clue: string}[] = [];
+  let finalWords: any[] = [];
+  let width = 0;
+  let height = 0;
+  let calculatedSolution = null;
 
-  if (mode === 'manual') {
-      const inputs = inputData as ManualInput[];
-      generatedWords = inputs
-        .filter(i => i.word.trim() && i.clue.trim())
-        .map(i => ({ word: i.word.toUpperCase().trim(), clue: i.clue }));
-  } else {
-      const topic = inputData as string;
-      
-      const solutionChars = hiddenSolutionWord 
-        ? hiddenSolutionWord.toUpperCase().replace(/[^A-Z]/g, '').split('').join(', ')
-        : '';
-        
-      const lettersInstruction = solutionChars 
-        ? `IMPORTANTE: Devi generare parole che contengano le seguenti lettere sparse: ${solutionChars}. È fondamentale per il gioco.` 
-        : '';
+  // LOGICA CROSSWORD vs SIMPLE
+  if (extraData.contentType === 'crossword') {
+      if (mode === 'manual') {
+          const inputs = inputData as ManualInput[];
+          generatedWords = inputs
+            .filter(i => i.word.trim() && i.clue.trim())
+            .map(i => ({ word: i.word.toUpperCase().trim(), clue: i.clue }));
+      } else {
+          const topic = inputData as string;
+          
+          const solutionChars = hiddenSolutionWord 
+            ? hiddenSolutionWord.toUpperCase().replace(/[^A-Z]/g, '').split('').join(', ')
+            : '';
+            
+          const lettersInstruction = solutionChars 
+            ? `IMPORTANTE: Devi generare parole che contengano le seguenti lettere sparse: ${solutionChars}. È fondamentale per il gioco.` 
+            : '';
 
-      const prompt = `Genera una lista di 6-8 parole e definizioni per un cruciverba sul tema: "${topic}". 
-      ${lettersInstruction}
-      Output JSON array di oggetti {word, clue}. 
-      Parole semplici, definizioni divertenti.`;
+          const prompt = `Genera una lista di 6-8 parole e definizioni per un cruciverba sul tema: "${topic}". 
+          ${lettersInstruction}
+          Output JSON array di oggetti {word, clue}. 
+          Parole semplici, definizioni divertenti.`;
 
-      try {
-        if (onStatusUpdate) onStatusUpdate("L'IA sta scrivendo le definizioni...");
-        
-        const responsePromise = ai.models.generateContent({
-            model: 'gemini-2.5-flash',
-            contents: prompt,
-            config: {
-                responseMimeType: "application/json",
-                responseSchema: wordListSchema,
-                temperature: 0.8,
-            },
-        });
+          try {
+            if (onStatusUpdate) onStatusUpdate("L'IA inventa le parole...");
+            
+            const responsePromise = ai.models.generateContent({
+                model: 'gemini-2.5-flash',
+                contents: prompt,
+                config: {
+                    responseMimeType: "application/json",
+                    responseSchema: wordListSchema,
+                    temperature: 0.8,
+                },
+            });
 
-        // 30 secondi di timeout per la generazione del cruciverba
-        const response = await withTimeout(responsePromise, 30000, "Timeout generazione parole. Riprova.");
+            const response = await withTimeout(responsePromise, 30000, "Timeout generazione parole. Riprova.");
 
-        if (response.text) {
-            const json = JSON.parse(response.text);
-            generatedWords = json.words || [];
-        }
-      } catch (e) {
-        console.error("AI Error", e);
-        throw new Error("Errore AI o Timeout. Riprova.");
+            if (response.text) {
+                const json = JSON.parse(response.text);
+                generatedWords = json.words || [];
+            }
+          } catch (e) {
+            console.error("AI Error", e);
+            throw new Error("Errore AI o Timeout. Riprova.");
+          }
       }
+
+      if (generatedWords.length === 0) {
+          throw new Error("Nessuna parola generata.");
+      }
+
+      if (onStatusUpdate) onStatusUpdate("Costruisco la griglia...");
+      await new Promise(r => setTimeout(r, 500));
+
+      const placedWordsRaw = generateLayout(generatedWords);
+      const normalized = normalizeCoordinates(placedWordsRaw);
+      width = normalized.width;
+      height = normalized.height;
+      
+      finalWords = normalized.words.map((w: any, idx: number) => ({ 
+          ...w, 
+          id: `word-${idx}`,
+          word: w.word.toUpperCase().trim() 
+      }));
+
+      calculatedSolution = hiddenSolutionWord 
+          ? findSolutionInGrid(normalized.words, hiddenSolutionWord) 
+          : null;
   }
 
-  if (generatedWords.length === 0) {
-      throw new Error("Nessuna parola generata.");
-  }
-
-  if (onStatusUpdate) onStatusUpdate("Calcolo incroci...");
-  await new Promise(r => setTimeout(r, 500));
-
-  const placedWordsRaw = generateLayout(generatedWords);
-  const { words, width, height } = normalizeCoordinates(placedWordsRaw);
-
-  const calculatedSolution = hiddenSolutionWord 
-      ? findSolutionInGrid(words, hiddenSolutionWord) 
-      : null;
-
-  const finalWords = words.map((w: any, idx: number) => ({ 
-      ...w, 
-      id: `word-${idx}`,
-      word: w.word.toUpperCase().trim() 
-  }));
-
-  const defaultTitle = theme === 'birthday' ? `Auguri ${extraData?.recipientName}!` : 
+  // Costruzione Titolo
+  const defaultTitle = theme === 'birthday' ? `Buon Compleanno ${extraData?.recipientName}!` : 
                        theme === 'christmas' ? `Buon Natale ${extraData?.recipientName}!` :
+                       theme === 'easter' ? `Buona Pasqua ${extraData?.recipientName}!` :
                        `Per ${extraData?.recipientName}`;
 
-  const defaultMessage = `Tanti auguri! Ecco un cruciverba speciale per te.`;
+  const defaultMessage = `Tanti auguri! Ecco un pensiero speciale per te.`;
 
   return {
+      type: extraData.contentType,
       title: defaultTitle,
       message: defaultMessage,
       theme: theme,
@@ -376,13 +388,12 @@ export const regenerateGreeting = async (
       instructions = `Stile: ${tone}.`;
     }
 
-    // Prompt semplificato per evitare blocchi
     const prompt = `
     Scrivi un breve messaggio di auguri originale per ${recipient}.
     Evento: ${theme}.
     ${instructions}
     
-    Massimo 25 parole. Solo testo semplice.
+    Massimo 30 parole. Solo testo semplice.
     Seed casuale: ${Math.random()}
     `;
 
@@ -391,12 +402,10 @@ export const regenerateGreeting = async (
             model: 'gemini-2.5-flash',
             contents: prompt,
             config: { 
-                temperature: 0.9 // Alta creatività ma bilanciata
-                // Rimosso maxOutputTokens per evitare output vuoti se il modello sfora
+                temperature: 0.9 
             } 
         });
 
-        // Timeout 15s
         const response: any = await withTimeout(apiCall, 15000, "Timeout");
         const newText = response.text?.replace(/"/g, '').trim();
 
@@ -407,9 +416,7 @@ export const regenerateGreeting = async (
         return newText;
     } catch (e) {
         console.error("Errore o Timeout rigenerazione (uso fallback):", e);
-        // Fallback locale per garantire che qualcosa cambi sempre
         let fallback = getRandomFallback(theme);
-        // Assicuriamoci che il fallback non sia identico a quello corrente
         if (fallback === currentMessage) {
              fallback = getRandomFallback(theme);
         }
