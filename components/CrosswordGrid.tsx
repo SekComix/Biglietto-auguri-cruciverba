@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef, useMemo } from 'react';
 import { CrosswordData, CellData, Direction, ThemeType } from '../types';
 import { regenerateGreeting } from '../services/geminiService';
-import { Printer, Edit, Wand2, Dice5, Eye, EyeOff } from 'lucide-react';
+import { Printer, Edit, Wand2, Dice5, Eye, EyeOff, Sparkles, Send } from 'lucide-react';
 
 interface CrosswordGridProps {
   data: CrosswordData;
@@ -51,8 +51,13 @@ const CrosswordGrid: React.FC<CrosswordGridProps> = ({ data, onComplete }) => {
   const [selectedCell, setSelectedCell] = useState<{ x: number; y: number } | null>(null);
   const [currentDirection, setCurrentDirection] = useState<Direction>(Direction.ACROSS);
   const [editableMessage, setEditableMessage] = useState(data.message);
+  
+  // Message Editing States
   const [isEditingMsg, setIsEditingMsg] = useState(false);
   const [isRegeneratingMsg, setIsRegeneratingMsg] = useState(false);
+  const [customPromptMode, setCustomPromptMode] = useState(false);
+  const [customPromptText, setCustomPromptText] = useState("");
+  
   const [showPrintGuide, setShowPrintGuide] = useState(false);
   const [revealAnswers, setRevealAnswers] = useState(false);
   const inputRefs = useRef<(HTMLInputElement | null)[][]>([]);
@@ -124,12 +129,23 @@ const CrosswordGrid: React.FC<CrosswordGridProps> = ({ data, onComplete }) => {
     }
   };
 
-  const handleRegenerateMessage = async (tone: 'funny' | 'heartfelt' | 'rhyme') => {
+  const handleRegenerateMessage = async (tone: 'funny' | 'heartfelt' | 'rhyme' | 'custom') => {
       if (isRegeneratingMsg) return;
+      if (tone === 'custom' && !customPromptText.trim()) return;
+
       setIsRegeneratingMsg(true);
+      setCustomPromptMode(false); // Close the custom input if open
+      
       try {
-          const newMsg = await regenerateGreeting(editableMessage, data.theme, data.recipientName, tone);
+          const newMsg = await regenerateGreeting(
+              editableMessage, 
+              data.theme, 
+              data.recipientName, 
+              tone, 
+              tone === 'custom' ? customPromptText : undefined
+          );
           setEditableMessage(newMsg);
+          setCustomPromptText(""); // Reset custom input
       } catch (e) {
           console.error(e);
       } finally {
@@ -197,7 +213,7 @@ const CrosswordGrid: React.FC<CrosswordGridProps> = ({ data, onComplete }) => {
                 </span>
               )}
 
-              {/* Soluzione Number (Visibile anche a schermo ora) */}
+              {/* Soluzione Number */}
               {cell.isSolutionCell && (
                   <span className={`absolute bottom-0 right-0.5 font-bold z-10 flex items-center justify-center
                     ${isPrint ? 'text-[7px] text-gray-600 bg-white px-0.5 border border-gray-400' : 'text-[8px] bg-yellow-400 text-yellow-900 w-3 h-3 rounded-full'}
@@ -246,26 +262,34 @@ const CrosswordGrid: React.FC<CrosswordGridProps> = ({ data, onComplete }) => {
         </div>
       )}
       
-      {/* Control Buttons */}
-      <div className="fixed top-4 right-4 z-50 flex gap-2 no-print">
-          <button 
-            onClick={() => setRevealAnswers(!revealAnswers)}
-            className="bg-white/90 backdrop-blur text-gray-700 p-3 rounded-full shadow-lg border hover:bg-gray-50 flex items-center gap-2 font-bold transition-transform hover:scale-105"
-            title="Mostra/Nascondi Soluzioni"
-          >
-             {revealAnswers ? <EyeOff size={20} className="text-blue-600" /> : <Eye size={20} />}
-             <span className="hidden md:inline">{revealAnswers ? 'Nascondi' : 'Soluzioni'}</span>
-          </button>
-
-          <button onClick={() => setShowPrintGuide(true)} className="bg-blue-600 text-white p-3 rounded-full shadow-lg border border-blue-700 flex items-center gap-2 font-bold transition-transform hover:scale-105">
-            <Printer size={20} /> <span className="hidden md:inline">Stampa</span>
-          </button>
-      </div>
-
       {/* --- SCREEN MODE --- */}
       <div className="max-w-6xl mx-auto no-print pb-20">
+      
+        {/* NEW TOOLBAR - Buttons moved here from fixed position */}
+        <div className="bg-white/90 backdrop-blur rounded-full px-6 py-2 mb-6 flex justify-between items-center shadow-lg border-2 border-white/50">
+             <div className="flex items-center gap-2 text-sm font-bold text-gray-500 uppercase tracking-widest">
+                 <Sparkles size={16} className="text-yellow-500"/> Anteprima
+             </div>
+             <div className="flex gap-2">
+                 <button 
+                    onClick={() => setRevealAnswers(!revealAnswers)}
+                    className="hover:bg-gray-100 text-gray-700 p-2 px-4 rounded-full flex items-center gap-2 font-bold transition-all text-sm"
+                  >
+                     {revealAnswers ? <EyeOff size={16} className="text-blue-600" /> : <Eye size={16} />}
+                     <span className="hidden sm:inline">{revealAnswers ? 'Nascondi' : 'Soluzioni'}</span>
+                  </button>
+
+                  <button 
+                    onClick={() => setShowPrintGuide(true)} 
+                    className="bg-blue-600 hover:bg-blue-700 text-white p-2 px-4 rounded-full shadow-md flex items-center gap-2 font-bold transition-all text-sm"
+                  >
+                    <Printer size={16} /> <span className="hidden sm:inline">Stampa</span>
+                  </button>
+             </div>
+        </div>
+      
         <div className="bg-white p-6 rounded-xl shadow-2xl mb-8 border-4 border-dashed border-gray-300">
-            <h3 className="text-center font-bold text-gray-400 uppercase text-xs mb-4">Anteprima Biglietto (Pagina Interna)</h3>
+            <h3 className="text-center font-bold text-gray-400 uppercase text-xs mb-4">Pagina Interna</h3>
             
             <div className="flex flex-col md:flex-row gap-8 bg-white border shadow-sm p-4 min-h-[500px]">
                  {/* LEFT: GRID */}
@@ -282,17 +306,46 @@ const CrosswordGrid: React.FC<CrosswordGridProps> = ({ data, onComplete }) => {
                       
                       <h3 className={`${themeAssets.fontTitle} text-4xl mb-4`} style={{ color: themeAssets.accentColor }}>{data.title}</h3>
 
-                      {/* IN-PLACE MESSAGE EDITOR - EMPHASIZED */}
+                      {/* MESSAGE EDITOR */}
                       <div className="relative group w-full max-w-sm mb-4">
-                            <div className="mb-2 p-2 bg-blue-50 rounded-lg border border-blue-100 shadow-sm">
-                                <p className="text-[10px] uppercase font-bold text-blue-600 mb-1">Personalizza il testo con l'IA:</p>
-                                <div className="flex justify-center gap-2">
-                                    <button onClick={() => handleRegenerateMessage('heartfelt')} className="flex-1 p-1 bg-white border rounded hover:bg-purple-50 text-xs flex justify-center gap-1 items-center shadow-sm font-bold text-purple-700"><Wand2 size={12}/> Dolce</button>
-                                    <button onClick={() => handleRegenerateMessage('funny')} className="flex-1 p-1 bg-white border rounded hover:bg-orange-50 text-xs flex justify-center gap-1 items-center shadow-sm font-bold text-orange-700"><Dice5 size={12}/> Simpatico</button>
-                                    <button onClick={() => setIsEditingMsg(!isEditingMsg)} className="flex-1 p-1 bg-white border rounded hover:bg-gray-50 text-xs flex justify-center gap-1 items-center shadow-sm text-gray-700"><Edit size={12}/> A mano</button>
+                            {!customPromptMode ? (
+                                <div className="mb-2 p-2 bg-blue-50 rounded-lg border border-blue-100 shadow-sm transition-all">
+                                    <p className="text-[10px] uppercase font-bold text-blue-600 mb-1">Cambia testo:</p>
+                                    <div className="grid grid-cols-2 gap-2 mb-2">
+                                        <button onClick={() => handleRegenerateMessage('heartfelt')} className="p-1.5 bg-white border rounded hover:bg-purple-50 text-xs flex justify-center gap-1 items-center shadow-sm font-bold text-purple-700"><Wand2 size={12}/> Dolce</button>
+                                        <button onClick={() => handleRegenerateMessage('funny')} className="p-1.5 bg-white border rounded hover:bg-orange-50 text-xs flex justify-center gap-1 items-center shadow-sm font-bold text-orange-700"><Dice5 size={12}/> Simpatico</button>
+                                    </div>
+                                    <div className="flex gap-2">
+                                        <button onClick={() => setCustomPromptMode(true)} className="flex-1 p-1.5 bg-white border rounded hover:bg-green-50 text-xs flex justify-center gap-1 items-center shadow-sm font-bold text-green-700"><Sparkles size={12}/> Magic</button>
+                                        <button onClick={() => setIsEditingMsg(!isEditingMsg)} className="flex-1 p-1.5 bg-white border rounded hover:bg-gray-50 text-xs flex justify-center gap-1 items-center shadow-sm text-gray-700"><Edit size={12}/> A mano</button>
+                                    </div>
                                 </div>
-                            </div>
+                            ) : (
+                                <div className="mb-2 p-2 bg-green-50 rounded-lg border border-green-200 shadow-sm animate-fade-in">
+                                    <p className="text-[10px] uppercase font-bold text-green-800 mb-1">Cosa devo scrivere?</p>
+                                    <div className="flex gap-1">
+                                        <input 
+                                            autoFocus
+                                            type="text" 
+                                            className="flex-1 text-xs p-2 rounded border focus:ring-2 focus:ring-green-400 outline-none" 
+                                            placeholder="Es. Da Zio Pino, parla di vino..."
+                                            value={customPromptText}
+                                            onChange={(e) => setCustomPromptText(e.target.value)}
+                                            onKeyDown={(e) => e.key === 'Enter' && handleRegenerateMessage('custom')}
+                                        />
+                                        <button 
+                                            onClick={() => handleRegenerateMessage('custom')}
+                                            disabled={!customPromptText.trim()} 
+                                            className="bg-green-600 text-white p-2 rounded hover:bg-green-700 disabled:opacity-50"
+                                        >
+                                            <Send size={14}/>
+                                        </button>
+                                    </div>
+                                    <button onClick={() => setCustomPromptMode(false)} className="text-[10px] text-gray-500 underline mt-1 w-full text-center">Annulla</button>
+                                </div>
+                            )}
                             
+                            {/* Text Display Area */}
                             {isEditingMsg ? (
                                 <textarea 
                                     className="w-full p-2 border-2 border-blue-400 rounded-lg text-lg font-hand bg-white"
@@ -301,11 +354,13 @@ const CrosswordGrid: React.FC<CrosswordGridProps> = ({ data, onComplete }) => {
                                     rows={4}
                                 />
                             ) : (
-                                <p className="font-script text-2xl whitespace-pre-wrap cursor-pointer hover:bg-yellow-50 rounded p-2 border border-transparent hover:border-yellow-200 transition-all" onClick={() => setIsEditingMsg(true)}>
+                                <p className="font-script text-2xl whitespace-pre-wrap cursor-pointer hover:bg-yellow-50 rounded p-2 border border-transparent hover:border-yellow-200 transition-all min-h-[80px] flex items-center justify-center" onClick={() => setIsEditingMsg(true)}>
                                     {editableMessage}
                                 </p>
                             )}
-                            {isRegeneratingMsg && <div className="absolute inset-0 bg-white/80 flex items-center justify-center backdrop-blur-sm"><span className="text-sm text-purple-600 font-bold animate-pulse">✨ L'IA sta scrivendo per te...</span></div>}
+                            
+                            {/* Loading State */}
+                            {isRegeneratingMsg && <div className="absolute inset-0 bg-white/90 z-10 flex items-center justify-center backdrop-blur-sm rounded-lg border border-purple-200"><span className="text-sm text-purple-600 font-bold animate-pulse flex flex-col items-center gap-1"><Sparkles className="animate-spin"/> Scrivo...</span></div>}
                       </div>
 
                       <div className="flex gap-4 justify-center">
