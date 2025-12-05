@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { generateCrossword } from '../services/geminiService';
-import { CrosswordData, ManualInput, ThemeType } from '../types';
-import { Loader2, Wand2, Plus, Trash2, Gift, PartyPopper, CalendarHeart, Crown, KeyRound, Image as ImageIcon, Upload, Calendar, AlertCircle, Grid3X3, MailOpen, Images, Ghost, GraduationCap, ScrollText, HeartHandshake, BookOpen, Search, X } from 'lucide-react';
+import { CrosswordData, ManualInput, ThemeType, ToneType } from '../types';
+import { Loader2, Wand2, Plus, Trash2, Gift, PartyPopper, CalendarHeart, Crown, KeyRound, Image as ImageIcon, Upload, Calendar, AlertCircle, Grid3X3, MailOpen, Images, Ghost, GraduationCap, ScrollText, HeartHandshake, BookOpen, Search, X, Smile, Heart, Music, Sparkles, Edit } from 'lucide-react';
 
 interface CreatorProps {
   onCreated: (data: CrosswordData) => void;
@@ -20,49 +20,24 @@ const THEMES: { id: ThemeType; label: string; icon: any; color: string }[] = [
   { id: 'elegant', label: 'Elegante', icon: Crown, color: 'bg-gray-800' },
 ];
 
-const STICKER_DATA = [
-    // NATALE
-    { char: '🎅', tags: 'natale babbo christmas santa festa' },
-    { char: '🎄', tags: 'natale albero tree christmas festa' },
-    { char: '🎁', tags: 'regalo pacco dono gift natale compleanno festa' },
-    { char: '❄️', tags: 'neve freddo inverno snow natale' },
-    { char: '⛄', tags: 'pupazzo neve inverno natale' },
-    { char: '🦌', tags: 'renna rudolph animale natale' },
-    { char: '🕯️', tags: 'candela luce natale religione preghiera' },
-    { char: '🌟', tags: 'stella star natale luce' },
-    // COMPLEANNO
-    { char: '🎂', tags: 'torta compleanno cibo dolce festa auguri' },
-    { char: '🎈', tags: 'palloncino festa compleanno party' },
-    { char: '🎉', tags: 'festa coriandoli party compleanno capodanno' },
-    { char: '👑', tags: 'corona re regina principessa' },
-    { char: '🥳', tags: 'festa faccina party felice' },
-    // EVENTI
-    { char: '🎓', tags: 'laurea tocco scuola università' },
-    { char: '📜', tags: 'pergamena diploma laurea documento' },
-    { char: '🏆', tags: 'coppa trofeo vittoria successo' },
-    { char: '🕊️', tags: 'colomba pace pasqua cresima religione' },
-    { char: '✝️', tags: 'croce religione gesù chiesa' },
-    { char: '💍', tags: 'anello matrimonio fidanzamento gioiello' },
-    { char: '❤️', tags: 'cuore amore love rosso' },
-    { char: '🥂', tags: 'brindisi bicchieri cin cin festa' },
-    { char: '🎃', tags: 'zucca halloween paura' },
-    { char: '👻', tags: 'fantasma halloween paura spirito' },
-    { char: '🐣', tags: 'pulcino pasqua animale uovo' },
-    { char: '🥚', tags: 'uovo pasqua cibo' },
-    // ACCESSORI
-    { char: '🍕', tags: 'pizza cibo fame italia' },
-    { char: '⚽', tags: 'calcio pallone sport' },
-    { char: '🎮', tags: 'gioco videogiochi controller' },
-    { char: '🐶', tags: 'cane animale cucciolo' },
-    { char: '🐱', tags: 'gatto animale micio' },
-    { char: '✈️', tags: 'aereo viaggio vacanza' },
-    { char: '📷', tags: 'foto camera fotografia' },
-    { char: '🍀', tags: 'fortuna quadrifoglio' }
+const STICKERS = [
+    '🎅', '🎄', '🎁', '❄️', '⛄', '🦌', '🧦', '🍪', '🥛', '🔔', '🕯️', '🌟',
+    '🎂', '🎈', '🎉', '🕯️', '🍰', '🥳', '🎁', '👑', '🧢', '🎺', '🎊',
+    '🐣', '🌸', '🐇', '🥚', '🌷', '🍫', '🌻', '🐞', '🦋', '🌱', '🕊️',
+    '🎃', '👻', '🕷️', '🕸️', '🧛', '🍬', '🦇', '💀', '🌙', '🐈‍⬛', '🧙‍♀️',
+    '🎓', '📜', '🏆', '📚', '🦉', '✏️', '🧠', '💼', '🥇', '🏫', '👩‍🎓', '👨‍🎓',
+    '🕊️', '✝️', '⛪', '🥖', '🍇', '🕯️', '👼', '🙌', '🛐', '🌅', '💒',
+    '💍', '❤️', '👰', '🤵', '💒', '💐', '💌', '💑', '🥂', '💞', '💘',
+    '🐶', '🐱', '🦄', '🦁', '🐢', '🦖', '🐬', '🌲', '🌵', '🌈', '🐼', '🐨',
+    '🍕', '🍔', '🍟', '🍦', '🍩', '🍪', '🍫', '🍷', '🍺', '☕', '🍹', '🍓',
+    '⚽', '🏀', '🎾', '🏐', '🎮', '🎨', '🎸', '✈️', '🚗', '🏖️', '📸', '🚲',
+    '⭐', '🌟', '✨', '💫', '💎', '⚜️', '🍀', '🎵', '🎶', '☀️', '💣', '💯'
 ];
 
 export const Creator: React.FC<CreatorProps> = ({ onCreated, initialData }) => {
   const [contentType, setContentType] = useState<'crossword' | 'simple'>('crossword');
   const [mode, setMode] = useState<'ai' | 'manual'>('ai');
+  const [tone, setTone] = useState<ToneType>('surprise');
   const [theme, setTheme] = useState<ThemeType>('christmas');
   
   const [topic, setTopic] = useState('');
@@ -73,18 +48,12 @@ export const Creator: React.FC<CreatorProps> = ({ onCreated, initialData }) => {
   const [extraImage, setExtraImage] = useState<string | undefined>(undefined);
   const [photos, setPhotos] = useState<string[]>([]); 
   const [selectedStickers, setSelectedStickers] = useState<string[]>([]);
-  const [stickerSearch, setStickerSearch] = useState('');
 
   const [loading, setLoading] = useState(false);
   const [statusMsg, setStatusMsg] = useState('');
   const [error, setError] = useState<string | null>(null);
   
-  const [processingState, setProcessingState] = useState<{
-      active: boolean;
-      type: 'extra' | 'photo' | null;
-      current: number;
-      total: number;
-  }>({ active: false, type: null, current: 0, total: 0 });
+  const [processingImg, setProcessingImg] = useState<'extra' | 'photo' | null>(null);
 
   const [manualWords, setManualWords] = useState<ManualInput[]>([
     { word: '', clue: '' },
@@ -101,85 +70,85 @@ export const Creator: React.FC<CreatorProps> = ({ onCreated, initialData }) => {
         setExtraImage(initialData.images?.extraImage);
         setPhotos(initialData.images?.photos || []);
         setSelectedStickers(initialData.stickers || []);
-        if (initialData.type === 'crossword') {
-            if (initialData.originalMode) setMode(initialData.originalMode);
-            if (initialData.originalHiddenSolution) setHiddenSolution(initialData.originalHiddenSolution);
-            if (initialData.originalMode === 'manual' && Array.isArray(initialData.originalInput)) {
-                setManualWords(initialData.originalInput as ManualInput[]);
-            } else if (typeof initialData.originalInput === 'string') {
-                setTopic(initialData.originalInput);
-            }
+        
+        if (initialData.originalMode) setMode(initialData.originalMode);
+        if (initialData.originalHiddenSolution) setHiddenSolution(initialData.originalHiddenSolution);
+        if (initialData.originalTone) setTone(initialData.originalTone);
+        
+        if (initialData.type === 'crossword' && initialData.originalMode === 'manual' && Array.isArray(initialData.originalInput)) {
+            setManualWords(initialData.originalInput as ManualInput[]);
+        } else if (typeof initialData.originalInput === 'string') {
+            setTopic(initialData.originalInput);
         }
     }
   }, [initialData]);
 
-  const processImageFile = (file: File): Promise<string> => {
-      return new Promise((resolve, reject) => {
-          const reader = new FileReader();
-          reader.onload = (event) => {
-              const img = new Image();
-              img.onload = () => {
-                  const canvas = document.createElement('canvas');
-                  let width = img.width;
-                  let height = img.height;
-                  const MAX_SIZE = 800;
-                  if (width > MAX_SIZE || height > MAX_SIZE) {
-                      if (width > height) { height *= MAX_SIZE / width; width = MAX_SIZE; }
-                      else { width *= MAX_SIZE / height; height = MAX_SIZE; }
-                  }
-                  canvas.width = width;
-                  canvas.height = height;
-                  const ctx = canvas.getContext('2d');
-                  if (!ctx) { reject("Canvas error"); return; }
-                  ctx.fillStyle = "#FFFFFF";
-                  ctx.fillRect(0, 0, width, height);
-                  ctx.drawImage(img, 0, 0, width, height);
-                  const dataUrl = canvas.toDataURL('image/jpeg', 0.70);
-                  resolve(dataUrl);
-              };
-              img.onerror = () => reject("Image load error");
-              img.src = event.target?.result as string;
-          };
-          reader.onerror = () => reject("File read error");
-          reader.readAsDataURL(file);
-      });
-  };
-
-  const handleImageUpload = async (e: React.ChangeEvent<HTMLInputElement>, type: 'extra' | 'photo') => {
+  const handleImageUpload = (e: React.ChangeEvent<HTMLInputElement>, type: 'extra' | 'photo') => {
     const files = e.target.files;
     if (!files || files.length === 0) return;
-    setError(null);
+
+    setProcessingImg(type);
+
     const fileArray = Array.from(files);
-    let filesToProcess = fileArray;
-    if (type === 'photo') {
-        const remainingSlots = 9 - photos.length;
-        if (remainingSlots <= 0) { setError("Hai già raggiunto il limite di 9 foto."); return; }
-        filesToProcess = fileArray.slice(0, remainingSlots);
-    } else {
-        filesToProcess = [fileArray[0]];
+    const filesToProcess = type === 'photo' ? fileArray.slice(0, 9 - (photos.length)) : [fileArray[0]];
+
+    if (filesToProcess.length === 0) {
+        setProcessingImg(null);
+        return;
     }
 
-    setProcessingState({ active: true, type, current: 0, total: filesToProcess.length });
+    let processedCount = 0;
     const newPhotos: string[] = [];
 
-    for (let i = 0; i < filesToProcess.length; i++) {
-        setProcessingState(prev => ({ ...prev, current: i + 1 }));
-        try {
-            await new Promise(r => setTimeout(r, 100));
-            const dataUrl = await processImageFile(filesToProcess[i]);
-            if (type === 'extra') setExtraImage(dataUrl);
-            else newPhotos.push(dataUrl);
-        } catch (err) { console.error(err); }
-    }
-
-    if (type === 'photo' && newPhotos.length > 0) setPhotos(prev => [...prev, ...newPhotos].slice(0, 9));
-    setProcessingState({ active: false, type: null, current: 0, total: 0 });
-    e.target.value = '';
+    filesToProcess.forEach(file => {
+        const reader = new FileReader();
+        reader.onload = (event) => {
+          const img = new Image();
+          img.onload = () => {
+            const canvas = document.createElement('canvas');
+            let width = img.width;
+            let height = img.height;
+            const MAX_SIZE = 1200;
+            if (width > MAX_SIZE || height > MAX_SIZE) {
+              if (width > height) { height *= MAX_SIZE / width; width = MAX_SIZE; }
+              else { width *= MAX_SIZE / height; height = MAX_SIZE; }
+            }
+            canvas.width = width;
+            canvas.height = height;
+            const ctx = canvas.getContext('2d');
+            ctx?.drawImage(img, 0, 0, width, height);
+            const dataUrl = canvas.toDataURL('image/jpeg', 0.8);
+            
+            if (type === 'extra') {
+                setExtraImage(dataUrl);
+                setProcessingImg(null); 
+            } else {
+                newPhotos.push(dataUrl);
+                processedCount++;
+                if (processedCount === filesToProcess.length) {
+                    setPhotos(prev => [...prev, ...newPhotos].slice(0, 9));
+                    setProcessingImg(null);
+                }
+            }
+          };
+          img.src = event.target?.result as string;
+        };
+        reader.onerror = () => {
+            setError("Errore caricamento immagine");
+            setProcessingImg(null);
+        };
+        reader.readAsDataURL(file);
+    });
   };
 
   const toggleSticker = (sticker: string) => {
-    if (selectedStickers.includes(sticker)) setSelectedStickers(selectedStickers.filter(s => s !== sticker));
-    else if (selectedStickers.length < 5) setSelectedStickers([...selectedStickers, sticker]);
+    if (selectedStickers.includes(sticker)) {
+      setSelectedStickers(selectedStickers.filter(s => s !== sticker));
+    } else {
+      if (selectedStickers.length < 5) {
+        setSelectedStickers([...selectedStickers, sticker]);
+      }
+    }
   };
 
   const removeImage = (type: 'extra' | 'photo') => {
@@ -202,29 +171,48 @@ export const Creator: React.FC<CreatorProps> = ({ onCreated, initialData }) => {
 
   const handleGenerate = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (loading || processingState.active) return; 
+    if (loading || processingImg) return; 
     setLoading(true);
     setStatusMsg(contentType === 'crossword' ? "Costruisco la griglia..." : "Creo il biglietto...");
     setError(null);
 
     try {
       let inputData: string | ManualInput[] = topic;
+      
       if (contentType === 'crossword') {
           if (mode === 'manual') {
             const validWords = manualWords.filter(w => w.word.trim() && w.clue.trim());
             if (validWords.length < 2) throw new Error("Inserisci almeno 2 parole complete.");
             inputData = validWords;
           } else {
-            if (!topic.trim()) throw new Error("Inserisci un argomento.");
+            if (!topic.trim()) throw new Error("Inserisci un argomento per il cruciverba.");
           }
+      } else {
+          // SIMPLE MODE
+          if (!topic.trim() && mode === 'ai') throw new Error("Inserisci un argomento.");
+          if (mode === 'manual' && !topic.trim()) throw new Error("Inserisci un messaggio di auguri.");
       }
-      if (!recipientName.trim()) throw new Error("Inserisci il nome.");
 
+      if (!recipientName.trim()) throw new Error("Inserisci il nome del festeggiato.");
+
+      const cleanSolution = hiddenSolution.trim().toUpperCase();
+      
       const data = await generateCrossword(
-        mode, theme, inputData, hiddenSolution.trim().toUpperCase() || undefined,
-        { recipientName, eventDate, images: { extraImage, photos }, stickers: selectedStickers, contentType },
+        mode, 
+        theme, 
+        inputData, 
+        cleanSolution || undefined,
+        {
+          recipientName,
+          eventDate,
+          images: { extraImage, photos },
+          stickers: selectedStickers,
+          contentType,
+          tone: mode === 'ai' ? tone : undefined
+        },
         (msg) => setStatusMsg(msg)
       );
+      
       onCreated(data);
     } catch (err: any) {
       console.error(err);
@@ -237,109 +225,200 @@ export const Creator: React.FC<CreatorProps> = ({ onCreated, initialData }) => {
   const renderPhotoPreview = () => {
     const count = photos.length;
     if (count === 0) return null;
-    let gridClass = count === 1 ? 'grid-cols-1' : count <= 4 ? 'grid-cols-2' : 'grid-cols-3';
+    let gridClass = 'grid-cols-1';
+    if (count === 2) gridClass = 'grid-cols-2';
+    else if (count > 2 && count <= 4) gridClass = 'grid-cols-2';
+    else if (count >= 5) gridClass = 'grid-cols-3';
+
     return (
         <div className={`w-full h-full grid gap-0.5 overflow-hidden bg-gray-100 ${gridClass}`}>
             {photos.map((p, i) => (
-                <div key={i} className="relative overflow-hidden w-full h-full"><img src={p} className="w-full h-full object-cover" /></div>
+                <div key={i} className="relative overflow-hidden w-full h-full">
+                    <img src={p} className="w-full h-full object-cover" alt={`foto-${i}`} />
+                </div>
             ))}
+            <div className="absolute inset-0 bg-black/20 opacity-0 group-hover:opacity-100 flex items-center justify-center text-white text-xs font-bold transition-opacity z-10 pointer-events-none">
+                {count} Foto
+            </div>
         </div>
     );
   };
 
-  const filteredStickers = stickerSearch.trim() === '' ? STICKER_DATA : STICKER_DATA.filter(s => s.tags.includes(stickerSearch.toLowerCase()) || s.char.includes(stickerSearch));
-
   return (
-    <form onSubmit={handleGenerate} className={`max-w-2xl mx-auto bg-white/95 backdrop-blur p-6 rounded-3xl shadow-xl border-2 border-white/50 relative transition-all`}>
+    <form onSubmit={handleGenerate} className={`max-w-3xl mx-auto bg-white/95 backdrop-blur p-6 md:p-8 rounded-3xl shadow-2xl border-2 border-white/50 relative overflow-hidden transition-all`}>
       
       {loading && (
-        <div className="absolute inset-0 bg-white/95 z-50 flex items-center justify-center backdrop-blur-sm">
-             <div className="text-center p-6 bg-white rounded-2xl shadow-xl border-4 border-blue-100 max-w-xs mx-4">
-                 <Loader2 className="w-10 h-10 text-blue-600 animate-spin mx-auto mb-2" />
-                 <p className="text-gray-600 text-sm">{statusMsg}</p>
+        <div className="absolute inset-0 bg-white/95 z-50 flex items-center justify-center backdrop-blur-sm cursor-wait">
+             <div className="text-center p-8 bg-white rounded-3xl shadow-xl border-4 border-blue-100 max-w-sm mx-4 animate-in fade-in zoom-in duration-300">
+                 <div className="relative mb-4 mx-auto w-16 h-16">
+                    <Loader2 className="w-16 h-16 text-blue-600 animate-spin absolute inset-0" />
+                    <Gift className="w-6 h-6 text-blue-600 absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2" />
+                 </div>
+                 <h3 className="text-xl font-bold text-gray-800 mb-2">Un attimo...</h3>
+                 <p className="text-gray-500 text-sm mb-2">{statusMsg}</p>
              </div>
         </div>
       )}
 
-      <div className={`transition-opacity duration-300 ${loading ? 'opacity-20 pointer-events-none' : 'opacity-100'}`}>
-          <div className="text-center mb-6">
-            <h2 className="font-bold text-2xl text-gray-800 font-body">Crea il Tuo Biglietto</h2>
+      <div className={`transition-opacity duration-500 ${loading ? 'opacity-20 pointer-events-none' : 'opacity-100'}`}>
+          <div className="text-center mb-8">
+            <h2 className="font-bold text-3xl md:text-4xl text-gray-800 mb-2 font-body">Crea il Tuo Biglietto</h2>
           </div>
 
           {/* 1. Content Type */}
-          <div className="mb-4 flex gap-3">
-              <button type="button" onClick={() => setContentType('crossword')} className={`flex-1 p-3 rounded-xl border flex flex-col items-center ${contentType === 'crossword' ? 'border-blue-500 bg-blue-50 text-blue-700' : 'border-gray-200'}`}><Grid3X3 size={20}/><span className="text-xs font-bold mt-1">Cruciverba</span></button>
-              <button type="button" onClick={() => setContentType('simple')} className={`flex-1 p-3 rounded-xl border flex flex-col items-center ${contentType === 'simple' ? 'border-purple-500 bg-purple-50 text-purple-700' : 'border-gray-200'}`}><MailOpen size={20}/><span className="text-xs font-bold mt-1">Solo Auguri</span></button>
+          <div className="mb-6">
+            <label className="block text-xs font-bold text-gray-400 mb-3 uppercase tracking-wider text-center">1. Cosa vuoi creare?</label>
+            <div className="flex gap-4">
+                <button type="button" onClick={() => setContentType('crossword')} className={`flex-1 p-4 rounded-xl border-2 transition-all flex flex-col items-center gap-2 ${contentType === 'crossword' ? 'border-blue-500 bg-blue-50 text-blue-700' : 'border-gray-200 hover:border-blue-300'}`}>
+                    <Grid3X3 size={28} /><span className="font-bold">Cruciverba</span>
+                </button>
+                <button type="button" onClick={() => setContentType('simple')} className={`flex-1 p-4 rounded-xl border-2 transition-all flex flex-col items-center gap-2 ${contentType === 'simple' ? 'border-purple-500 bg-purple-50 text-purple-700' : 'border-gray-200 hover:border-purple-300'}`}>
+                    <MailOpen size={28} /><span className="font-bold">Solo Auguri</span>
+                </button>
+            </div>
           </div>
 
           {/* 2. Theme */}
-          <div className="mb-4">
-            <label className="block text-[10px] font-bold text-gray-400 mb-2 uppercase text-center">Evento</label>
-            <div className="grid grid-cols-5 gap-2">
+          <div className="mb-6">
+            <label className="block text-xs font-bold text-gray-400 mb-3 uppercase tracking-wider text-center">2. Evento</label>
+            <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-5 gap-3">
               {THEMES.map((t) => (
-                <button key={t.id} type="button" onClick={() => setTheme(t.id)} className={`flex flex-col items-center justify-center p-1.5 rounded-lg ${theme === t.id ? `${t.color} text-white scale-105 shadow-md` : 'bg-gray-100'}`}>
-                  <t.icon size={16} />
+                <button key={t.id} type="button" onClick={() => setTheme(t.id)} className={`flex flex-col items-center justify-center p-2 rounded-xl transition-all ${theme === t.id ? `${t.color} text-white scale-105 shadow-lg` : 'bg-gray-100 hover:bg-gray-200'}`}>
+                  <t.icon size={20} className="mb-1" /><span className="text-[10px] font-bold">{t.label}</span>
                 </button>
               ))}
             </div>
           </div>
 
-          <div className="grid grid-cols-2 gap-3 mb-4">
-            <input required type="text" placeholder="Nome Festeggiato" className="w-full p-2 border-2 border-gray-200 rounded-lg font-bold focus:border-blue-400 outline-none text-sm" value={recipientName} onChange={(e) => setRecipientName(e.target.value)} />
-            <input type="text" placeholder="Data Evento" className="w-full p-2 border-2 border-gray-200 rounded-lg font-bold focus:border-blue-400 outline-none text-sm" value={eventDate} onChange={(e) => setEventDate(e.target.value)} />
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
+            <div>
+              <label className="block text-xs font-bold text-gray-400 mb-2 uppercase">Per chi è?</label>
+              <input required type="text" placeholder="Nome" className="w-full p-3 border-2 border-gray-200 rounded-xl font-bold focus:border-blue-400 outline-none" value={recipientName} onChange={(e) => setRecipientName(e.target.value)} />
+            </div>
+            <div>
+              <label className="block text-xs font-bold text-gray-400 mb-2 uppercase">Data Evento</label>
+              <input type="text" placeholder="es. 25 Dicembre" className="w-full p-3 border-2 border-gray-200 rounded-xl font-bold focus:border-blue-400 outline-none" value={eventDate} onChange={(e) => setEventDate(e.target.value)} />
+            </div>
           </div>
 
-          {contentType === 'crossword' && (
-              <div className="mb-4 bg-gray-50 p-3 rounded-lg border border-gray-100">
-                <div className="flex bg-white rounded-md p-1 mb-2 border border-gray-200 shadow-sm">
-                    <button type="button" onClick={() => setMode('ai')} className={`flex-1 py-1 rounded text-xs font-bold ${mode === 'ai' ? 'bg-blue-100 text-blue-700' : 'text-gray-400'}`}>✨ AI</button>
-                    <button type="button" onClick={() => setMode('manual')} className={`flex-1 py-1 rounded text-xs font-bold ${mode === 'manual' ? 'bg-blue-100 text-blue-700' : 'text-gray-400'}`}>📝 Manuale</button>
+          {/* CONTENT CREATION SECTION */}
+          <div className="mb-6 bg-gray-50 p-4 rounded-xl border border-gray-100 animate-fade-in">
+                <div className="flex bg-white rounded-lg p-1 mb-4 border border-gray-200 shadow-sm">
+                    <button type="button" onClick={() => setMode('ai')} className={`flex-1 py-2 rounded-md font-bold text-sm transition-all flex items-center justify-center gap-2 ${mode === 'ai' ? 'bg-blue-100 text-blue-700 shadow-sm' : 'text-gray-400 hover:text-gray-600'}`}><Wand2 size={16}/> AI Magic</button>
+                    <button type="button" onClick={() => setMode('manual')} className={`flex-1 py-2 rounded-md font-bold text-sm transition-all flex items-center justify-center gap-2 ${mode === 'manual' ? 'bg-blue-100 text-blue-700 shadow-sm' : 'text-gray-400 hover:text-gray-600'}`}><Edit size={16}/> Manuale</button>
                 </div>
-                {mode === 'ai' ? (
-                    <textarea rows={2} className="w-full p-2 border border-gray-200 rounded-lg text-sm resize-none" placeholder="Argomento (es: Zio Carlo...)" value={topic} onChange={(e) => setTopic(e.target.value)} />
-                ) : (
-                    <div className="space-y-2">
-                        {manualWords.map((item, idx) => (
-                            <div key={idx} className="flex gap-2"><input placeholder="PAROLA" value={item.word} onChange={(e) => handleManualChange(idx, 'word', e.target.value)} className="w-1/3 p-1.5 border rounded text-xs font-bold uppercase" /><input placeholder="Indizio" value={item.clue} onChange={(e) => handleManualChange(idx, 'clue', e.target.value)} className="flex-1 p-1.5 border rounded text-xs" /></div>
+
+                {/* TONE SELECTOR (ONLY AI MODE) */}
+                {mode === 'ai' && (
+                    <div className="mb-4 flex gap-2 overflow-x-auto pb-1">
+                        {[
+                            { id: 'surprise', label: 'Sorpresa', icon: Sparkles },
+                            { id: 'funny', label: 'Simpatico', icon: Smile },
+                            { id: 'heartfelt', label: 'Dolce', icon: Heart },
+                            { id: 'rhyme', label: 'Rima', icon: Music },
+                        ].map((t) => (
+                            <button
+                                key={t.id}
+                                type="button"
+                                onClick={() => setTone(t.id as ToneType)}
+                                className={`flex items-center gap-1 px-3 py-1.5 rounded-full text-xs font-bold border transition-all ${tone === t.id ? 'bg-blue-600 text-white border-blue-600' : 'bg-white text-gray-500 border-gray-200 hover:border-blue-300'}`}
+                            >
+                                <t.icon size={12} /> {t.label}
+                            </button>
                         ))}
-                        <button type="button" onClick={addRow} className="text-blue-500 text-xs font-bold flex items-center gap-1"><Plus size={12}/> Riga</button>
                     </div>
                 )}
-              </div>
-          )}
+
+                {(mode === 'ai' || contentType === 'simple') ? (
+                     <div className="w-full">
+                         <textarea
+                            rows={3}
+                            className="w-full p-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-blue-500 outline-none resize-none"
+                            placeholder={
+                                contentType === 'simple' && mode === 'manual' 
+                                ? "Scrivi qui il tuo messaggio di auguri completo..." 
+                                : contentType === 'simple' && mode === 'ai'
+                                ? "Descrivi il biglietto (es: Auguri divertenti per lo zio Carlo che ama il vino...)"
+                                : "Argomento del Cruciverba (es: Zio Carlo, ama la pesca...)"
+                            }
+                            value={topic}
+                            onChange={(e) => setTopic(e.target.value)}
+                        />
+                     </div>
+                ) : (
+                    // ONLY CROSSWORD MANUAL MODE
+                    <div className="space-y-2">
+                        {manualWords.map((item, idx) => (
+                            <div key={idx} className="flex gap-2 relative">
+                                <div className="relative w-1/3">
+                                    <input placeholder="PAROLA" value={item.word} onChange={(e) => handleManualChange(idx, 'word', e.target.value)} className="w-full p-2 border rounded-lg font-bold uppercase focus:border-blue-400 outline-none" />
+                                </div>
+                                <input placeholder="Indizio" value={item.clue} onChange={(e) => handleManualChange(idx, 'clue', e.target.value)} className="flex-1 p-2 border rounded-lg focus:border-blue-400 outline-none" />
+                                {manualWords.length > 2 && <button type="button" onClick={() => removeRow(idx)}><Trash2 size={18} className="text-gray-400 hover:text-red-500" /></button>}
+                            </div>
+                        ))}
+                        <button type="button" onClick={addRow} className="text-blue-500 text-sm font-bold flex items-center gap-1 mt-2 hover:bg-blue-50 p-2 rounded-lg transition-colors"><Plus size={16}/> Aggiungi riga</button>
+                    </div>
+                )}
+          </div>
 
           {contentType === 'crossword' && (
-              <div className="mb-4"><input type="text" placeholder="SOLUZIONE SEGRETA (Opzionale)" className="w-full p-2 border border-yellow-300 rounded text-sm uppercase font-bold text-center bg-yellow-50" value={hiddenSolution} onChange={(e) => setHiddenSolution(e.target.value)} maxLength={15} /></div>
+              <div className="mb-6 p-3 bg-yellow-50 rounded-xl border border-yellow-200 animate-fade-in">
+                  <label className="flex items-center gap-2 text-sm font-bold text-yellow-800 mb-2"><KeyRound size={16}/> Parola Nascosta (Opzionale)</label>
+                  <input type="text" placeholder="SOLUZIONE SEGRETA" className="w-full p-2 border border-yellow-300 rounded uppercase font-bold text-center tracking-widest focus:ring-2 focus:ring-yellow-400 outline-none bg-white" value={hiddenSolution} onChange={(e) => setHiddenSolution(e.target.value)} maxLength={15} />
+              </div>
           )}
 
-          <div className="grid grid-cols-2 gap-3 mb-4">
-              <div className="border-2 border-dashed border-gray-300 rounded-lg p-2 h-24 flex items-center justify-center relative cursor-pointer hover:bg-gray-50">
+          <div className="grid grid-cols-2 gap-4 mb-6">
+              <div className="border-2 border-dashed border-gray-300 rounded-xl p-4 text-center hover:bg-gray-50 cursor-pointer relative transition-colors group overflow-hidden h-32 flex items-center justify-center">
                     <input type="file" accept="image/*" onChange={(e) => handleImageUpload(e, 'extra')} className="absolute inset-0 opacity-0 cursor-pointer z-10" />
-                    {processingState.active && processingState.type === 'extra' ? <Loader2 className="animate-spin text-blue-500"/> : extraImage ? <div className="w-full h-full relative"><img src={extraImage} className="w-full h-full object-contain" /><button onClick={(e) => {e.preventDefault(); removeImage('extra')}} className="absolute top-0 right-0 bg-red-500 text-white rounded-full p-0.5"><Trash2 size={10}/></button></div> : <div className="text-center"><Upload size={20} className="mx-auto text-gray-400"/><span className="text-[10px] font-bold text-gray-500 block">LOGO</span></div>}
+                    {processingImg === 'extra' ? (
+                       <div className="flex flex-col items-center text-blue-500"><Loader2 className="animate-spin mb-1"/><span className="text-[10px] font-bold">Elaborazione...</span></div>
+                    ) : extraImage ? (
+                        <div className="relative w-full h-full group-hover:scale-95 transition-transform">
+                             <img src={extraImage} className="h-full w-full object-contain mx-auto" />
+                             <button type="button" onClick={(e) => { e.preventDefault(); removeImage('extra'); }} className="absolute top-1 right-1 bg-red-500 text-white rounded-full p-1 z-20 hover:bg-red-600"><Trash2 size={12}/></button>
+                        </div>
+                    ) : (
+                        <div className="flex flex-col items-center group-hover:scale-105 transition-transform">
+                             <Upload className="text-gray-400 mb-1"/><span className="text-[10px] font-bold text-gray-500 uppercase">Logo / Disegno</span>
+                        </div>
+                    )}
               </div>
-              <div className="border-2 border-dashed border-gray-300 rounded-lg p-2 h-24 flex items-center justify-center relative cursor-pointer hover:bg-gray-50">
+
+              <div className="border-2 border-dashed border-gray-300 rounded-xl p-0 text-center hover:bg-gray-50 cursor-pointer relative transition-colors group overflow-hidden h-32 flex items-center justify-center">
                     <input type="file" accept="image/*" multiple onChange={(e) => handleImageUpload(e, 'photo')} className="absolute inset-0 opacity-0 cursor-pointer z-10" />
-                    {processingState.active && processingState.type === 'photo' ? <div className="text-center"><Loader2 className="animate-spin text-blue-500 mx-auto"/><span className="text-[8px]">{processingState.current}/{processingState.total}</span></div> : photos.length > 0 ? <div className="w-full h-full relative">{renderPhotoPreview()}<button onClick={(e) => {e.preventDefault(); removeImage('photo')}} className="absolute top-0 right-0 bg-red-500 text-white rounded-full p-0.5 z-20"><Trash2 size={10}/></button></div> : <div className="text-center"><Images size={20} className="mx-auto text-gray-400"/><span className="text-[10px] font-bold text-gray-500 block">FOTO (Max 9)</span></div>}
+                    {processingImg === 'photo' ? (
+                       <div className="flex flex-col items-center text-blue-500"><Loader2 className="animate-spin mb-1"/><span className="text-[10px] font-bold">Collage...</span></div>
+                    ) : photos.length > 0 ? (
+                        <div className="relative w-full h-full">
+                             {renderPhotoPreview()}
+                             <button type="button" onClick={(e) => { e.preventDefault(); removeImage('photo'); }} className="absolute top-1 right-1 bg-red-500 text-white rounded-full p-1 z-30 hover:bg-red-600"><Trash2 size={12}/></button>
+                        </div>
+                    ) : (
+                        <div className="flex flex-col items-center group-hover:scale-105 transition-transform p-4">
+                             <Images className="text-gray-400 mb-1"/><span className="text-[10px] font-bold text-gray-500 uppercase">Foto Ricordo (1-9)</span>
+                        </div>
+                    )}
               </div>
           </div>
 
-          <div className="mb-4 bg-gray-50 p-2 rounded-lg border border-gray-100">
-             <div className="flex gap-2 mb-2">
-                 <Search size={14} className="text-gray-400"/>
-                 <input type="text" placeholder="Cerca stickers..." className="bg-transparent text-xs w-full outline-none" value={stickerSearch} onChange={(e) => setStickerSearch(e.target.value)}/>
-                 <span className="text-[10px] font-bold text-blue-500 whitespace-nowrap">{selectedStickers.length}/5</span>
+          <div className="mb-6 bg-gray-50 p-3 rounded-xl border border-gray-100">
+             <div className="flex justify-between items-center mb-2">
+                <label className="text-xs font-bold text-gray-400 uppercase">Decorazioni</label>
+                <span className={`text-xs font-bold ${selectedStickers.length >= 5 ? 'text-red-500' : 'text-blue-500'}`}>{selectedStickers.length}/5</span>
              </div>
-             <div className="grid grid-cols-8 gap-1 h-32 overflow-y-auto custom-scrollbar">
-                {filteredStickers.map((s, idx) => (
-                    <button key={`${s.char}-${idx}`} type="button" onClick={() => toggleSticker(s.char)} className={`text-xl flex items-center justify-center rounded hover:bg-gray-200 ${selectedStickers.includes(s.char) ? 'bg-blue-100 ring-1 ring-blue-300' : ''}`} disabled={!selectedStickers.includes(s.char) && selectedStickers.length >= 5}>{s.char}</button>
+             <div className="flex flex-wrap gap-2 justify-center max-h-32 overflow-y-auto p-1 custom-scrollbar">
+                {STICKERS.map(s => (
+                    <button key={s} type="button" onClick={() => toggleSticker(s)} disabled={!selectedStickers.includes(s) && selectedStickers.length >= 5} className={`text-2xl p-2 rounded-full transition-all duration-300 ${selectedStickers.includes(s) ? 'bg-white shadow-md scale-110 ring-2 ring-blue-200' : 'opacity-60 hover:opacity-100 hover:scale-105'} ${!selectedStickers.includes(s) && selectedStickers.length >= 5 ? 'opacity-20 cursor-not-allowed' : ''}`}>{s}</button>
                 ))}
             </div>
           </div>
 
-          {error && <div className="text-red-500 text-xs font-bold text-center mb-2">{error}</div>}
+          {error && <div className="p-4 bg-red-50 text-red-700 rounded-xl text-sm mb-4 flex items-center gap-3 border border-red-200 font-bold"><AlertCircle size={24} className="shrink-0" />{error}</div>}
 
-          <button type="submit" disabled={loading || processingState.active} className={`w-full py-3 rounded-xl text-white font-bold shadow-lg flex items-center justify-center gap-2 ${loading ? 'bg-gray-400' : 'bg-gradient-to-r from-blue-600 to-purple-600 hover:scale-[1.02] transition-transform'}`}>
-              <Wand2 size={18} /> {initialData ? "RIGENERA" : "CREA BIGLIETTO"}
+          <button type="submit" disabled={loading || !!processingImg} className={`w-full py-4 rounded-xl text-white font-bold text-lg shadow-xl flex items-center justify-center gap-2 transition-all active:scale-95 ${loading || !!processingImg ? 'bg-gray-400 cursor-not-allowed' : 'bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700'}`}>
+              <Wand2 /> {initialData ? "RIGENERA BIGLIETTO" : "GENERA BIGLIETTO"}
           </button>
       </div>
     </form>
