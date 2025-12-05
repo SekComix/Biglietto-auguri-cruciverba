@@ -333,31 +333,39 @@ export const regenerateGreeting = async (
       instructions = `Tono: ${tone}.`;
     }
 
+    // Prompt rafforzato per variare il messaggio
     const prompt = `
-    Scrivi UN SOLO breve messaggio di auguri (max 20 parole) per ${recipient}.
+    Sei un creativo copywriter per biglietti di auguri.
+    Il tuo compito è scrivere un messaggio ORIGINALE e UNICO per ${recipient}.
+    
+    Tono desiderato: ${tone}.
     Evento: ${theme}.
     ${instructions}
-    Solo testo semplice.
+    
+    Regole ferree:
+    1. Scrivi SOLO il testo del messaggio (niente "Ecco il messaggio:" o virgolette).
+    2. Lunghezza massima: 25 parole.
+    3. NON ripetere frasi generiche come "Tanti auguri". Sii specifico e creativo.
+    4. Inventa qualcosa di diverso dal solito.
     `;
 
     try {
-        // Genera la richiesta
         const apiCall = ai.models.generateContent({
             model: 'gemini-2.5-flash',
             contents: prompt,
             config: { 
-                maxOutputTokens: 100, // Limita lunghezza per velocità
-                temperature: 0.9 
+                maxOutputTokens: 200, // Aumentato per evitare tagli
+                temperature: 1.0 // Massima creatività
             } 
         });
 
-        // Timeout di 15 secondi per la rigenerazione messaggio
         const response: any = await withTimeout(apiCall, 15000, "Timeout");
+        const newText = response.text?.replace(/"/g, '').trim();
 
-        return response.text?.replace(/"/g, '').trim() || currentMessage;
+        // Se l'IA ritorna vuoto, tieni il vecchio, altrimenti ritorna il nuovo
+        return newText || currentMessage;
     } catch (e) {
         console.error("Errore rigenerazione messaggio:", e);
-        // In caso di errore o timeout, restituisci il messaggio originale così la UI non si rompe
         return currentMessage;
     }
 };
