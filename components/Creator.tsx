@@ -20,50 +20,146 @@ const THEMES: { id: ThemeType; label: string; icon: any; color: string }[] = [
   { id: 'elegant', label: 'Elegante', icon: Crown, color: 'bg-gray-800' },
 ];
 
-// Stickers mappati con tag per la ricerca
+// DATASET COMPLETO STICKERS
 const STICKER_DATA = [
-    { char: '🎅', tags: 'natale babbo christmas santa' },
-    { char: '🎄', tags: 'natale albero tree christmas' },
-    { char: '🎁', tags: 'regalo pacco dono gift' },
-    { char: '❄️', tags: 'neve freddo inverno snow' },
-    { char: '⛄', tags: 'pupazzo neve inverno' },
-    { char: '🦌', tags: 'renna rudolph animale' },
-    { char: '🎂', tags: 'torta compleanno cibo dolce' },
-    { char: '🎈', tags: 'palloncino festa compleanno' },
-    { char: '🎉', tags: 'festa coriandoli party' },
-    { char: '🕯️', tags: 'candela luce' },
-    { char: '🥂', tags: 'brindisi bicchieri cin cin' },
-    { char: '🎓', tags: 'laurea tocco scuola' },
-    { char: '📜', tags: 'pergamena diploma laurea' },
-    { char: '🏆', tags: 'coppa trofeo vittoria' },
-    { char: '💍', tags: 'anello matrimonio fidanzamento' },
-    { char: '❤️', tags: 'cuore amore love' },
-    { char: '👰', tags: 'sposa matrimonio' },
-    { char: '🤵', tags: 'sposo matrimonio' },
-    { char: '🎃', tags: 'zucca halloween' },
-    { char: '👻', tags: 'fantasma halloween paura' },
-    { char: '✝️', tags: 'croce religione gesù' },
-    { char: '🕊️', tags: 'colomba pace cresima' },
+    // NATALE
+    { char: '🎅', tags: 'natale babbo christmas santa festa' },
+    { char: '🎄', tags: 'natale albero tree christmas festa' },
+    { char: '🎁', tags: 'regalo pacco dono gift natale compleanno festa' },
+    { char: '❄️', tags: 'neve freddo inverno snow natale' },
+    { char: '⛄', tags: 'pupazzo neve inverno natale' },
+    { char: '🦌', tags: 'renna rudolph animale natale' },
+    { char: '🧦', tags: 'calza epifania befana natale' },
+    { char: '🍪', tags: 'biscotto cibo dolce natale' },
+    { char: '🥛', tags: 'latte cibo natale' },
+    { char: '🔔', tags: 'campana natale' },
+    { char: '🕯️', tags: 'candela luce natale religione preghiera' },
+    { char: '🌟', tags: 'stella star natale luce' },
+    
+    // COMPLEANNO
+    { char: '🎂', tags: 'torta compleanno cibo dolce festa auguri' },
+    { char: '🎈', tags: 'palloncino festa compleanno party' },
+    { char: '🎉', tags: 'festa coriandoli party compleanno capodanno' },
+    { char: '🍰', tags: 'fetta torta dolce cibo' },
+    { char: '🥳', tags: 'festa faccina party felice' },
+    { char: '👑', tags: 'corona re regina principessa' },
+    { char: '🧢', tags: 'cappello festa' },
+    { char: '🎺', tags: 'tromba musica festa' },
+    { char: '🎊', tags: 'coriandoli festa' },
+
+    // PASQUA
+    { char: '🐣', tags: 'pulcino pasqua animale uovo' },
+    { char: '🌸', tags: 'fiore primavera pasqua natura' },
+    { char: '🐇', tags: 'coniglio pasqua animale' },
+    { char: '🥚', tags: 'uovo pasqua cibo' },
+    { char: '🌷', tags: 'tulipano fiore primavera pasqua' },
+    { char: '🍫', tags: 'cioccolato cibo dolce pasqua' },
+    { char: '🌻', tags: 'girasole fiore natura' },
+    { char: '🐞', tags: 'coccinella fortuna natura' },
+    { char: '🦋', tags: 'farfalla natura primavera' },
+    { char: '🌱', tags: 'germoglio natura primavera' },
+    { char: '🕊️', tags: 'colomba pace pasqua cresima religione' },
+
+    // HALLOWEEN
+    { char: '🎃', tags: 'zucca halloween paura' },
+    { char: '👻', tags: 'fantasma halloween paura spirito' },
+    { char: '🕷️', tags: 'ragno halloween insetto' },
+    { char: '🕸️', tags: 'ragnatela halloween' },
+    { char: '🧛', tags: 'vampiro halloween dracula' },
+    { char: '🍬', tags: 'caramella dolcetto cibo halloween' },
+    { char: '🦇', tags: 'pipistrello halloween animale' },
+    { char: '💀', tags: 'teschio scheletro halloween morte' },
+    { char: '🌙', tags: 'luna notte halloween' },
+    { char: '🐈‍⬛', tags: 'gatto nero sfortuna halloween animale' },
+    { char: '🧙‍♀️', tags: 'strega halloween magia' },
+
+    // LAUREA
+    { char: '🎓', tags: 'laurea tocco scuola università' },
+    { char: '📜', tags: 'pergamena diploma laurea documento' },
+    { char: '🏆', tags: 'coppa trofeo vittoria successo' },
+    { char: '📚', tags: 'libri studio scuola' },
+    { char: '🦉', tags: 'gufo saggezza laurea' },
+    { char: '✏️', tags: 'matita scuola disegno' },
+    { char: '🧠', tags: 'cervello mente studio' },
+    { char: '💼', tags: 'borsa lavoro business' },
+    { char: '🥇', tags: 'medaglia primo vittoria' },
+    { char: '🏫', tags: 'scuola università edificio' },
+    { char: '👩‍🎓', tags: 'laureata donna scuola' },
+    { char: '👨‍🎓', tags: 'laureato uomo scuola' },
+
+    // RELIGIOSI (Cresima/Comunione)
+    { char: '✝️', tags: 'croce religione gesù chiesa' },
+    { char: '⛪', tags: 'chiesa religione edificio' },
+    { char: '🥖', tags: 'pane cibo comunione' },
+    { char: '🍇', tags: 'uva vino cibo comunione' },
+    { char: '👼', tags: 'angelo religione bambino' },
+    { char: '🙌', tags: 'mani preghiera religione' },
+    { char: '🛐', tags: 'preghiera religione' },
+    { char: '🌅', tags: 'alba sole luce' },
+    { char: '💒', tags: 'matrimonio chiesa amore' },
+
+    // MATRIMONIO / AMORE
+    { char: '💍', tags: 'anello matrimonio fidanzamento gioiello' },
+    { char: '❤️', tags: 'cuore amore love rosso' },
+    { char: '👰', tags: 'sposa matrimonio donna' },
+    { char: '🤵', tags: 'sposo matrimonio uomo' },
+    { char: '💐', tags: 'fiori mazzo matrimonio' },
+    { char: '💌', tags: 'lettera amore posta invito' },
+    { char: '💑', tags: 'coppia amore' },
+    { char: '🥂', tags: 'brindisi bicchieri cin cin festa' },
+    { char: '💞', tags: 'cuori amore' },
+    { char: '💘', tags: 'cuore freccia amore san valentino' },
+
+    // ANIMALI
     { char: '🐶', tags: 'cane animale cucciolo' },
     { char: '🐱', tags: 'gatto animale micio' },
+    { char: '🦄', tags: 'unicorno fantasia cavallo' },
+    { char: '🦁', tags: 'leone animale savana' },
+    { char: '🐢', tags: 'tartaruga animale' },
+    { char: '🦖', tags: 'dinosauro animale' },
+    { char: '🐬', tags: 'delfino mare animale' },
+    { char: '🐼', tags: 'panda animale' },
+    { char: '🐨', tags: 'koala animale' },
+
+    // CIBO & DRINK
+    { char: '🍕', tags: 'pizza cibo fame italia' },
+    { char: '🍔', tags: 'hamburger cibo panino' },
+    { char: '🍟', tags: 'patatine cibo' },
+    { char: '🍦', tags: 'gelato dolce estate' },
+    { char: '🍩', tags: 'ciambella dolce' },
+    { char: '🍫', tags: 'cioccolato dolce' },
+    { char: '🍷', tags: 'vino bicchiere alcool' },
+    { char: '🍺', tags: 'birra alcool' },
+    { char: '☕', tags: 'caffe colazione tazza' },
+    { char: '🍹', tags: 'cocktail drink estate' },
+    { char: '🍓', tags: 'fragola frutta' },
+
+    // SPORT & HOBBY
     { char: '⚽', tags: 'calcio pallone sport' },
-    { char: '🍕', tags: 'pizza cibo fame' },
-    { char: '⭐', tags: 'stella star' },
-    { char: '🌈', tags: 'arcobaleno' },
-    { char: '🍀', tags: 'fortuna quadrifoglio' },
-    { char: '🚗', tags: 'auto macchina viaggio' },
-    { char: '✈️', tags: 'aereo viaggio vacanza' },
-    { char: '📷', tags: 'foto camera' },
-    { char: '🎮', tags: 'gioco videogiochi' },
+    { char: '🏀', tags: 'basket pallone sport' },
+    { char: '🎾', tags: 'tennis sport' },
+    { char: '🏐', tags: 'pallavolo sport' },
+    { char: '🎮', tags: 'gioco videogiochi controller' },
+    { char: '🎨', tags: 'arte pittura colori' },
     { char: '🎸', tags: 'chitarra musica strumento' },
-    { char: '💰', tags: 'soldi ricchezza' },
-    { char: '👑', tags: 'corona re regina' },
-    { char: '👶', tags: 'neonato bambino' },
-    { char: '💊', tags: 'medicina dottore' },
-    { char: '🍦', tags: 'gelato dolce' },
-    { char: '☕', tags: 'caffe colazione' },
-    { char: '🦁', tags: 'leone animale' },
-    { char: '🦄', tags: 'unicorno fantasia' }
+    { char: '✈️', tags: 'aereo viaggio vacanza' },
+    { char: '🚗', tags: 'auto macchina viaggio' },
+    { char: '🏖️', tags: 'spiaggia mare vacanza' },
+    { char: '📸', tags: 'foto camera fotografia' },
+    { char: '🚲', tags: 'bici sport' },
+    { char: '🎵', tags: 'nota musica canzone' },
+    { char: '🎶', tags: 'note musica' },
+
+    // SIMBOLI
+    { char: '⭐', tags: 'stella star' },
+    { char: '✨', tags: 'scintille magia' },
+    { char: '💫', tags: 'stella scia' },
+    { char: '💎', tags: 'diamante gioiello ricchezza' },
+    { char: '⚜️', tags: 'giglio elegante' },
+    { char: '🍀', tags: 'fortuna quadrifoglio' },
+    { char: '☀️', tags: 'sole estate caldo' },
+    { char: '💣', tags: 'bomba esplosione' },
+    { char: '💯', tags: 'cento voto perfetto' }
 ];
 
 export const Creator: React.FC<CreatorProps> = ({ onCreated, initialData }) => {
@@ -140,8 +236,9 @@ export const Creator: React.FC<CreatorProps> = ({ onCreated, initialData }) => {
                   let width = img.width;
                   let height = img.height;
                   
-                  // Resize logic: Max 1000px (ridotto leggermente per sicurezza su mobile)
-                  const MAX_SIZE = 1000;
+                  // Resize logic: Ottimizzato per 9 foto.
+                  // 800px è sufficiente per la stampa in collage e riduce drasticamente l'uso di memoria.
+                  const MAX_SIZE = 800;
                   if (width > MAX_SIZE || height > MAX_SIZE) {
                       if (width > height) {
                           height *= MAX_SIZE / width;
@@ -162,8 +259,8 @@ export const Creator: React.FC<CreatorProps> = ({ onCreated, initialData }) => {
                   ctx.fillRect(0, 0, width, height);
                   ctx.drawImage(img, 0, 0, width, height);
                   
-                  // Compress to JPEG 0.75 for balance
-                  const dataUrl = canvas.toDataURL('image/jpeg', 0.75);
+                  // Compress to JPEG 0.70 for balance and stability with 9 photos
+                  const dataUrl = canvas.toDataURL('image/jpeg', 0.70);
                   resolve(dataUrl);
               };
               img.onerror = () => reject("Image load error");
@@ -211,8 +308,8 @@ export const Creator: React.FC<CreatorProps> = ({ onCreated, initialData }) => {
         setProcessingState(prev => ({ ...prev, current: i + 1 }));
         
         try {
-            // Piccolo delay per permettere alla UI di aggiornarsi
-            await new Promise(r => setTimeout(r, 50));
+            // Piccolo delay per permettere alla UI di aggiornarsi e al GC di respirare
+            await new Promise(r => setTimeout(r, 100));
             
             const dataUrl = await processImageFile(filesToProcess[i]);
             
@@ -232,7 +329,7 @@ export const Creator: React.FC<CreatorProps> = ({ onCreated, initialData }) => {
     }
 
     if (newPhotos.length < filesToProcess.length && type === 'photo') {
-        setError("Alcune foto non sono state caricate correttamente. Riprova.");
+        setError("Alcune foto non sono state caricate correttamente (memoria piena?). Riprova con meno foto alla volta.");
     }
 
     // Reset Loading State
@@ -558,9 +655,9 @@ export const Creator: React.FC<CreatorProps> = ({ onCreated, initialData }) => {
               </div>
           </div>
 
-          {/* Stickers Section */}
-          <div className="mb-6 bg-gray-50 p-3 rounded-xl border border-gray-100">
-             <div className="flex justify-between items-center mb-2">
+          {/* Stickers Section - RESTORED LAYOUT */}
+          <div className="mb-6 bg-gray-50 p-4 rounded-xl border border-gray-100">
+             <div className="flex justify-between items-center mb-3">
                 <label className="text-xs font-bold text-gray-400 uppercase">Decorazioni</label>
                 <span className={`text-xs font-bold ${selectedStickers.length >= 5 ? 'text-red-500' : 'text-blue-500'}`}>
                     {selectedStickers.length}/5
@@ -568,23 +665,23 @@ export const Creator: React.FC<CreatorProps> = ({ onCreated, initialData }) => {
              </div>
              
              {/* Sticker Search Bar */}
-             <div className="relative mb-3">
-                 <Search className="absolute left-2 top-2 text-gray-400" size={16} />
+             <div className="relative mb-4">
+                 <Search className="absolute left-3 top-2.5 text-gray-400" size={16} />
                  <input 
                     type="text" 
                     placeholder="Cerca (es. torta, natale, cuore...)" 
-                    className="w-full pl-8 pr-8 py-1.5 text-sm rounded-lg border border-gray-200 focus:border-blue-400 outline-none"
+                    className="w-full pl-9 pr-8 py-2 text-sm rounded-lg border border-gray-200 focus:border-blue-400 outline-none bg-white shadow-sm"
                     value={stickerSearch}
                     onChange={(e) => setStickerSearch(e.target.value)}
                  />
                  {stickerSearch && (
-                     <button type="button" onClick={() => setStickerSearch('')} className="absolute right-2 top-2 text-gray-400 hover:text-gray-600">
+                     <button type="button" onClick={() => setStickerSearch('')} className="absolute right-2 top-2 text-gray-400 hover:text-gray-600 p-1">
                          <X size={16}/>
                      </button>
                  )}
              </div>
 
-             <div className="flex flex-wrap gap-2 justify-center max-h-48 overflow-y-auto p-2 border border-gray-100 rounded-lg bg-white custom-scrollbar">
+             <div className="grid grid-cols-6 sm:grid-cols-8 gap-2 justify-items-center max-h-56 overflow-y-auto p-2 bg-white rounded-xl border border-gray-100 custom-scrollbar">
                 {filteredStickers.length > 0 ? (
                     filteredStickers.map((s, idx) => (
                         <button 
@@ -592,7 +689,7 @@ export const Creator: React.FC<CreatorProps> = ({ onCreated, initialData }) => {
                             type="button" 
                             onClick={() => toggleSticker(s.char)} 
                             disabled={!selectedStickers.includes(s.char) && selectedStickers.length >= 5}
-                            className={`text-2xl w-10 h-10 flex items-center justify-center rounded-full transition-all duration-200
+                            className={`text-3xl w-10 h-10 flex items-center justify-center rounded-lg transition-all duration-200
                                 ${selectedStickers.includes(s.char) ? 'bg-blue-100 shadow-sm scale-110 ring-2 ring-blue-300' : 'hover:bg-gray-100 hover:scale-110'}
                                 ${!selectedStickers.includes(s.char) && selectedStickers.length >= 5 ? 'opacity-30 cursor-not-allowed grayscale' : ''}
                             `}
@@ -602,7 +699,7 @@ export const Creator: React.FC<CreatorProps> = ({ onCreated, initialData }) => {
                         </button>
                     ))
                 ) : (
-                    <div className="text-center py-4 text-gray-400 text-xs italic w-full">
+                    <div className="col-span-full text-center py-6 text-gray-400 text-sm italic">
                         Nessuna decorazione trovata per "{stickerSearch}"
                     </div>
                 )}
