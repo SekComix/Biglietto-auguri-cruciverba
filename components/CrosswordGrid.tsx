@@ -6,40 +6,120 @@ import { Printer, Edit, Wand2, Dice5, Eye, EyeOff, Sparkles, Send, Settings } fr
 interface CrosswordGridProps {
   data: CrosswordData;
   onComplete: () => void;
-  onEdit: () => void; // Nuova prop per la modifica
+  onEdit: () => void; 
 }
+
+// --- WOW EFFECT COMPONENT ---
+const WowEffect: React.FC<{ theme: ThemeType }> = ({ theme }) => {
+    const [particles, setParticles] = useState<{id: number, left: string, top: string, anim: string, char: string, size: string}[]>([]);
+
+    useEffect(() => {
+        const count = 30;
+        const newParticles = [];
+        const chars = theme === 'christmas' ? ['❄️', '✨', '⚪'] :
+                      theme === 'birthday' ? ['🎊', '🎈', '✨'] :
+                      theme === 'easter' ? ['🌸', '🦋', '🍃'] :
+                      ['✨', '⭐', '💫']; // Elegant
+
+        for(let i=0; i<count; i++) {
+            newParticles.push({
+                id: i,
+                left: Math.random() * 100 + '%',
+                top: Math.random() * 100 + '%',
+                anim: `float ${3 + Math.random() * 5}s linear infinite`,
+                char: chars[Math.floor(Math.random() * chars.length)],
+                size: (1 + Math.random() * 1.5) + 'rem'
+            });
+        }
+        setParticles(newParticles);
+    }, [theme]);
+
+    return (
+        <div className="absolute inset-0 pointer-events-none overflow-hidden z-0 print:hidden">
+            <style>{`
+                @keyframes float {
+                    0% { transform: translateY(0) rotate(0deg); opacity: 0; }
+                    20% { opacity: 0.8; }
+                    100% { transform: translateY(-100vh) rotate(360deg); opacity: 0; }
+                }
+                @keyframes snow {
+                     0% { transform: translateY(-10px) rotate(0deg); opacity: 0; }
+                     20% { opacity: 1; }
+                     100% { transform: translateY(100vh) rotate(180deg); opacity: 0; }
+                }
+            `}</style>
+            {particles.map(p => (
+                <div key={p.id} style={{
+                    position: 'absolute',
+                    left: p.left,
+                    top: theme === 'christmas' ? '-10%' : '110%', // Snow falls, others rise
+                    fontSize: p.size,
+                    animation: theme === 'christmas' ? `snow ${5+Math.random()*10}s linear infinite` : p.anim,
+                    animationDelay: `-${Math.random()*5}s`,
+                    opacity: 0.6
+                }}>
+                    {p.char}
+                </div>
+            ))}
+        </div>
+    );
+};
+
+// --- COLLAGE COMPONENT ---
+const PhotoCollage: React.FC<{ photos: string[], className?: string, style?: React.CSSProperties }> = ({ photos, className, style }) => {
+    if (!photos || photos.length === 0) return null;
+    
+    // Logic for grid: 1, 2, 4 (2x2), 9 (3x3) or mixed
+    const count = photos.length;
+    let gridClass = 'grid-cols-1';
+    
+    if (count === 2) gridClass = 'grid-cols-2';
+    else if (count > 2 && count <= 4) gridClass = 'grid-cols-2';
+    else if (count >= 5) gridClass = 'grid-cols-3';
+
+    return (
+        <div className={`grid gap-1 w-full h-full bg-white overflow-hidden ${gridClass} ${className}`} style={style}>
+            {photos.map((p, i) => (
+                <div key={i} className="relative w-full h-full overflow-hidden">
+                    <img src={p} className="w-full h-full object-cover" alt={`memory-${i}`} />
+                </div>
+            ))}
+        </div>
+    );
+};
+
 
 const THEME_ASSETS: Record<ThemeType, any> = {
   christmas: {
     fontTitle: 'font-christmas',
     printBorder: 'border-double border-8 border-red-800',
     decoration: '🎄',
-    watermark: '🎄',
+    watermark: '🎅',
     accentColor: '#165B33',
     bgClass: 'bg-red-50'
   },
   birthday: {
     fontTitle: 'font-fun',
-    printBorder: 'border-[6px] border-dashed border-pink-500', // Bordo più spesso e divertente
+    printBorder: 'border-[6px] border-dashed border-pink-500', 
     decoration: '🎂',
     watermark: '🎉',
-    accentColor: '#DB2777', // Pink-600
+    accentColor: '#DB2777', 
     bgClass: 'bg-pink-50'
   },
   easter: {
     fontTitle: 'font-hand',
-    printBorder: 'border-[8px] border-dotted border-green-500', // Bordo "uovo di pasqua"
+    printBorder: 'border-[8px] border-dotted border-green-500', 
     decoration: '🐣',
     watermark: '🌸',
-    accentColor: '#16A34A', // Green-600
+    accentColor: '#16A34A', 
     bgClass: 'bg-green-50'
   },
   elegant: {
     fontTitle: 'font-elegant',
-    printBorder: 'border-4 border-double border-gray-900', // Doppio bordo classico
+    printBorder: 'border-4 border-double border-gray-900', 
     decoration: '⚜️',
-    watermark: '✨',
-    accentColor: '#111827', // Gray-900
+    watermark: '⚜️',
+    accentColor: '#111827', 
     bgClass: 'bg-gray-50'
   },
   generic: {
@@ -70,6 +150,7 @@ const CrosswordGrid: React.FC<CrosswordGridProps> = ({ data, onComplete, onEdit 
 
   const themeAssets = THEME_ASSETS[data.theme] || THEME_ASSETS.generic;
   const isCrossword = data.type === 'crossword';
+  const photos = data.images?.photos || (data.images?.photo ? [data.images.photo] : []); // Compatibilità
 
   useEffect(() => {
     if (!isCrossword) {
@@ -273,10 +354,11 @@ const CrosswordGrid: React.FC<CrosswordGridProps> = ({ data, onComplete, onEdit 
       )}
       
       {/* --- SCREEN MODE --- */}
-      <div className="max-w-6xl mx-auto no-print pb-20">
+      <div className="max-w-6xl mx-auto no-print pb-20 relative">
+        <WowEffect theme={data.theme} />
       
         {/* TOOLBAR */}
-        <div className="bg-white/90 backdrop-blur rounded-full px-6 py-2 mb-6 flex justify-between items-center shadow-lg border-2 border-white/50">
+        <div className="bg-white/90 backdrop-blur rounded-full px-6 py-2 mb-6 flex justify-between items-center shadow-lg border-2 border-white/50 relative z-10">
              <div className="flex items-center gap-2 text-sm font-bold text-gray-500 uppercase tracking-widest">
                  <Sparkles size={16} className="text-yellow-500"/> Anteprima
              </div>
@@ -309,7 +391,7 @@ const CrosswordGrid: React.FC<CrosswordGridProps> = ({ data, onComplete, onEdit 
              </div>
         </div>
       
-        <div className="bg-white p-6 rounded-xl shadow-2xl mb-8 border-4 border-dashed border-gray-300">
+        <div className="bg-white p-6 rounded-xl shadow-2xl mb-8 border-4 border-dashed border-gray-300 relative z-10">
             <h3 className="text-center font-bold text-gray-400 uppercase text-xs mb-4">Pagina Interna</h3>
             
             <div className="flex flex-col md:flex-row gap-8 bg-white border shadow-sm p-4 min-h-[500px]">
@@ -323,8 +405,10 @@ const CrosswordGrid: React.FC<CrosswordGridProps> = ({ data, onComplete, onEdit 
                          </>
                      ) : (
                          <div className="text-center w-full h-full flex items-center justify-center p-8">
-                             {data.images?.photo ? (
-                                <img src={data.images.photo} className="max-h-80 w-auto object-cover shadow-xl border-8 border-white rotate-2 mx-auto transform transition-transform hover:rotate-0 duration-500" />
+                             {photos.length > 0 ? (
+                                <div className="max-h-80 w-auto aspect-square shadow-xl border-8 border-white rotate-2 mx-auto transform transition-transform hover:rotate-0 duration-500 bg-white">
+                                    <PhotoCollage photos={photos} />
+                                </div>
                              ) : (
                                 <div className="text-[180px] leading-none opacity-20 filter grayscale animate-pulse">{themeAssets.decoration}</div>
                              )}
@@ -412,7 +496,11 @@ const CrosswordGrid: React.FC<CrosswordGridProps> = ({ data, onComplete, onEdit 
                       <div className="flex gap-4 justify-center">
                           {data.images?.extraImage && <img src={data.images.extraImage} className="h-20 object-contain border p-1" />}
                           {/* Se Simple Mode, la foto principale è già a sinistra, non la ripetiamo piccola qui */}
-                          {isCrossword && data.images?.photo && <img src={data.images.photo} className="h-20 object-cover border p-1 shadow-sm" />}
+                          {isCrossword && photos.length > 0 && (
+                            <div className="h-20 w-20 border p-1 shadow-sm">
+                                <PhotoCollage photos={photos} />
+                            </div>
+                          )}
                       </div>
                  </div>
             </div>
@@ -420,7 +508,7 @@ const CrosswordGrid: React.FC<CrosswordGridProps> = ({ data, onComplete, onEdit 
 
         {/* CLUES LIST (Only Crossword) */}
         {isCrossword && (
-            <div className="bg-white/90 p-6 rounded-xl shadow-xl max-w-2xl mx-auto">
+            <div className="bg-white/90 p-6 rounded-xl shadow-xl max-w-2xl mx-auto relative z-10">
                 <h3 className="font-bold mb-4 text-center">Definizioni</h3>
                 <div className="grid grid-cols-2 gap-8 text-sm">
                     <div>
@@ -507,11 +595,11 @@ const CrosswordGrid: React.FC<CrosswordGridProps> = ({ data, onComplete, onEdit 
                     </div>
                 </>
             ) : (
-                // SIMPLE MODE LAYOUT - LARGE PHOTO OR DECORATION
+                // SIMPLE MODE LAYOUT - LARGE COLLAGE OR DECORATION
                 <div className="flex-1 flex flex-col justify-center items-center w-full h-full p-4">
-                    {data.images?.photo ? (
-                        <div className="bg-white p-4 shadow-xl border-b-4 border-r-4 border-gray-300 -rotate-1 max-h-full max-w-full flex items-center justify-center">
-                             <img src={data.images.photo} className="max-h-[140mm] max-w-full object-cover" />
+                    {photos.length > 0 ? (
+                        <div className="bg-white p-4 shadow-xl border-b-4 border-r-4 border-gray-300 -rotate-1 w-full max-h-full flex items-center justify-center aspect-square">
+                             <PhotoCollage photos={photos} />
                         </div>
                     ) : (
                         <div className="flex flex-col items-center">
@@ -546,10 +634,10 @@ const CrosswordGrid: React.FC<CrosswordGridProps> = ({ data, onComplete, onEdit 
                         </div>
                      )}
                      
-                     {/* Se siamo in modalità crossword, mostriamo la foto qui se non c'è spazio a sinistra. Se semplice, è già a sinistra. */}
-                     {isCrossword && data.images?.photo && (
-                        <div className="border-4 border-white shadow bg-white -rotate-3 h-full flex items-center">
-                            <img src={data.images.photo} className="max-h-28 w-auto object-cover contrast-125" />
+                     {/* Se siamo in modalità crossword, mostriamo il collage qui se non c'è spazio a sinistra. Se semplice, è già a sinistra. */}
+                     {isCrossword && photos.length > 0 && (
+                        <div className="border-4 border-white shadow bg-white -rotate-3 h-full aspect-square">
+                             <PhotoCollage photos={photos} />
                         </div>
                      )}
                  </div>
