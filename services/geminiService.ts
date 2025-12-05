@@ -27,6 +27,23 @@ const getApiKey = () => {
   return key;
 };
 
+// --- HELPER TIMEOUT ---
+const withTimeout = <T>(promise: Promise<T>, ms: number, errorMessage: string): Promise<T> => {
+    let timeoutId: any;
+    const timeoutPromise = new Promise<T>((_, reject) => {
+        timeoutId = setTimeout(() => {
+            reject(new Error(errorMessage));
+        }, ms);
+    });
+    return Promise.race([
+        promise.then(res => {
+            clearTimeout(timeoutId);
+            return res;
+        }),
+        timeoutPromise
+    ]);
+};
+
 // --- MOTORE DI LAYOUT LOCALE ---
 type GridCell = { char: string; wordId?: string };
 type Grid = Map<string, GridCell>; // key: "x,y"
@@ -208,8 +225,6 @@ export const generateCrossword = async (
 ): Promise<CrosswordData> => {
   const apiKey = getApiKey();
   const ai = new GoogleGenAI({ apiKey });
-
-  // NOTA: Cache disabilitata temporaneamente per permettere testing
   
   let generatedWords: {word: string, clue: string}[] = [];
 
@@ -237,7 +252,7 @@ export const generateCrossword = async (
       try {
         if (onStatusUpdate) onStatusUpdate("L'IA sta scrivendo le definizioni...");
         
-        const response = await ai.models.generateContent({
+        const responsePromise = ai.models.generateContent({
             model: 'gemini-2.5-flash',
             contents: prompt,
             config: {
@@ -247,13 +262,16 @@ export const generateCrossword = async (
             },
         });
 
+        // 30 secondi di timeout per la generazione del cruciverba
+        const response = await withTimeout(responsePromise, 30000, "Timeout generazione parole. Riprova.");
+
         if (response.text) {
             const json = JSON.parse(response.text);
             generatedWords = json.words || [];
         }
       } catch (e) {
         console.error("AI Error", e);
-        throw new Error("Errore nella generazione delle parole. Riprova.");
+        throw new Error("Errore AI o Timeout. Riprova.");
       }
   }
 
@@ -310,32 +328,36 @@ export const regenerateGreeting = async (
     
     let instructions = "";
     if (tone === 'custom' && customPrompt) {
-      instructions = `Istruzioni specifiche dell'utente: "${customPrompt}".`;
+      instructions = `Usa queste istruzioni: "${customPrompt}".`;
     } else {
-      instructions = `Tono desiderato: ${tone}.`;
+      instructions = `Tono: ${tone}.`;
     }
 
     const prompt = `
-    Sei un assistente che scrive biglietti di auguri.
-    Scrivi UN SOLO breve messaggio di auguri (massimo 15-20 parole) per ${recipient}.
-    Evento/Tema: ${theme}.
+    Scrivi UN SOLO breve messaggio di auguri (max 20 parole) per ${recipient}.
+    Evento: ${theme}.
     ${instructions}
-    
-    IMPORTANTE:
-    - Restituisci SOLO il testo del messaggio. 
-    - NON scrivere elenchi puntati.
-    - NON scrivere opzioni multiple.
-    - NON mettere virgolette.
+    Solo testo semplice.
     `;
 
     try {
-        const response = await ai.models.generateContent({
+        // Genera la richiesta
+        const apiCall = ai.models.generateContent({
             model: 'gemini-2.5-flash',
             contents: prompt,
+            config: { 
+                maxOutputTokens: 100, // Limita lunghezza per velocità
+                temperature: 0.9 
+            } 
         });
+
+        // Timeout di 15 secondi per la rigenerazione messaggio
+        const response: any = await withTimeout(apiCall, 15000, "Timeout");
+
         return response.text?.replace(/"/g, '').trim() || currentMessage;
     } catch (e) {
-        console.error(e);
+        console.error("Errore rigenerazione messaggio:", e);
+        // In caso di errore o timeout, restituisci il messaggio originale così la UI non si rompe
         return currentMessage;
     }
 };
