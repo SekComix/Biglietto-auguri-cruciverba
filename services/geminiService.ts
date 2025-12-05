@@ -261,7 +261,7 @@ export const generateCrossword = async (
   extraData: {
     recipientName: string;
     eventDate: string;
-    images?: CustomImages;
+    images?: { extraImage?: string; photos?: string[]; photo?: string }; // Support legacy photo
     stickers?: string[];
     contentType: 'crossword' | 'simple'; 
   },
@@ -354,6 +354,12 @@ export const generateCrossword = async (
                        `Per ${extraData?.recipientName}`;
 
   const defaultMessage = `Tanti auguri! Ecco un pensiero speciale per te.`;
+  
+  // Normalizzazione Foto (se c'è legacy photo, mettiamola in array photos)
+  let photoArray = extraData.images?.photos || [];
+  if (photoArray.length === 0 && extraData.images?.photo) {
+      photoArray = [extraData.images.photo];
+  }
 
   return {
       type: extraData.contentType,
@@ -362,7 +368,10 @@ export const generateCrossword = async (
       theme: theme,
       recipientName: extraData?.recipientName || '',
       eventDate: extraData?.eventDate || '',
-      images: extraData?.images,
+      images: {
+          extraImage: extraData.images?.extraImage,
+          photos: photoArray
+      },
       stickers: extraData?.stickers,
       words: finalWords,
       width: Math.max(width, 8),
