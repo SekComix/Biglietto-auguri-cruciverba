@@ -9,6 +9,11 @@ const BG_STYLES: Record<ThemeType, string> = {
   christmas: "bg-xmas-red bg-[url('https://www.transparenttextures.com/patterns/snow.png')]",
   birthday: "bg-yellow-400 bg-[url('https://www.transparenttextures.com/patterns/confetti-doodles.png')]",
   easter: "bg-blue-200 bg-[url('https://www.transparenttextures.com/patterns/cubes.png')]",
+  halloween: "bg-purple-900 bg-[url('https://www.transparenttextures.com/patterns/dark-matter.png')]",
+  graduation: "bg-red-800 bg-[url('https://www.transparenttextures.com/patterns/black-scales.png')]",
+  confirmation: "bg-indigo-100 bg-[url('https://www.transparenttextures.com/patterns/diamond-upholstery.png')]",
+  communion: "bg-yellow-50 bg-[url('https://www.transparenttextures.com/patterns/white-diamond.png')]",
+  wedding: "bg-rose-50 bg-[url('https://www.transparenttextures.com/patterns/hearts.png')]",
   elegant: "bg-neutral-900 bg-[url('https://www.transparenttextures.com/patterns/stardust.png')]",
   generic: "bg-gray-100"
 };
@@ -56,12 +61,12 @@ const App: React.FC = () => {
       
       {/* Header */}
       <header className="max-w-5xl mx-auto flex items-center justify-between py-6 mb-8">
-         <div className={`flex items-center gap-2 ${activeTheme === 'birthday' ? 'text-indigo-900' : 'text-white'}`}>
+         <div className={`flex items-center gap-2 ${activeTheme === 'birthday' || activeTheme === 'communion' || activeTheme === 'wedding' || activeTheme === 'confirmation' ? 'text-indigo-900' : 'text-white'}`}>
             <Sparkles className="w-8 h-8" />
             <h1 className={`text-3xl md:text-5xl font-bold tracking-wide ${
-              activeTheme === 'christmas' ? 'font-christmas' : 
+              activeTheme === 'christmas' || activeTheme === 'halloween' ? 'font-christmas' : 
               activeTheme === 'birthday' ? 'font-fun' : 
-              activeTheme === 'elegant' ? 'font-elegant' : 'font-hand'
+              activeTheme === 'elegant' || activeTheme === 'graduation' ? 'font-elegant' : 'font-hand'
             }`}>
               Enigmistica Auguri
             </h1>
@@ -69,7 +74,11 @@ const App: React.FC = () => {
          {puzzleData && !isEditing && (
             <button 
               onClick={handleNewPuzzle}
-              className="flex items-center gap-2 bg-white/10 hover:bg-white/20 text-white px-4 py-2 rounded-full backdrop-blur-sm transition-all text-sm font-bold shadow-sm border border-white/20"
+              className={`flex items-center gap-2 px-4 py-2 rounded-full backdrop-blur-sm transition-all text-sm font-bold shadow-sm border ${
+                  activeTheme === 'birthday' || activeTheme === 'communion' || activeTheme === 'wedding' || activeTheme === 'confirmation' 
+                  ? 'bg-indigo-900/10 hover:bg-indigo-900/20 text-indigo-900 border-indigo-900/20' 
+                  : 'bg-white/10 hover:bg-white/20 text-white border-white/20'
+              }`}
             >
               <Edit3 size={16} />
               Nuovo
@@ -87,11 +96,11 @@ const App: React.FC = () => {
           </div>
         ) : (
           <div className="animate-fade-in">
-             <div className={`text-center mb-8 ${activeTheme === 'birthday' ? 'text-indigo-900' : 'text-white'}`}>
+             <div className={`text-center mb-8 ${activeTheme === 'birthday' || activeTheme === 'communion' || activeTheme === 'wedding' || activeTheme === 'confirmation' ? 'text-indigo-900' : 'text-white'}`}>
                 <h2 className={`text-4xl mb-2 ${
-                   activeTheme === 'christmas' ? 'font-christmas' : 
+                   activeTheme === 'christmas' || activeTheme === 'halloween' ? 'font-christmas' : 
                    activeTheme === 'birthday' ? 'font-fun' : 
-                   activeTheme === 'elegant' ? 'font-elegant' : 'font-hand'
+                   activeTheme === 'elegant' || activeTheme === 'graduation' ? 'font-elegant' : 'font-hand'
                 }`}>{puzzleData.title}</h2>
              </div>
              
