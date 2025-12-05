@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef, useMemo } from 'react';
 import { CrosswordData, CellData, Direction, ThemeType } from '../types';
 import { regenerateGreeting } from '../services/geminiService';
-import { Printer, Edit, Wand2, Eye, EyeOff } from 'lucide-react';
+import { Printer, Edit, Wand2, Eye, EyeOff, Sparkles, RefreshCw } from 'lucide-react';
 
 interface CrosswordGridProps {
   data: CrosswordData;
@@ -86,7 +86,7 @@ const PhotoCollage: React.FC<{ photos: string[], className?: string, style?: Rea
     else if (count >= 5) gridClass = 'grid-cols-3';
 
     return (
-        <div className={`grid gap-1 w-full h-full bg-white overflow-hidden ${gridClass} ${className}`} style={style}>
+        <div className={`grid gap-0.5 w-full h-full bg-white overflow-hidden ${gridClass} ${className}`} style={style}>
             {photos.map((p, i) => (
                 <div key={i} className="relative w-full h-full overflow-hidden">
                     <img src={p} className="w-full h-full object-cover" alt={`memory-${i}`} />
@@ -478,18 +478,19 @@ const CrosswordGrid: React.FC<CrosswordGridProps> = ({ data, onComplete, onEdit 
                         {themeAssets.decoration}
                     </div>
 
-                    {/* Image / Collage */}
+                    {/* Image / Collage - RESTRICT HEIGHT ON SCREEN */}
                     {data.images?.extraImage && (
-                        <img src={data.images.extraImage} className="max-h-32 mb-4 object-contain" />
+                        <img src={data.images.extraImage} className="max-h-48 md:max-h-64 mb-4 object-contain" />
                     )}
                     {photos.length > 0 && (
-                        <div className="w-full aspect-[4/3] mb-6 rounded-xl overflow-hidden shadow-inner border border-gray-100">
+                        // Qui usiamo max-h-64 per evitare che 9 foto occupino tutto lo schermo
+                        <div className="w-full max-h-64 md:max-h-80 aspect-[4/3] mb-6 rounded-xl overflow-hidden shadow-inner border border-gray-100 flex-shrink-0">
                              <PhotoCollage photos={photos} />
                         </div>
                     )}
 
-                    {/* Greeting Message */}
-                    <div className="relative group w-full mb-auto">
+                    {/* Greeting Message & AI Tools */}
+                    <div className="relative group w-full flex-1 flex flex-col justify-center">
                         {isEditingMsg ? (
                              <div className="animate-fade-in w-full">
                                 <textarea 
@@ -499,37 +500,50 @@ const CrosswordGrid: React.FC<CrosswordGridProps> = ({ data, onComplete, onEdit 
                                     onChange={(e) => setEditableMessage(e.target.value)}
                                 />
                                 <div className="flex gap-2 mt-2 justify-center">
-                                    <button onClick={() => setIsEditingMsg(false)} className="bg-green-500 text-white px-3 py-1 rounded-lg text-sm font-bold shadow">Salva</button>
+                                    <button onClick={() => setIsEditingMsg(false)} className="bg-green-500 text-white px-3 py-1 rounded-lg text-sm font-bold shadow">Fatto</button>
                                 </div>
                              </div>
                         ) : (
-                            <div className="relative">
-                                <p className={`text-xl md:text-2xl mb-4 leading-relaxed ${themeAssets.fontTitle} cursor-pointer hover:bg-yellow-50 rounded-lg p-2 transition-colors`} onClick={() => setIsEditingMsg(true)}>
+                            <div className="relative mb-4">
+                                <p className={`text-xl md:text-2xl leading-relaxed ${themeAssets.fontTitle} cursor-pointer hover:bg-yellow-50 rounded-lg p-2 transition-colors`} onClick={() => setIsEditingMsg(true)}>
                                     "{editableMessage}"
                                 </p>
                                 <button 
                                     onClick={() => setIsEditingMsg(true)}
-                                    className="absolute -top-2 -right-2 bg-gray-100 p-1.5 rounded-full opacity-0 group-hover:opacity-100 transition-opacity shadow-sm hover:bg-blue-100 text-blue-600"
+                                    className="absolute -top-2 -right-2 bg-gray-100 p-1.5 rounded-full opacity-50 group-hover:opacity-100 transition-opacity shadow-sm hover:bg-blue-100 text-blue-600"
                                     title="Modifica testo manualmente"
                                 >
                                     <Edit size={12} />
                                 </button>
                             </div>
                         )}
-                    </div>
 
-                    {/* AI Rewrite Tools (Always visible when editing message, or if message is empty) */}
-                    {isEditingMsg && (
-                        <div className="mt-4 p-3 bg-blue-50 rounded-xl w-full border border-blue-100 mb-4">
-                            <span className="text-xs font-bold text-blue-800 uppercase mb-2 block flex items-center gap-1 justify-center"><Wand2 size={12}/> Riscrivi con AI</span>
-                            <div className="flex flex-wrap gap-2 justify-center mb-2">
-                                <button disabled={isRegeneratingMsg} onClick={() => handleRegenerateMessage('funny')} className="text-xs bg-white px-2 py-1 rounded border hover:bg-blue-100">😂 Divertente</button>
-                                <button disabled={isRegeneratingMsg} onClick={() => handleRegenerateMessage('heartfelt')} className="text-xs bg-white px-2 py-1 rounded border hover:bg-blue-100">❤️ Commovente</button>
-                                <button disabled={isRegeneratingMsg} onClick={() => handleRegenerateMessage('rhyme')} className="text-xs bg-white px-2 py-1 rounded border hover:bg-blue-100">🎵 Rima</button>
+                        {/* AI TOOLS - SEMPRE VISIBILI SOTTO IL TESTO */}
+                        <div className="mt-2 p-2 bg-blue-50/50 rounded-xl w-full border border-blue-100/50">
+                            <span className="text-[10px] font-bold text-blue-800 uppercase mb-2 block flex items-center gap-1 justify-center opacity-60"><Wand2 size={10}/> Riscrivi con AI</span>
+                            <div className="flex flex-wrap gap-2 justify-center">
+                                <button disabled={isRegeneratingMsg} onClick={() => handleRegenerateMessage('funny')} className="text-xs bg-white px-3 py-1 rounded-full border shadow-sm hover:bg-blue-50 transition-colors">😂 Divertente</button>
+                                <button disabled={isRegeneratingMsg} onClick={() => handleRegenerateMessage('heartfelt')} className="text-xs bg-white px-3 py-1 rounded-full border shadow-sm hover:bg-blue-50 transition-colors">❤️ Dolce</button>
+                                <button disabled={isRegeneratingMsg} onClick={() => handleRegenerateMessage('rhyme')} className="text-xs bg-white px-3 py-1 rounded-full border shadow-sm hover:bg-blue-50 transition-colors">🎵 Rima</button>
+                                <button disabled={isRegeneratingMsg} onClick={() => setCustomPromptMode(!customPromptMode)} className="text-xs bg-white px-3 py-1 rounded-full border shadow-sm hover:bg-blue-50 transition-colors">✨ Altro...</button>
                             </div>
+                            
+                            {customPromptMode && (
+                                <div className="flex gap-1 mt-2 animate-in slide-in-from-top-2">
+                                    <input 
+                                        type="text" 
+                                        placeholder="Es: come un pirata..." 
+                                        className="flex-1 text-xs p-2 rounded border focus:border-blue-400 outline-none"
+                                        value={customPromptText}
+                                        onChange={(e) => setCustomPromptText(e.target.value)}
+                                        onKeyDown={(e) => e.key === 'Enter' && handleRegenerateMessage('custom')}
+                                    />
+                                    <button onClick={() => handleRegenerateMessage('custom')} disabled={!customPromptText} className="bg-blue-600 text-white px-3 rounded font-bold text-xs">Vai</button>
+                                </div>
+                            )}
                             {isRegeneratingMsg && <div className="text-xs text-center text-blue-500 mt-1 font-bold animate-pulse">Generazione in corso...</div>}
                         </div>
-                    )}
+                    </div>
                     
                     {/* Stickers */}
                     {data.stickers && data.stickers.length > 0 && (
@@ -579,79 +593,79 @@ const CrosswordGrid: React.FC<CrosswordGridProps> = ({ data, onComplete, onEdit 
        </div>
 
        {/* --- PRINT LAYOUT (A4 Landscape) --- */}
-       {/* This section is completely hidden on screen and only appears when printing */}
+       {/* Force absolute sizing to prevent spill-over */}
        <div className="hidden print:flex print-sheet">
-           {/* Watermark Overlay for the whole sheet */}
+           {/* Watermark */}
            <div className="watermark">{themeAssets.watermark}</div>
 
            {/* LEFT HALF: COVER / GREETINGS */}
-           <div className={`print-half ${themeAssets.printBorder} border-r-0 flex flex-col justify-between items-center text-center`}>
-               {/* Header */}
-               <div className="mt-4">
-                   <h1 className={`text-4xl ${themeAssets.fontTitle} mb-2`}>{data.title}</h1>
-                   <p className="text-sm text-gray-500 uppercase tracking-widest">{data.eventDate}</p>
+           <div className={`print-half ${themeAssets.printBorder} border-r-0 flex flex-col items-center text-center overflow-hidden`}>
+               {/* Header (Fixed Height) */}
+               <div className="mt-2 h-[15%] flex flex-col justify-center">
+                   <h1 className={`text-3xl ${themeAssets.fontTitle} mb-1 leading-tight`}>{data.title}</h1>
+                   <p className="text-xs text-gray-500 uppercase tracking-widest">{data.eventDate}</p>
                </div>
 
-               {/* Central Visual */}
-               <div className="flex-1 flex flex-col justify-center items-center w-full px-8 py-4">
+               {/* Central Visual (Flexible but Constrained) */}
+               <div className="flex-1 w-full flex items-center justify-center py-2 overflow-hidden min-h-0">
                     {photos.length > 0 ? (
-                        <div className="w-full aspect-[4/3] rounded-xl overflow-hidden shadow-sm border border-gray-200">
+                        /* Forza max-height in stampa per lasciare spazio al testo */
+                        <div className="w-full h-auto max-h-[85mm] aspect-[4/3] rounded-xl overflow-hidden shadow-sm border border-gray-200">
                             <PhotoCollage photos={photos} />
                         </div>
                     ) : data.images?.extraImage ? (
-                        <img src={data.images.extraImage} className="max-h-64 object-contain" />
+                        <img src={data.images.extraImage} className="max-h-[85mm] object-contain" />
                     ) : (
                         <div className="text-9xl opacity-20 filter grayscale">{themeAssets.decoration}</div>
                     )}
                </div>
 
-               {/* Message */}
-               <div className="mb-8 w-3/4">
-                   <p className={`text-xl leading-relaxed italic ${themeAssets.fontTitle}`}>
+               {/* Message (Bottom Part) */}
+               <div className="h-[25%] w-3/4 flex items-center justify-center">
+                   <p className={`text-lg leading-snug italic ${themeAssets.fontTitle} line-clamp-6`}>
                        "{editableMessage}"
                    </p>
                </div>
 
-               {/* Footer Stickers */}
-               <div className="flex gap-4 mb-4 text-4xl justify-center">
+               {/* Footer Stickers (Fixed Bottom) */}
+               <div className="h-[10%] flex gap-4 items-center justify-center text-3xl">
                    {data.stickers?.slice(0,5).map((s,i) => <span key={i}>{s}</span>)}
                </div>
            </div>
 
            {/* RIGHT HALF: CROSSWORD */}
            {isCrossword ? (
-               <div className={`print-half ${themeAssets.printBorder} flex flex-col`}>
-                   <div className="flex justify-between items-end mb-4 border-b-2 border-black pb-2">
-                       <h2 className="text-2xl font-bold uppercase tracking-tighter">Cruciverba</h2>
-                       <span className="text-xs">Risolvi e scopri il messaggio segreto</span>
+               <div className={`print-half ${themeAssets.printBorder} flex flex-col overflow-hidden`}>
+                   <div className="flex justify-between items-end mb-2 border-b-2 border-black pb-1 h-[10%]">
+                       <h2 className="text-xl font-bold uppercase tracking-tighter">Cruciverba</h2>
+                       <span className="text-[10px]">Risolvi e scopri il messaggio segreto</span>
                    </div>
 
-                   {/* Grid */}
-                   <div className="flex-1 flex items-center justify-center mb-4">
-                        <div style={{ width: '90%' }}>
+                   {/* Grid (Max Height Constrained) */}
+                   <div className="flex-1 flex items-center justify-center mb-2 min-h-0">
+                        <div style={{ width: '85%', maxHeight: '100%' }}>
                             {renderGridCells(true)}
                         </div>
                    </div>
 
-                   {/* Clues */}
-                   <div className="mt-auto bg-white/50 p-4 text-left">
+                   {/* Clues (Scrollable/Clamped if too long, but usually fine) */}
+                   <div className="bg-white/50 p-2 text-left h-[30%] overflow-hidden text-[10px]">
                        {renderClues()}
                    </div>
 
                    {/* Solution Dashes */}
                    {data.solution && (
-                       <div className="mt-4 p-2 border-t-2 border-dotted border-black text-center">
-                           <span className="text-[10px] font-bold uppercase block mb-1">Soluzione Nascosta:</span>
+                       <div className="h-[10%] mt-1 p-1 border-t-2 border-dotted border-black text-center flex flex-col justify-center">
+                           <span className="text-[8px] font-bold uppercase block mb-1">Soluzione Nascosta:</span>
                            <div className="flex justify-center gap-2">
                                {data.solution.word.split('').map((_, i) => (
-                                   <div key={i} className="w-6 h-6 border-b-2 border-black"></div>
+                                   <div key={i} className="w-5 h-5 border-b-2 border-black"></div>
                                ))}
                            </div>
                        </div>
                    )}
                </div>
            ) : (
-               // If simple card, right side can be a place for handwritten notes
                <div className={`print-half ${themeAssets.printBorder} flex flex-col items-center justify-center opacity-50`}>
                    <div className="border-4 border-dashed border-gray-300 w-full h-full rounded-xl flex items-center justify-center">
                        <p className="text-xl font-hand text-gray-400 rotate-[-5deg]">Spazio per dedica a mano...</p>
