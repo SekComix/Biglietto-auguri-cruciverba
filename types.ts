@@ -31,10 +31,10 @@ export interface CustomImages {
 }
 
 export interface CrosswordData {
-  type: 'crossword' | 'simple'; // NUOVO CAMPO
+  type: 'crossword' | 'simple';
   title: string;
   recipientName: string;
-  eventDate: string; // Data dell'evento (es. 25 Dicembre 2024)
+  eventDate: string;
   message: string;
   theme: ThemeType;
   width: number;
@@ -43,6 +43,10 @@ export interface CrosswordData {
   solution?: SolutionData;
   images?: CustomImages;
   stickers?: string[];
+  // Campi per la modifica
+  originalInput?: string | ManualInput[];
+  originalMode?: 'ai' | 'manual';
+  originalHiddenSolution?: string;
 }
 
 export interface CellData {
