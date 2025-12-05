@@ -1,4 +1,4 @@
-import { GoogleGenAI, Type } from "@google/genai";
+import { GoogleGenAI, Type, GenerateContentResponse } from "@google/genai";
 import { CrosswordData, ManualInput, ThemeType, CustomImages } from '../types';
 
 // --- SCHEMA SEMPLIFICATO (SOLO TESTO) ---
@@ -312,7 +312,7 @@ export const generateCrossword = async (
                 },
             });
 
-            const response = await withTimeout(responsePromise, 30000, "Timeout generazione parole. Riprova.");
+            const response = await withTimeout<GenerateContentResponse>(responsePromise, 30000, "Timeout generazione parole. Riprova.");
 
             if (response.text) {
                 const json = JSON.parse(response.text);
@@ -406,7 +406,7 @@ export const regenerateGreeting = async (
             } 
         });
 
-        const response: any = await withTimeout(apiCall, 15000, "Timeout");
+        const response = await withTimeout<GenerateContentResponse>(apiCall, 15000, "Timeout");
         const newText = response.text?.replace(/"/g, '').trim();
 
         if (!newText || newText === currentMessage) {
