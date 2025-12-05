@@ -1,7 +1,6 @@
 import { GoogleGenAI, Type, GenerateContentResponse } from "@google/genai";
-import { CrosswordData, ManualInput, ThemeType, CustomImages } from '../types';
+import { CrosswordData, ManualInput, ThemeType, ToneType } from '../types';
 
-// --- SCHEMA SEMPLIFICATO (SOLO TESTO) ---
 const wordListSchema = {
   type: Type.OBJECT,
   properties: {
@@ -27,7 +26,6 @@ const getApiKey = () => {
   return key;
 };
 
-// --- FALLBACK MESSAGES ---
 const FALLBACK_GREETINGS: Record<string, string[]> = {
     christmas: [
         "Ti auguro un Natale pieno di gioia, calore e momenti indimenticabili!",
@@ -45,62 +43,38 @@ const FALLBACK_GREETINGS: Record<string, string[]> = {
     ],
     easter: [
         "Buona Pasqua! Che sia una giornata piena di dolcezza.",
-        "Auguri di una serena e felice Pasqua a te e ai tuoi cari.",
-        "Tra colombe e uova di cioccolato, ti auguro una Pasqua speciale!",
-        "Che la pace e la gioia della Pasqua siano con te oggi."
+        "Auguri di una serena e felice Pasqua a te e ai tuoi cari."
     ],
     halloween: [
         "Dolcetto o scherzetto? Ti auguro un Halloween spaventosamente divertente!",
-        "Una notte da brividi e risate! Buon Halloween!",
-        "Che la magia di Halloween ti porti tanti dolci e zero brutti scherzi.",
-        "Streghe, fantasmi e zucche... oggi tutto è permesso. Buon Halloween!"
     ],
     graduation: [
         "Congratulazioni Dottore! Hai raggiunto un traguardo straordinario.",
-        "Tutti i tuoi sacrifici sono stati ripagati. Ad Maiora!",
-        "Oggi festeggiamo il tuo successo e il tuo futuro radioso. Congratulazioni!",
-        "Sei l'orgoglio di tutti noi. Auguri per la tua Laurea!"
     ],
     confirmation: [
         "Che lo Spirito Santo ti guidi sempre nel cammino della vita.",
-        "Tanti auguri per la tua Santa Cresima, giorno di gioia e consapevolezza.",
-        "Un giorno importante per la tua crescita spirituale. Auguri di cuore!",
-        "Che la luce di questo giorno ti accompagni per sempre."
     ],
     communion: [
         "Auguri per la tua Prima Comunione, un incontro speciale con Gesù.",
-        "Che la gioia di questo giorno resti per sempre nel tuo cuore.",
-        "Un passo importante nella fede. Tanti auguri per la tua Comunione!",
-        "Possa la purezza di oggi accompagnarti ogni giorno."
     ],
     wedding: [
         "Che il vostro amore sia eterno e sempre pieno di gioia. Viva gli sposi!",
-        "Oggi inizia la vostra avventura più bella. Tanti auguri di felicità!",
-        "Che la vostra vita insieme sia una meravigliosa favola. Congratulazioni!",
-        "Due cuori, un'unica anima. Felicitazioni per il vostro Matrimonio!"
     ],
     elegant: [
         "I miei più sinceri auguri per questa occasione speciale.",
-        "Con l'augurio che la serenità possa accompagnarti sempre.",
-        "Un pensiero gentile per augurarti il meglio in questo giorno.",
-        "Auguri raffinati per una persona di grande stile."
     ],
     generic: [
         "Tanti auguri! Spero che questa giornata ti porti tanta felicità.",
-        "Un pensiero speciale per te in questo giorno di festa.",
-        "Con affetto, ti auguro il meglio oggi e sempre!",
-        "Che sia un giorno indimenticabile. Auguri di cuore!"
     ]
 };
 
 const getRandomFallback = (theme: string): string => {
     const keys = Object.keys(FALLBACK_GREETINGS);
     const key = keys.includes(theme) ? theme : 'generic';
-    const messages = FALLBACK_GREETINGS[key];
+    const messages = FALLBACK_GREETINGS[key] || FALLBACK_GREETINGS['generic'];
     return messages[Math.floor(Math.random() * messages.length)];
 };
 
-// --- HELPER TIMEOUT ---
 const withTimeout = <T>(promise: Promise<T>, ms: number, errorMessage: string): Promise<T> => {
     let timeoutId: any;
     const timeoutPromise = new Promise<T>((_, reject) => {
@@ -119,9 +93,7 @@ const withTimeout = <T>(promise: Promise<T>, ms: number, errorMessage: string): 
 
 // --- MOTORE DI LAYOUT LOCALE ---
 type GridCell = { char: string; wordId?: string };
-type Grid = Map<string, GridCell>; // key: "x,y"
-
-const DIRECTIONS = ['across', 'down'] as const;
+type Grid = Map<string, GridCell>; 
 
 function generateLayout(wordsInput: {word: string, clue: string}[], maxGridSize = 12): any[] {
     const wordsToPlace = [...wordsInput]
@@ -130,22 +102,14 @@ function generateLayout(wordsInput: {word: string, clue: string}[], maxGridSize 
         .sort((a, b) => b.word.length - a.word.length);
 
     if (wordsToPlace.length === 0) return [];
-
     const grid: Grid = new Map();
     const placedWords: any[] = [];
-    
     const firstWord = wordsToPlace[0];
     const startX = Math.floor(maxGridSize / 2) - Math.floor(firstWord.word.length / 2);
     const startY = Math.floor(maxGridSize / 2);
     
     placeWordOnGrid(grid, firstWord.word, startX, startY, 'across');
-    placedWords.push({ 
-        ...firstWord, 
-        direction: 'across', 
-        startX, 
-        startY, 
-        number: 1 
-    });
+    placedWords.push({ ...firstWord, direction: 'across', startX, startY, number: 1 });
 
     for (let i = 1; i < wordsToPlace.length; i++) {
         const currentWord = wordsToPlace[i];
@@ -164,7 +128,6 @@ function generateLayout(wordsInput: {word: string, clue: string}[], maxGridSize 
                     for (const dir of directionsToTry) {
                         const testStartX = dir === 'across' ? cx - charIdx : cx;
                         const testStartY = dir === 'down' ? cy - charIdx : cy;
-
                         if (isValidPlacement(grid, currentWord.word, testStartX, testStartY, dir)) {
                             placeWordOnGrid(grid, currentWord.word, testStartX, testStartY, dir);
                             placedWords.push({
@@ -182,7 +145,6 @@ function generateLayout(wordsInput: {word: string, clue: string}[], maxGridSize 
                 if (placed) break;
             }
         }
-
         if (!placed) {
              const maxY = Math.max(...placedWords.map(w => w.startY + (w.direction === 'down' ? w.word.length : 0)), 0);
              const safeY = maxY + 2; 
@@ -276,9 +238,7 @@ const findSolutionInGrid = (words: any[], hiddenWord: string): any => {
             }
         }
     }
-    if (solutionCells.length > 0) {
-        return { word: hiddenWord.toUpperCase(), cells: solutionCells };
-    }
+    if (solutionCells.length > 0) return { word: hiddenWord.toUpperCase(), cells: solutionCells };
     return null;
 };
 
@@ -291,9 +251,10 @@ export const generateCrossword = async (
   extraData: {
     recipientName: string;
     eventDate: string;
-    images?: { extraImage?: string; photos?: string[]; photo?: string }; // Support legacy photo
+    images?: { extraImage?: string; photos?: string[]; photo?: string }; 
     stickers?: string[];
-    contentType: 'crossword' | 'simple'; 
+    contentType: 'crossword' | 'simple';
+    tone?: ToneType;
   },
   onStatusUpdate?: (status: string) => void
 ): Promise<CrosswordData> => {
@@ -305,8 +266,9 @@ export const generateCrossword = async (
   let width = 0;
   let height = 0;
   let calculatedSolution = null;
+  let message = `Tanti auguri! Ecco un pensiero speciale per te.`;
 
-  // LOGICA CROSSWORD vs SIMPLE
+  // --- LOGICA CROSSWORD ---
   if (extraData.contentType === 'crossword') {
       if (mode === 'manual') {
           const inputs = inputData as ManualInput[];
@@ -315,35 +277,19 @@ export const generateCrossword = async (
             .map(i => ({ word: i.word.toUpperCase().trim(), clue: i.clue }));
       } else {
           const topic = inputData as string;
+          const solutionChars = hiddenSolutionWord ? hiddenSolutionWord.toUpperCase().replace(/[^A-Z]/g, '').split('').join(', ') : '';
+          const lettersInstruction = solutionChars ? `IMPORTANTE: Devi generare parole che contengano le seguenti lettere sparse: ${solutionChars}.` : '';
+          const toneInstruction = extraData.tone ? `Tono: ${extraData.tone} (funny=divertente, heartfelt=commovente, rhyme=rima).` : '';
+          const prompt = `Genera una lista di 6-8 parole e definizioni per un cruciverba sul tema: "${topic}". ${toneInstruction} ${lettersInstruction} Output JSON array di oggetti {word, clue}.`;
           
-          const solutionChars = hiddenSolutionWord 
-            ? hiddenSolutionWord.toUpperCase().replace(/[^A-Z]/g, '').split('').join(', ')
-            : '';
-            
-          const lettersInstruction = solutionChars 
-            ? `IMPORTANTE: Devi generare parole che contengano le seguenti lettere sparse: ${solutionChars}. È fondamentale per il gioco.` 
-            : '';
-
-          const prompt = `Genera una lista di 6-8 parole e definizioni per un cruciverba sul tema: "${topic}". 
-          ${lettersInstruction}
-          Output JSON array di oggetti {word, clue}. 
-          Parole semplici, definizioni divertenti.`;
-
           try {
             if (onStatusUpdate) onStatusUpdate("L'IA inventa le parole...");
-            
             const responsePromise = ai.models.generateContent({
                 model: 'gemini-2.5-flash',
                 contents: prompt,
-                config: {
-                    responseMimeType: "application/json",
-                    responseSchema: wordListSchema,
-                    temperature: 0.8,
-                },
+                config: { responseMimeType: "application/json", responseSchema: wordListSchema, temperature: 0.8 },
             });
-
-            const response = await withTimeout<GenerateContentResponse>(responsePromise, 30000, "Timeout generazione parole. Riprova.");
-
+            const response = await withTimeout<GenerateContentResponse>(responsePromise, 30000, "Timeout generazione parole.");
             if (response.text) {
                 const json = JSON.parse(response.text);
                 generatedWords = json.words || [];
@@ -354,27 +300,38 @@ export const generateCrossword = async (
           }
       }
 
-      if (generatedWords.length === 0) {
-          throw new Error("Nessuna parola generata.");
-      }
+      if (generatedWords.length === 0) throw new Error("Nessuna parola generata.");
 
       if (onStatusUpdate) onStatusUpdate("Costruisco la griglia...");
       await new Promise(r => setTimeout(r, 500));
-
       const placedWordsRaw = generateLayout(generatedWords);
       const normalized = normalizeCoordinates(placedWordsRaw);
       width = normalized.width;
       height = normalized.height;
-      
-      finalWords = normalized.words.map((w: any, idx: number) => ({ 
-          ...w, 
-          id: `word-${idx}`,
-          word: w.word.toUpperCase().trim() 
-      }));
+      finalWords = normalized.words.map((w: any, idx: number) => ({ ...w, id: `word-${idx}`, word: w.word.toUpperCase().trim() }));
+      calculatedSolution = hiddenSolutionWord ? findSolutionInGrid(normalized.words, hiddenSolutionWord) : null;
+  }
 
-      calculatedSolution = hiddenSolutionWord 
-          ? findSolutionInGrid(normalized.words, hiddenSolutionWord) 
-          : null;
+  // --- LOGICA MESSAGGIO AUGURI (PER TUTTI) ---
+  if (mode === 'manual' && extraData.contentType === 'simple') {
+      message = inputData as string;
+  } else {
+      // AI Message Generation - Se modo AI, o se modo Manuale (in crossword) ma vogliamo comunque un messaggio
+      const topic = (typeof inputData === 'string') ? inputData : 'Auguri Generali';
+      try {
+          if (onStatusUpdate) onStatusUpdate("Scrivo gli auguri...");
+          const tonePrompt = extraData.tone ? `Stile: ${extraData.tone} (funny=simpatico, heartfelt=dolce, rhyme=rima).` : '';
+          const prompt = `Scrivi un messaggio di auguri breve per ${extraData.recipientName}. Evento: ${theme}. ${tonePrompt} Dettagli: ${topic}. Max 30 parole.`;
+          const responsePromise = ai.models.generateContent({
+              model: 'gemini-2.5-flash',
+              contents: prompt,
+          });
+          const response = await withTimeout<GenerateContentResponse>(responsePromise, 15000, "Timeout");
+          if (response.text) message = response.text.replace(/"/g, '').trim();
+      } catch(e) {
+          console.error("AI Message Error", e);
+          message = getRandomFallback(theme);
+      }
   }
 
   // Costruzione Titolo
@@ -389,35 +346,27 @@ export const generateCrossword = async (
       case 'communion': defaultTitle = `Prima Comunione di ${extraData?.recipientName}`; break;
       case 'wedding': defaultTitle = `Viva gli Sposi!`; break;
   }
-
-  const defaultMessage = `Tanti auguri! Ecco un pensiero speciale per te.`;
   
-  // Normalizzazione Foto (se c'è legacy photo, mettiamola in array photos)
   let photoArray = extraData.images?.photos || [];
-  if (photoArray.length === 0 && extraData.images?.photo) {
-      photoArray = [extraData.images.photo];
-  }
+  if (photoArray.length === 0 && extraData.images?.photo) photoArray = [extraData.images.photo];
 
   return {
       type: extraData.contentType,
       title: defaultTitle,
-      message: defaultMessage,
+      message: message,
       theme: theme,
       recipientName: extraData?.recipientName || '',
       eventDate: extraData?.eventDate || '',
-      images: {
-          extraImage: extraData.images?.extraImage,
-          photos: photoArray
-      },
+      images: { extraImage: extraData.images?.extraImage, photos: photoArray },
       stickers: extraData?.stickers,
       words: finalWords,
       width: Math.max(width, 8),
       height: Math.max(height, 8),
       solution: calculatedSolution,
-      // Salva i dati originali per permettere la modifica
       originalInput: inputData,
       originalMode: mode,
-      originalHiddenSolution: hiddenSolutionWord
+      originalHiddenSolution: hiddenSolutionWord,
+      originalTone: extraData.tone
   };
 };
 
@@ -430,46 +379,18 @@ export const regenerateGreeting = async (
 ): Promise<string> => {
     const apiKey = getApiKey();
     const ai = new GoogleGenAI({ apiKey });
-    
-    let instructions = "";
-    if (tone === 'custom' && customPrompt) {
-      instructions = `Istruzioni specifiche: "${customPrompt}".`;
-    } else {
-      instructions = `Stile: ${tone}.`;
-    }
-
-    const prompt = `
-    Scrivi un breve messaggio di auguri originale per ${recipient}.
-    Evento: ${theme}.
-    ${instructions}
-    
-    Massimo 30 parole. Solo testo semplice.
-    Seed casuale: ${Math.random()}
-    `;
+    let instructions = tone === 'custom' && customPrompt ? `Istruzioni: "${customPrompt}".` : `Stile: ${tone}.`;
+    const prompt = `Scrivi un breve messaggio di auguri per ${recipient}. Evento: ${theme}. ${instructions} Max 30 parole.`;
 
     try {
-        const apiCall = ai.models.generateContent({
-            model: 'gemini-2.5-flash',
-            contents: prompt,
-            config: { 
-                temperature: 0.9 
-            } 
-        });
-
+        const apiCall = ai.models.generateContent({ model: 'gemini-2.5-flash', contents: prompt, config: { temperature: 0.9 } });
         const response = await withTimeout<GenerateContentResponse>(apiCall, 15000, "Timeout");
         const newText = response.text?.replace(/"/g, '').trim();
-
-        if (!newText || newText === currentMessage) {
-            throw new Error("Messaggio vuoto o identico");
-        }
-
+        if (!newText || newText === currentMessage) throw new Error("Messaggio vuoto o identico");
         return newText;
     } catch (e) {
-        console.error("Errore o Timeout rigenerazione (uso fallback):", e);
         let fallback = getRandomFallback(theme);
-        if (fallback === currentMessage) {
-             fallback = getRandomFallback(theme);
-        }
+        if (fallback === currentMessage) fallback = getRandomFallback(theme);
         return fallback;
     }
 };
