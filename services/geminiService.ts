@@ -263,7 +263,7 @@ export const generateCrossword = async (
     eventDate: string;
     images?: CustomImages;
     stickers?: string[];
-    contentType: 'crossword' | 'simple'; // NUOVO PARAMETRO
+    contentType: 'crossword' | 'simple'; 
   },
   onStatusUpdate?: (status: string) => void
 ): Promise<CrosswordData> => {
@@ -368,6 +368,10 @@ export const generateCrossword = async (
       width: Math.max(width, 8),
       height: Math.max(height, 8),
       solution: calculatedSolution,
+      // Salva i dati originali per permettere la modifica
+      originalInput: inputData,
+      originalMode: mode,
+      originalHiddenSolution: hiddenSolutionWord
   };
 };
 
