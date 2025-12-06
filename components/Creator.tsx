@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { generateCrossword } from '../services/geminiService';
 import { CrosswordData, ManualInput, ThemeType, ToneType } from '../types';
-import { Loader2, Wand2, Plus, Trash2, Gift, PartyPopper, CalendarHeart, Crown, KeyRound, Image as ImageIcon, Upload, Calendar, AlertCircle, Grid3X3, MailOpen, Images, Ghost, GraduationCap, ScrollText, HeartHandshake, BookOpen, Search, X, Smile, Heart, Music, Sparkles, Edit } from 'lucide-react';
+import { Loader2, Wand2, Plus, Trash2, Gift, PartyPopper, CalendarHeart, Crown, KeyRound, Image as ImageIcon, Upload, Calendar, AlertCircle, Grid3X3, MailOpen, Images, Ghost, GraduationCap, ScrollText, HeartHandshake, BookOpen, Search, X, Smile, Heart, Music, Sparkles, Edit, PenTool } from 'lucide-react';
 
 interface CreatorProps {
   onCreated: (data: CrosswordData) => void;
@@ -38,6 +38,7 @@ export const Creator: React.FC<CreatorProps> = ({ onCreated, initialData }) => {
   const [contentType, setContentType] = useState<'crossword' | 'simple'>('crossword');
   const [mode, setMode] = useState<'ai' | 'manual'>('ai');
   const [tone, setTone] = useState<ToneType>('surprise');
+  const [customTone, setCustomTone] = useState('');
   const [theme, setTheme] = useState<ThemeType>('christmas');
   
   const [topic, setTopic] = useState('');
@@ -74,6 +75,7 @@ export const Creator: React.FC<CreatorProps> = ({ onCreated, initialData }) => {
         if (initialData.originalMode) setMode(initialData.originalMode);
         if (initialData.originalHiddenSolution) setHiddenSolution(initialData.originalHiddenSolution);
         if (initialData.originalTone) setTone(initialData.originalTone);
+        if (initialData.originalCustomTone) setCustomTone(initialData.originalCustomTone);
         
         if (initialData.type === 'crossword' && initialData.originalMode === 'manual' && Array.isArray(initialData.originalInput)) {
             setManualWords(initialData.originalInput as ManualInput[]);
@@ -208,7 +210,8 @@ export const Creator: React.FC<CreatorProps> = ({ onCreated, initialData }) => {
           images: { extraImage, photos },
           stickers: selectedStickers,
           contentType,
-          tone: mode === 'ai' ? tone : undefined
+          tone: mode === 'ai' ? tone : undefined,
+          customTone: (mode === 'ai' && tone === 'custom') ? customTone : undefined
         },
         (msg) => setStatusMsg(msg)
       );
@@ -310,22 +313,34 @@ export const Creator: React.FC<CreatorProps> = ({ onCreated, initialData }) => {
 
                 {/* TONE SELECTOR (ONLY AI MODE) */}
                 {mode === 'ai' && (
-                    <div className="mb-4 flex gap-2 overflow-x-auto pb-1">
-                        {[
-                            { id: 'surprise', label: 'Sorpresa', icon: Sparkles },
-                            { id: 'funny', label: 'Simpatico', icon: Smile },
-                            { id: 'heartfelt', label: 'Dolce', icon: Heart },
-                            { id: 'rhyme', label: 'Rima', icon: Music },
-                        ].map((t) => (
-                            <button
-                                key={t.id}
-                                type="button"
-                                onClick={() => setTone(t.id as ToneType)}
-                                className={`flex items-center gap-1 px-3 py-1.5 rounded-full text-xs font-bold border transition-all ${tone === t.id ? 'bg-blue-600 text-white border-blue-600' : 'bg-white text-gray-500 border-gray-200 hover:border-blue-300'}`}
-                            >
-                                <t.icon size={12} /> {t.label}
-                            </button>
-                        ))}
+                    <div className="mb-4">
+                        <div className="flex gap-2 overflow-x-auto pb-1 mb-2 custom-scrollbar">
+                            {[
+                                { id: 'surprise', label: 'Sorpresa', icon: Sparkles },
+                                { id: 'funny', label: 'Simpatico', icon: Smile },
+                                { id: 'heartfelt', label: 'Dolce', icon: Heart },
+                                { id: 'rhyme', label: 'Rima', icon: Music },
+                                { id: 'custom', label: 'Su Misura', icon: PenTool },
+                            ].map((t) => (
+                                <button
+                                    key={t.id}
+                                    type="button"
+                                    onClick={() => setTone(t.id as ToneType)}
+                                    className={`flex-shrink-0 flex items-center gap-1 px-3 py-1.5 rounded-full text-xs font-bold border transition-all ${tone === t.id ? 'bg-blue-600 text-white border-blue-600' : 'bg-white text-gray-500 border-gray-200 hover:border-blue-300'}`}
+                                >
+                                    <t.icon size={12} /> {t.label}
+                                </button>
+                            ))}
+                        </div>
+                        {tone === 'custom' && (
+                            <input 
+                                type="text"
+                                className="w-full p-2 text-xs border border-blue-200 bg-blue-50 rounded-lg mb-2 focus:ring-1 focus:ring-blue-400 outline-none"
+                                placeholder="Descrivi lo stile (es: Come Dante Alighieri, In dialetto veneto...)"
+                                value={customTone}
+                                onChange={(e) => setCustomTone(e.target.value)}
+                            />
+                        )}
                     </div>
                 )}
 
