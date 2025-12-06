@@ -379,6 +379,42 @@ export const generateCrossword = async (
   };
 };
 
+export const regenerateGreetingOptions = async (
+    currentMessage: string,
+    theme: string,
+    recipient: string,
+    tone: 'funny' | 'heartfelt' | 'rhyme' | 'custom',
+    customPrompt?: string
+): Promise<string[]> => {
+    const apiKey = getApiKey();
+    const ai = new GoogleGenAI({ apiKey });
+    let instructions = tone === 'custom' && customPrompt ? `Istruzioni specifiche: "${customPrompt}".` : `Stile: ${tone}.`;
+    
+    // Request 3 variations
+    const prompt = `Scrivi 3 diverse opzioni di messaggi di auguri brevi per ${recipient}. Evento: ${theme}. ${instructions} Max 25 parole per opzione. Restituisci JSON: { "options": ["messaggio 1", "messaggio 2", "messaggio 3"] }`;
+    
+    const schema = {
+        type: Type.OBJECT,
+        properties: {
+            options: { type: Type.ARRAY, items: { type: Type.STRING } }
+        },
+        required: ["options"]
+    };
+
+    try {
+        const apiCall = ai.models.generateContent({ 
+            model: 'gemini-2.5-flash', 
+            contents: prompt, 
+            config: { temperature: 0.9, responseMimeType: "application/json", responseSchema: schema } 
+        });
+        const response = await withTimeout<GenerateContentResponse>(apiCall, 15000, "Timeout");
+        const json = JSON.parse(response.text || "{}");
+        return json.options || [getRandomFallback(theme)];
+    } catch (e) {
+        return [getRandomFallback(theme)];
+    }
+};
+
 export const regenerateGreeting = async (
     currentMessage: string,
     theme: string,
@@ -386,20 +422,7 @@ export const regenerateGreeting = async (
     tone: 'funny' | 'heartfelt' | 'rhyme' | 'custom',
     customPrompt?: string
 ): Promise<string> => {
-    const apiKey = getApiKey();
-    const ai = new GoogleGenAI({ apiKey });
-    let instructions = tone === 'custom' && customPrompt ? `Istruzioni specifiche: "${customPrompt}".` : `Stile: ${tone}.`;
-    const prompt = `Scrivi un breve messaggio di auguri per ${recipient}. Evento: ${theme}. ${instructions} Max 30 parole.`;
-
-    try {
-        const apiCall = ai.models.generateContent({ model: 'gemini-2.5-flash', contents: prompt, config: { temperature: 0.9 } });
-        const response = await withTimeout<GenerateContentResponse>(apiCall, 15000, "Timeout");
-        const newText = response.text?.replace(/"/g, '').trim();
-        if (!newText || newText === currentMessage) throw new Error("Messaggio vuoto o identico");
-        return newText;
-    } catch (e) {
-        let fallback = getRandomFallback(theme);
-        if (fallback === currentMessage) fallback = getRandomFallback(theme);
-        return fallback;
-    }
-};
+     // Legacy wrapper
+     const options = await regenerateGreetingOptions(currentMessage, theme, recipient, tone, customPrompt);
+     return options[0];
+}
