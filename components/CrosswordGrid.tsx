@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef, useMemo } from 'react';
 import { CrosswordData, CellData, Direction, ThemeType } from '../types';
-import { regenerateGreeting } from '../services/geminiService';
-import { Printer, Edit, Wand2, Eye, EyeOff } from 'lucide-react';
+import { regenerateGreetingOptions } from '../services/geminiService';
+import { Printer, Edit, Wand2, Eye, EyeOff, Check, RefreshCw } from 'lucide-react';
 
 interface CrosswordGridProps {
   data: CrosswordData;
@@ -99,6 +99,7 @@ const CrosswordGrid: React.FC<CrosswordGridProps> = ({ data, onComplete, onEdit 
   
   const [isEditingMsg, setIsEditingMsg] = useState(false);
   const [isRegeneratingMsg, setIsRegeneratingMsg] = useState(false);
+  const [generatedOptions, setGeneratedOptions] = useState<string[]>([]);
   const [customPromptMode, setCustomPromptMode] = useState(false);
   const [customPromptText, setCustomPromptText] = useState("");
   
@@ -167,11 +168,12 @@ const CrosswordGrid: React.FC<CrosswordGridProps> = ({ data, onComplete, onEdit 
   const handleRegenerateMessage = async (tone: 'funny' | 'heartfelt' | 'rhyme' | 'custom') => {
       if (isRegeneratingMsg) return;
       setIsRegeneratingMsg(true);
+      setGeneratedOptions([]); // Clear previous
       try {
-          const newMsg = await regenerateGreeting(editableMessage, data.theme, data.recipientName, tone, tone === 'custom' ? customPromptText : undefined);
-          setEditableMessage(newMsg);
-          setCustomPromptText("");
+          const options = await regenerateGreetingOptions(editableMessage, data.theme, data.recipientName, tone, tone === 'custom' ? customPromptText : undefined);
+          setGeneratedOptions(options);
           if (tone === 'custom') setCustomPromptMode(false);
+          setCustomPromptText("");
       } catch (e) { console.error(e); } finally { setIsRegeneratingMsg(false); }
   };
 
@@ -215,7 +217,7 @@ const CrosswordGrid: React.FC<CrosswordGridProps> = ({ data, onComplete, onEdit 
        {showPrintGuide && <div className="fixed inset-0 bg-black/80 z-50 flex items-center justify-center p-4" onClick={() => setShowPrintGuide(false)}><div className="bg-white rounded-xl p-6 text-center shadow-2xl max-w-sm"><h3 className="text-xl font-bold mb-2">Stampa</h3><p className="text-sm mb-4">Usa foglio A4 Orizzontale.</p><button onClick={() => {window.print(); setShowPrintGuide(false);}} className="bg-blue-600 text-white w-full py-2 rounded-lg font-bold">Stampa Ora</button></div></div>}
 
        <div className={`w-full grid grid-cols-1 lg:grid-cols-2 gap-6 items-start relative z-10 ${isCrossword ? '' : 'max-w-xl'}`}>
-           {/* LEFT SIDE: GREETING */}
+           {/* LEFT SIDE: GREETING & PHOTO */}
            <div className="bg-white p-6 rounded-2xl shadow-xl border-4 border-white flex flex-col gap-4">
                 <div className={`border-2 ${themeAssets.printBorder} rounded-xl p-4 flex flex-col items-center text-center relative`}>
                     <div className="absolute top-2 right-2 opacity-20 text-4xl">{themeAssets.decoration}</div>
@@ -227,25 +229,62 @@ const CrosswordGrid: React.FC<CrosswordGridProps> = ({ data, onComplete, onEdit 
                         <img src={data.images.extraImage} className="h-40 object-contain mb-4" />
                     ) : null}
 
-                    {isEditingMsg ? (
-                        <div className="w-full">
-                           <textarea className="w-full p-2 bg-gray-50 border rounded text-center text-lg" rows={3} value={editableMessage} onChange={(e) => setEditableMessage(e.target.value)}/>
-                           <button onClick={() => setIsEditingMsg(false)} className="bg-green-500 text-white text-xs px-2 py-1 rounded mt-1">Salva</button>
-                        </div>
-                    ) : (
-                        <p className={`text-xl ${themeAssets.fontTitle} mb-2 cursor-pointer hover:bg-yellow-50 p-1 rounded`} onClick={() => setIsEditingMsg(true)}>"{editableMessage}"</p>
-                    )}
-
-                    {/* AI TOOLS VISIBLE FOR BOTH CROSSWORD AND SIMPLE */}
-                    <div className="flex flex-wrap gap-2 justify-center mt-2 pt-2 border-t border-gray-100 w-full">
-                        <span className="text-[10px] text-gray-400 w-full">Suggerimenti AI:</span>
-                        <button disabled={isRegeneratingMsg} onClick={() => handleRegenerateMessage('funny')} className="text-xs bg-gray-100 px-2 py-1 rounded hover:bg-blue-100">😂 Simpatico</button>
-                        <button disabled={isRegeneratingMsg} onClick={() => handleRegenerateMessage('heartfelt')} className="text-xs bg-gray-100 px-2 py-1 rounded hover:bg-blue-100">❤️ Dolce</button>
-                        <button disabled={isRegeneratingMsg} onClick={() => handleRegenerateMessage('rhyme')} className="text-xs bg-gray-100 px-2 py-1 rounded hover:bg-blue-100">🎵 Rima</button>
-                        <button disabled={isRegeneratingMsg} onClick={() => setCustomPromptMode(!customPromptMode)} className="text-xs bg-gray-100 px-2 py-1 rounded hover:bg-blue-100">✨ Su Misura</button>
+                    {/* Editable Message Area */}
+                    <div className="w-full relative group">
+                        {isEditingMsg ? (
+                            <div className="w-full">
+                                <textarea className="w-full p-2 bg-gray-50 border rounded text-center text-lg focus:ring-2 focus:ring-blue-400" rows={3} value={editableMessage} onChange={(e) => setEditableMessage(e.target.value)}/>
+                                <button onClick={() => setIsEditingMsg(false)} className="bg-green-500 text-white text-xs px-3 py-1 rounded mt-1 font-bold">Salva</button>
+                            </div>
+                        ) : (
+                            <div className="relative">
+                                <p className={`text-xl ${themeAssets.fontTitle} mb-2 p-2 rounded hover:bg-yellow-50 cursor-text transition-colors`} onClick={() => setIsEditingMsg(true)}>
+                                    "{editableMessage}"
+                                </p>
+                                <span className="absolute -top-1 -right-1 opacity-0 group-hover:opacity-100 text-gray-400 bg-white rounded-full p-1 shadow-sm pointer-events-none"><Edit size={12}/></span>
+                            </div>
+                        )}
                     </div>
-                    {customPromptMode && <div className="flex gap-1 mt-1 w-full"><input className="border text-xs flex-1 p-1 rounded outline-none focus:ring-1 focus:ring-blue-400" placeholder="Es: come un pirata" value={customPromptText} onChange={e=>setCustomPromptText(e.target.value)}/><button onClick={()=>handleRegenerateMessage('custom')} className="bg-blue-500 text-white text-xs px-2 rounded">Vai</button></div>}
-                    {isRegeneratingMsg && <span className="text-xs text-blue-500 animate-pulse">Generazione...</span>}
+
+                    {/* AI TOOLS */}
+                    <div className="flex flex-wrap gap-2 justify-center mt-2 pt-2 border-t border-gray-100 w-full">
+                        <span className="text-[10px] text-gray-400 w-full uppercase font-bold tracking-wider">Cambia Stile</span>
+                        <button disabled={isRegeneratingMsg} onClick={() => handleRegenerateMessage('funny')} className="text-xs bg-gray-50 px-3 py-1.5 rounded-full hover:bg-blue-100 border transition-colors">😂 Simpatico</button>
+                        <button disabled={isRegeneratingMsg} onClick={() => handleRegenerateMessage('heartfelt')} className="text-xs bg-gray-50 px-3 py-1.5 rounded-full hover:bg-blue-100 border transition-colors">❤️ Dolce</button>
+                        <button disabled={isRegeneratingMsg} onClick={() => handleRegenerateMessage('rhyme')} className="text-xs bg-gray-50 px-3 py-1.5 rounded-full hover:bg-blue-100 border transition-colors">🎵 Rima</button>
+                        <button disabled={isRegeneratingMsg} onClick={() => setCustomPromptMode(!customPromptMode)} className="text-xs bg-gray-50 px-3 py-1.5 rounded-full hover:bg-blue-100 border transition-colors">✨ Su Misura</button>
+                    </div>
+                    
+                    {customPromptMode && (
+                        <div className="flex gap-1 mt-2 w-full animate-in slide-in-from-top-2 fade-in">
+                            <input className="border text-xs flex-1 p-2 rounded-lg outline-none focus:ring-1 focus:ring-blue-400" placeholder="Es: come un pirata" value={customPromptText} onChange={e=>setCustomPromptText(e.target.value)}/>
+                            <button onClick={()=>handleRegenerateMessage('custom')} className="bg-blue-500 text-white text-xs px-3 rounded-lg font-bold">Vai</button>
+                        </div>
+                    )}
+                    
+                    {isRegeneratingMsg && <div className="mt-2 text-blue-500 text-xs flex items-center gap-1"><RefreshCw size={12} className="animate-spin"/> Genero idee...</div>}
+
+                    {/* Generated Options Popup */}
+                    {generatedOptions.length > 0 && (
+                        <div className="mt-3 w-full bg-blue-50 p-3 rounded-xl border border-blue-100 text-left animate-in zoom-in-95 duration-200">
+                            <span className="text-[10px] font-bold text-blue-400 uppercase mb-2 block">Scegli un'opzione:</span>
+                            <div className="space-y-2">
+                                {generatedOptions.map((opt, idx) => (
+                                    <button 
+                                        key={idx}
+                                        onClick={() => { setEditableMessage(opt); setGeneratedOptions([]); }}
+                                        className="w-full text-left text-sm p-2 bg-white rounded border hover:border-blue-400 hover:shadow-sm transition-all flex items-start gap-2 group"
+                                    >
+                                        <div className="mt-0.5 w-4 h-4 rounded-full border border-gray-300 group-hover:border-blue-500 group-hover:bg-blue-500 flex items-center justify-center">
+                                            <div className="w-1.5 h-1.5 bg-white rounded-full opacity-0 group-hover:opacity-100"/>
+                                        </div>
+                                        <span className="flex-1">{opt}</span>
+                                    </button>
+                                ))}
+                            </div>
+                            <button onClick={() => setGeneratedOptions([])} className="text-xs text-gray-400 underline mt-2 w-full text-center hover:text-gray-600">Annulla</button>
+                        </div>
+                    )}
 
                     {data.stickers && <div className="flex flex-wrap justify-center gap-2 mt-4 text-3xl">{data.stickers.map((s,i) => <span key={i}>{s}</span>)}</div>}
                 </div>
@@ -261,46 +300,68 @@ const CrosswordGrid: React.FC<CrosswordGridProps> = ({ data, onComplete, onEdit 
            )}
        </div>
 
-       {/* PRINT LAYOUT - FIXED MARGINS & PHOTO HEIGHT */}
-       <div className="hidden print:flex print-sheet" style={{ width: '270mm', height: '190mm', margin: '10mm auto', overflow: 'hidden' }}>
+       {/* PRINT LAYOUT - FIXED A4 BOOKLET (Left: Back, Right: Front) */}
+       <div className="hidden print:flex print-sheet" style={{ width: '297mm', height: '210mm', overflow: 'hidden', flexDirection: 'row' }}>
            <div className="watermark">{themeAssets.watermark}</div>
            
-           {/* LEFT PAGE (Back when folded) */}
-           <div className={`print-half ${themeAssets.printBorder} border-r-0 flex flex-col items-center text-center`} style={{ width: '50%', padding: '15px' }}>
-               <h1 className={`text-2xl ${themeAssets.fontTitle} mb-1`}>{data.title}</h1>
-               <p className="text-[10px] uppercase text-gray-500 mb-2">{data.eventDate}</p>
+           {/* LEFT PAGE (Retro/Back Cover) - Contains Dedication, Photos, Stickers */}
+           <div className={`print-half ${themeAssets.printBorder} border-r-0 flex flex-col items-center text-center justify-between`} style={{ width: '148.5mm', height: '210mm', padding: '15mm' }}>
+               <div className="text-[8px] text-gray-400 uppercase tracking-widest mb-4">Retro del Biglietto</div>
                
-               <div className="flex-1 flex items-center justify-center w-full overflow-hidden mb-2">
-                   {photos.length > 0 ? (
-                       <div className="w-[80%] max-h-[85mm] aspect-[4/3] border rounded-lg overflow-hidden shadow-sm">
-                           <PhotoCollage photos={photos} />
-                       </div>
-                   ) : data.images?.extraImage ? (
-                       <img src={data.images.extraImage} className="max-h-[85mm] object-contain" />
-                   ) : <div className="text-8xl opacity-10">{themeAssets.decoration}</div>}
+               {/* Content centered vertically */}
+               <div className="flex-1 flex flex-col items-center justify-center w-full gap-4">
+                   <div className="w-full flex justify-center">
+                       {photos.length > 0 ? (
+                           <div className="w-[80%] aspect-square border-4 border-white shadow-sm overflow-hidden rounded-sm">
+                               <PhotoCollage photos={photos} />
+                           </div>
+                       ) : data.images?.extraImage ? (
+                           <img src={data.images.extraImage} className="max-h-[80mm] object-contain" />
+                       ) : <div className="text-9xl opacity-10">{themeAssets.decoration}</div>}
+                   </div>
+                   
+                   <div className="px-4">
+                        <p className={`text-xl leading-relaxed ${themeAssets.fontTitle}`}>"{editableMessage}"</p>
+                   </div>
+                   
+                   <div className="flex gap-3 text-3xl mt-2">
+                        {data.stickers?.slice(0,5).map((s,i) => <span key={i}>{s}</span>)}
+                   </div>
                </div>
-               
-               <p className={`text-lg leading-tight ${themeAssets.fontTitle} px-4 mb-4`}>"{editableMessage}"</p>
-               <div className="flex gap-2 text-2xl mb-2">{data.stickers?.slice(0,5).map((s,i) => <span key={i}>{s}</span>)}</div>
+
+               <div className="text-[10px] text-gray-400 mt-4">Creato con Enigmistica Auguri</div>
            </div>
 
-           {/* RIGHT PAGE (Front/Inside when folded - Crossword) */}
-           {isCrossword ? (
-               <div className={`print-half ${themeAssets.printBorder} flex flex-col`} style={{ width: '50%', padding: '15px' }}>
-                   <h2 className="text-xl font-bold uppercase border-b-2 border-black mb-2 pb-1">Cruciverba</h2>
-                   <div className="flex-1 flex items-center justify-center mb-2">
-                       <div style={{ width: '90%' }}>{renderGridCells(true)}</div>
+           {/* RIGHT PAGE (Fronte/Front Cover) - Contains Title and Crossword (The "Gift") */}
+           <div className={`print-half ${themeAssets.printBorder} flex flex-col items-center`} style={{ width: '148.5mm', height: '210mm', padding: '15mm' }}>
+                <div className="text-[8px] text-gray-400 uppercase tracking-widest mb-4">Fronte del Biglietto</div>
+               
+               <h1 className={`text-3xl ${themeAssets.fontTitle} mb-1 text-center`}>{data.title}</h1>
+               <p className="text-xs uppercase text-gray-500 mb-6">{data.eventDate}</p>
+
+               {isCrossword ? (
+                   <div className="flex-1 w-full flex flex-col">
+                       <div className="flex-1 flex items-center justify-center mb-4">
+                           <div style={{ width: '95%' }}>{renderGridCells(true)}</div>
+                       </div>
+                       
+                       <div className="text-[9px] grid grid-cols-2 gap-4 leading-tight w-full border-t pt-2 border-black">
+                            <div>
+                                <b className="block border-b border-black mb-1 pb-0.5 uppercase">Orizzontali</b>
+                                {data.words.filter(w=>w.direction===Direction.ACROSS).map(w=><div key={w.id}><b className="mr-1">{w.number}.</b>{w.clue}</div>)}
+                            </div>
+                            <div>
+                                <b className="block border-b border-black mb-1 pb-0.5 uppercase">Verticali</b>
+                                {data.words.filter(w=>w.direction===Direction.DOWN).map(w=><div key={w.id}><b className="mr-1">{w.number}.</b>{w.clue}</div>)}
+                            </div>
+                       </div>
                    </div>
-                   <div className="text-[9px] grid grid-cols-2 gap-2 leading-tight">
-                        <div><b className="block border-b border-black mb-1">Orizzontali</b>{data.words.filter(w=>w.direction===Direction.ACROSS).map(w=><div key={w.id}><b>{w.number}</b>. {w.clue}</div>)}</div>
-                        <div><b className="block border-b border-black mb-1">Verticali</b>{data.words.filter(w=>w.direction===Direction.DOWN).map(w=><div key={w.id}><b>{w.number}</b>. {w.clue}</div>)}</div>
+               ) : (
+                   <div className="flex-1 flex items-center justify-center opacity-20">
+                       <p className="text-2xl font-hand rotate-[-5deg]">Spazio per dedica a mano...</p>
                    </div>
-               </div>
-           ) : (
-               <div className={`print-half ${themeAssets.printBorder} flex items-center justify-center opacity-30`} style={{ width: '50%' }}>
-                   <p className="text-xl font-hand rotate-[-10deg]">Spazio dedica...</p>
-               </div>
-           )}
+               )}
+           </div>
        </div>
     </div>
   );
