@@ -255,6 +255,7 @@ export const generateCrossword = async (
     stickers?: string[];
     contentType: 'crossword' | 'simple';
     tone?: ToneType;
+    customTone?: string;
   },
   onStatusUpdate?: (status: string) => void
 ): Promise<CrosswordData> => {
@@ -268,6 +269,14 @@ export const generateCrossword = async (
   let calculatedSolution = null;
   let message = `Tanti auguri! Ecco un pensiero speciale per te.`;
 
+  // Costruisci il prompt del tono
+  let toneInstruction = '';
+  if (extraData.tone === 'custom' && extraData.customTone) {
+    toneInstruction = `Usa questo stile specifico: "${extraData.customTone}".`;
+  } else if (extraData.tone) {
+    toneInstruction = `Tono: ${extraData.tone} (funny=simpatico, heartfelt=dolce, rhyme=rima, surprise=sorpresa).`;
+  }
+
   // --- LOGICA CROSSWORD ---
   if (extraData.contentType === 'crossword') {
       if (mode === 'manual') {
@@ -279,7 +288,7 @@ export const generateCrossword = async (
           const topic = inputData as string;
           const solutionChars = hiddenSolutionWord ? hiddenSolutionWord.toUpperCase().replace(/[^A-Z]/g, '').split('').join(', ') : '';
           const lettersInstruction = solutionChars ? `IMPORTANTE: Devi generare parole che contengano le seguenti lettere sparse: ${solutionChars}.` : '';
-          const toneInstruction = extraData.tone ? `Tono: ${extraData.tone} (funny=divertente, heartfelt=commovente, rhyme=rima).` : '';
+          
           const prompt = `Genera una lista di 6-8 parole e definizioni per un cruciverba sul tema: "${topic}". ${toneInstruction} ${lettersInstruction} Output JSON array di oggetti {word, clue}.`;
           
           try {
@@ -316,12 +325,11 @@ export const generateCrossword = async (
   if (mode === 'manual' && extraData.contentType === 'simple') {
       message = inputData as string;
   } else {
-      // AI Message Generation - Se modo AI, o se modo Manuale (in crossword) ma vogliamo comunque un messaggio
+      // AI Message Generation
       const topic = (typeof inputData === 'string') ? inputData : 'Auguri Generali';
       try {
           if (onStatusUpdate) onStatusUpdate("Scrivo gli auguri...");
-          const tonePrompt = extraData.tone ? `Stile: ${extraData.tone} (funny=simpatico, heartfelt=dolce, rhyme=rima).` : '';
-          const prompt = `Scrivi un messaggio di auguri breve per ${extraData.recipientName}. Evento: ${theme}. ${tonePrompt} Dettagli: ${topic}. Max 30 parole.`;
+          const prompt = `Scrivi un messaggio di auguri breve per ${extraData.recipientName}. Evento: ${theme}. ${toneInstruction} Dettagli: ${topic}. Max 30 parole.`;
           const responsePromise = ai.models.generateContent({
               model: 'gemini-2.5-flash',
               contents: prompt,
@@ -366,7 +374,8 @@ export const generateCrossword = async (
       originalInput: inputData,
       originalMode: mode,
       originalHiddenSolution: hiddenSolutionWord,
-      originalTone: extraData.tone
+      originalTone: extraData.tone,
+      originalCustomTone: extraData.customTone
   };
 };
 
@@ -379,7 +388,7 @@ export const regenerateGreeting = async (
 ): Promise<string> => {
     const apiKey = getApiKey();
     const ai = new GoogleGenAI({ apiKey });
-    let instructions = tone === 'custom' && customPrompt ? `Istruzioni: "${customPrompt}".` : `Stile: ${tone}.`;
+    let instructions = tone === 'custom' && customPrompt ? `Istruzioni specifiche: "${customPrompt}".` : `Stile: ${tone}.`;
     const prompt = `Scrivi un breve messaggio di auguri per ${recipient}. Evento: ${theme}. ${instructions} Max 30 parole.`;
 
     try {
