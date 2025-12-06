@@ -171,6 +171,7 @@ const CrosswordGrid: React.FC<CrosswordGridProps> = ({ data, onComplete, onEdit 
           const newMsg = await regenerateGreeting(editableMessage, data.theme, data.recipientName, tone, tone === 'custom' ? customPromptText : undefined);
           setEditableMessage(newMsg);
           setCustomPromptText("");
+          if (tone === 'custom') setCustomPromptMode(false);
       } catch (e) { console.error(e); } finally { setIsRegeneratingMsg(false); }
   };
 
@@ -241,9 +242,9 @@ const CrosswordGrid: React.FC<CrosswordGridProps> = ({ data, onComplete, onEdit 
                         <button disabled={isRegeneratingMsg} onClick={() => handleRegenerateMessage('funny')} className="text-xs bg-gray-100 px-2 py-1 rounded hover:bg-blue-100">😂 Simpatico</button>
                         <button disabled={isRegeneratingMsg} onClick={() => handleRegenerateMessage('heartfelt')} className="text-xs bg-gray-100 px-2 py-1 rounded hover:bg-blue-100">❤️ Dolce</button>
                         <button disabled={isRegeneratingMsg} onClick={() => handleRegenerateMessage('rhyme')} className="text-xs bg-gray-100 px-2 py-1 rounded hover:bg-blue-100">🎵 Rima</button>
-                        <button disabled={isRegeneratingMsg} onClick={() => setCustomPromptMode(!customPromptMode)} className="text-xs bg-gray-100 px-2 py-1 rounded hover:bg-blue-100">✨ Manuale</button>
+                        <button disabled={isRegeneratingMsg} onClick={() => setCustomPromptMode(!customPromptMode)} className="text-xs bg-gray-100 px-2 py-1 rounded hover:bg-blue-100">✨ Su Misura</button>
                     </div>
-                    {customPromptMode && <div className="flex gap-1 mt-1 w-full"><input className="border text-xs flex-1 p-1 rounded" placeholder="Es: come un pirata" value={customPromptText} onChange={e=>setCustomPromptText(e.target.value)}/><button onClick={()=>handleRegenerateMessage('custom')} className="bg-blue-500 text-white text-xs px-2 rounded">Vai</button></div>}
+                    {customPromptMode && <div className="flex gap-1 mt-1 w-full"><input className="border text-xs flex-1 p-1 rounded outline-none focus:ring-1 focus:ring-blue-400" placeholder="Es: come un pirata" value={customPromptText} onChange={e=>setCustomPromptText(e.target.value)}/><button onClick={()=>handleRegenerateMessage('custom')} className="bg-blue-500 text-white text-xs px-2 rounded">Vai</button></div>}
                     {isRegeneratingMsg && <span className="text-xs text-blue-500 animate-pulse">Generazione...</span>}
 
                     {data.stickers && <div className="flex flex-wrap justify-center gap-2 mt-4 text-3xl">{data.stickers.map((s,i) => <span key={i}>{s}</span>)}</div>}
