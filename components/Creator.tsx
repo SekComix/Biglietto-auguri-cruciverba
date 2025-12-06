@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { generateCrossword } from '../services/geminiService';
 import { CrosswordData, ManualInput, ThemeType, ToneType } from '../types';
-import { Loader2, Wand2, Plus, Trash2, Gift, PartyPopper, CalendarHeart, Crown, KeyRound, Image as ImageIcon, Upload, Calendar, AlertCircle, Grid3X3, MailOpen, Images, Ghost, GraduationCap, ScrollText, HeartHandshake, BookOpen, Search, X, Smile, Heart, Music, Sparkles, Edit, PenTool } from 'lucide-react';
+import { Loader2, Wand2, Plus, Trash2, Gift, PartyPopper, CalendarHeart, Crown, KeyRound, Image as ImageIcon, Upload, Calendar, AlertCircle, Grid3X3, MailOpen, Images, Ghost, GraduationCap, ScrollText, HeartHandshake, BookOpen, Search, X, Smile, Heart, Music, Sparkles, Edit, PenTool, LayoutGrid } from 'lucide-react';
 
 interface CreatorProps {
   onCreated: (data: CrosswordData) => void;
@@ -20,19 +20,19 @@ const THEMES: { id: ThemeType; label: string; icon: any; color: string }[] = [
   { id: 'elegant', label: 'Elegante', icon: Crown, color: 'bg-gray-800' },
 ];
 
-const STICKERS = [
-    '🎅', '🎄', '🎁', '❄️', '⛄', '🦌', '🧦', '🍪', '🥛', '🔔', '🕯️', '🌟',
-    '🎂', '🎈', '🎉', '🕯️', '🍰', '🥳', '🎁', '👑', '🧢', '🎺', '🎊',
-    '🐣', '🌸', '🐇', '🥚', '🌷', '🍫', '🌻', '🐞', '🦋', '🌱', '🕊️',
-    '🎃', '👻', '🕷️', '🕸️', '🧛', '🍬', '🦇', '💀', '🌙', '🐈‍⬛', '🧙‍♀️',
-    '🎓', '📜', '🏆', '📚', '🦉', '✏️', '🧠', '💼', '🥇', '🏫', '👩‍🎓', '👨‍🎓',
-    '🕊️', '✝️', '⛪', '🥖', '🍇', '🕯️', '👼', '🙌', '🛐', '🌅', '💒',
-    '💍', '❤️', '👰', '🤵', '💒', '💐', '💌', '💑', '🥂', '💞', '💘',
-    '🐶', '🐱', '🦄', '🦁', '🐢', '🦖', '🐬', '🌲', '🌵', '🌈', '🐼', '🐨',
-    '🍕', '🍔', '🍟', '🍦', '🍩', '🍪', '🍫', '🍷', '🍺', '☕', '🍹', '🍓',
-    '⚽', '🏀', '🎾', '🏐', '🎮', '🎨', '🎸', '✈️', '🚗', '🏖️', '📸', '🚲',
-    '⭐', '🌟', '✨', '💫', '💎', '⚜️', '🍀', '🎵', '🎶', '☀️', '💣', '💯'
-];
+const STICKER_CATEGORIES: Record<string, string[]> = {
+    'Natale': ['🎅', '🎄', '🎁', '❄️', '⛄', '🦌', '🧦', '🍪', '🥛', '🔔', '🕯️', '🌟'],
+    'Feste': ['🎂', '🎈', '🎉', '🕯️', '🍰', '🥳', '🎁', '👑', '🧢', '🎺', '🎊'],
+    'Amore': ['💍', '❤️', '👰', '🤵', '💒', '💐', '💌', '💑', '🥂', '💞', '💘'],
+    'Pasqua/Primavera': ['🐣', '🌸', '🐇', '🥚', '🌷', '🍫', '🌻', '🐞', '🦋', '🌱', '🕊️'],
+    'Halloween': ['🎃', '👻', '🕷️', '🕸️', '🧛', '🍬', '🦇', '💀', '🌙', '🐈‍⬛', '🧙‍♀️'],
+    'Scuola/Lavoro': ['🎓', '📜', '🏆', '📚', '🦉', '✏️', '🧠', '💼', '🥇', '🏫', '👩‍🎓', '👨‍🎓'],
+    'Religione': ['🕊️', '✝️', '⛪', '🥖', '🍇', '🕯️', '👼', '🙌', '🛐', '🌅', '💒'],
+    'Animali': ['🐶', '🐱', '🦄', '🦁', '🐢', '🦖', '🐬', '🌲', '🌵', '🌈', '🐼', '🐨'],
+    'Cibo': ['🍕', '🍔', '🍟', '🍦', '🍩', '🍪', '🍫', '🍷', '🍺', '☕', '🍹', '🍓'],
+    'Sport/Hobby': ['⚽', '🏀', '🎾', '🏐', '🎮', '🎨', '🎸', '✈️', '🚗', '🏖️', '📸', '🚲'],
+    'Extra': ['⭐', '🌟', '✨', '💫', '💎', '⚜️', '🍀', '🎵', '🎶', '☀️', '💣', '💯']
+};
 
 export const Creator: React.FC<CreatorProps> = ({ onCreated, initialData }) => {
   const [contentType, setContentType] = useState<'crossword' | 'simple'>('crossword');
@@ -49,6 +49,7 @@ export const Creator: React.FC<CreatorProps> = ({ onCreated, initialData }) => {
   const [extraImage, setExtraImage] = useState<string | undefined>(undefined);
   const [photos, setPhotos] = useState<string[]>([]); 
   const [selectedStickers, setSelectedStickers] = useState<string[]>([]);
+  const [activeStickerTab, setActiveStickerTab] = useState('Natale');
 
   const [loading, setLoading] = useState(false);
   const [statusMsg, setStatusMsg] = useState('');
@@ -268,7 +269,6 @@ export const Creator: React.FC<CreatorProps> = ({ onCreated, initialData }) => {
             <h2 className="font-bold text-3xl md:text-4xl text-gray-800 mb-2 font-body">Crea il Tuo Biglietto</h2>
           </div>
 
-          {/* 1. Content Type */}
           <div className="mb-6">
             <label className="block text-xs font-bold text-gray-400 mb-3 uppercase tracking-wider text-center">1. Cosa vuoi creare?</label>
             <div className="flex gap-4">
@@ -281,7 +281,6 @@ export const Creator: React.FC<CreatorProps> = ({ onCreated, initialData }) => {
             </div>
           </div>
 
-          {/* 2. Theme */}
           <div className="mb-6">
             <label className="block text-xs font-bold text-gray-400 mb-3 uppercase tracking-wider text-center">2. Evento</label>
             <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-5 gap-3">
@@ -304,14 +303,12 @@ export const Creator: React.FC<CreatorProps> = ({ onCreated, initialData }) => {
             </div>
           </div>
 
-          {/* CONTENT CREATION SECTION */}
           <div className="mb-6 bg-gray-50 p-4 rounded-xl border border-gray-100 animate-fade-in">
                 <div className="flex bg-white rounded-lg p-1 mb-4 border border-gray-200 shadow-sm">
                     <button type="button" onClick={() => setMode('ai')} className={`flex-1 py-2 rounded-md font-bold text-sm transition-all flex items-center justify-center gap-2 ${mode === 'ai' ? 'bg-blue-100 text-blue-700 shadow-sm' : 'text-gray-400 hover:text-gray-600'}`}><Wand2 size={16}/> AI Magic</button>
                     <button type="button" onClick={() => setMode('manual')} className={`flex-1 py-2 rounded-md font-bold text-sm transition-all flex items-center justify-center gap-2 ${mode === 'manual' ? 'bg-blue-100 text-blue-700 shadow-sm' : 'text-gray-400 hover:text-gray-600'}`}><Edit size={16}/> Manuale</button>
                 </div>
 
-                {/* TONE SELECTOR (ONLY AI MODE) */}
                 {mode === 'ai' && (
                     <div className="mb-4">
                         <div className="flex gap-2 overflow-x-auto pb-1 mb-2 custom-scrollbar">
@@ -361,7 +358,6 @@ export const Creator: React.FC<CreatorProps> = ({ onCreated, initialData }) => {
                         />
                      </div>
                 ) : (
-                    // ONLY CROSSWORD MANUAL MODE
                     <div className="space-y-2">
                         {manualWords.map((item, idx) => (
                             <div key={idx} className="flex gap-2 relative">
@@ -423,9 +419,24 @@ export const Creator: React.FC<CreatorProps> = ({ onCreated, initialData }) => {
                 <label className="text-xs font-bold text-gray-400 uppercase">Decorazioni</label>
                 <span className={`text-xs font-bold ${selectedStickers.length >= 5 ? 'text-red-500' : 'text-blue-500'}`}>{selectedStickers.length}/5</span>
              </div>
-             <div className="flex flex-wrap gap-2 justify-center max-h-32 overflow-y-auto p-1 custom-scrollbar">
-                {STICKERS.map(s => (
-                    <button key={s} type="button" onClick={() => toggleSticker(s)} disabled={!selectedStickers.includes(s) && selectedStickers.length >= 5} className={`text-2xl p-2 rounded-full transition-all duration-300 ${selectedStickers.includes(s) ? 'bg-white shadow-md scale-110 ring-2 ring-blue-200' : 'opacity-60 hover:opacity-100 hover:scale-105'} ${!selectedStickers.includes(s) && selectedStickers.length >= 5 ? 'opacity-20 cursor-not-allowed' : ''}`}>{s}</button>
+             
+             {/* Sticker Categories */}
+             <div className="flex gap-2 overflow-x-auto pb-2 mb-2 custom-scrollbar">
+                {Object.keys(STICKER_CATEGORIES).map(cat => (
+                    <button 
+                        key={cat} 
+                        type="button" 
+                        onClick={() => setActiveStickerTab(cat)}
+                        className={`text-xs px-2 py-1 rounded-full whitespace-nowrap transition-colors ${activeStickerTab === cat ? 'bg-blue-600 text-white font-bold' : 'bg-white text-gray-600 hover:bg-gray-100 border'}`}
+                    >
+                        {cat}
+                    </button>
+                ))}
+             </div>
+
+             <div className="flex flex-wrap gap-2 justify-center max-h-32 overflow-y-auto p-1 custom-scrollbar bg-white rounded-lg border-inner shadow-inner">
+                {STICKER_CATEGORIES[activeStickerTab].map(s => (
+                    <button key={s} type="button" onClick={() => toggleSticker(s)} disabled={!selectedStickers.includes(s) && selectedStickers.length >= 5} className={`text-2xl p-2 rounded-full transition-all duration-300 ${selectedStickers.includes(s) ? 'bg-blue-50 shadow-md scale-110 ring-2 ring-blue-200' : 'opacity-60 hover:opacity-100 hover:scale-105'} ${!selectedStickers.includes(s) && selectedStickers.length >= 5 ? 'opacity-20 cursor-not-allowed' : ''}`}>{s}</button>
                 ))}
             </div>
           </div>
