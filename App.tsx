@@ -56,6 +56,14 @@ const App: React.FC = () => {
       setIsEditing(false);
   };
 
+  // Funzione per aggiornare i dati in tempo reale dal componente figlio (CrosswordGrid)
+  const handleUpdatePuzzle = (updates: Partial<CrosswordData>) => {
+      setPuzzleData(prev => {
+          if (!prev) return null;
+          return { ...prev, ...updates };
+      });
+  };
+
   return (
     <div className={`min-h-screen ${bgClass} p-4 pb-12 font-body transition-all duration-500`}>
       
@@ -108,6 +116,7 @@ const App: React.FC = () => {
                 data={puzzleData} 
                 onComplete={() => {}} 
                 onEdit={handleEdit}
+                onUpdate={handleUpdatePuzzle}
              />
           </div>
         )}
