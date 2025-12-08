@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef, useMemo } from 'react';
 import { CrosswordData, CellData, Direction, ThemeType } from '../types';
 import { regenerateGreetingOptions } from '../services/geminiService';
-import { Printer, Edit, Wand2, Eye, EyeOff, Check, RefreshCw, ArrowRight, BookOpen } from 'lucide-react';
+import { Printer, Edit, Eye, EyeOff, RefreshCw, ArrowRight, BookOpen, FileText } from 'lucide-react';
 
 interface CrosswordGridProps {
   data: CrosswordData;
@@ -9,54 +9,17 @@ interface CrosswordGridProps {
   onEdit: () => void; 
 }
 
-const WowEffect: React.FC<{ theme: ThemeType }> = ({ theme }) => {
-    const [particles, setParticles] = useState<{id: number, left: string, top: string, anim: string, char: string, size: string}[]>([]);
-    useEffect(() => {
-        const count = 20;
-        const newParticles = [];
-        let chars = ['✨', '⭐', '💫']; 
-        switch(theme) {
-            case 'christmas': chars = ['❄️', '✨']; break;
-            case 'birthday': chars = ['🎊', '🎈']; break;
-            case 'easter': chars = ['🌸', '🦋']; break;
-            case 'halloween': chars = ['🦇', '🎃']; break;
-            case 'wedding': chars = ['❤️', '💍']; break;
-        }
-        for(let i=0; i<count; i++) {
-            newParticles.push({
-                id: i,
-                left: Math.random() * 100 + '%',
-                top: Math.random() * 100 + '%',
-                anim: `float ${3 + Math.random() * 5}s linear infinite`,
-                char: chars[Math.floor(Math.random() * chars.length)],
-                size: (1 + Math.random() * 1) + 'rem'
-            });
-        }
-        setParticles(newParticles);
-    }, [theme]);
-
-    return (
-        <div className="absolute inset-0 pointer-events-none overflow-hidden z-0 print:hidden">
-            <style>{`
-                @keyframes float {
-                    0% { transform: translateY(0) rotate(0deg); opacity: 0; }
-                    20% { opacity: 0.8; }
-                    100% { transform: translateY(-100vh) rotate(360deg); opacity: 0; }
-                }
-            `}</style>
-            {particles.map(p => (
-                <div key={p.id} style={{
-                    position: 'absolute',
-                    left: p.left,
-                    top: '110%',
-                    fontSize: p.size,
-                    animation: p.anim,
-                    animationDelay: `-${Math.random()*5}s`,
-                    opacity: 0.6
-                }}>{p.char}</div>
-            ))}
-        </div>
-    );
+const THEME_ASSETS: Record<ThemeType, any> = {
+  christmas: { fontTitle: 'font-christmas', printBorder: 'border-double border-4 border-red-800', decoration: '🎄', watermark: '🎅' },
+  birthday: { fontTitle: 'font-fun', printBorder: 'border-dashed border-4 border-pink-500', decoration: '🎂', watermark: '🎉' },
+  easter: { fontTitle: 'font-hand', printBorder: 'border-dotted border-4 border-green-500', decoration: '🐣', watermark: '🌸' },
+  halloween: { fontTitle: 'font-christmas', printBorder: 'border-solid border-4 border-orange-500', decoration: '🎃', watermark: '🕸️' },
+  graduation: { fontTitle: 'font-elegant', printBorder: 'border-double border-4 border-red-900', decoration: '🎓', watermark: '📜' },
+  confirmation: { fontTitle: 'font-script', printBorder: 'border-solid border-2 border-gray-400', decoration: '🕊️', watermark: '⛪' },
+  communion: { fontTitle: 'font-hand', printBorder: 'border-double border-4 border-yellow-500', decoration: '🥖', watermark: '🍇' },
+  wedding: { fontTitle: 'font-script', printBorder: 'border-solid border-1 border-rose-300', decoration: '💍', watermark: '❤️' },
+  elegant: { fontTitle: 'font-elegant', printBorder: 'border-double border-4 border-gray-900', decoration: '⚜️', watermark: '⚜️' },
+  generic: { fontTitle: 'font-body', printBorder: 'border-solid border-2 border-gray-300', decoration: '🎁', watermark: '🎁' }
 };
 
 const PhotoCollage: React.FC<{ photos: string[] }> = ({ photos }) => {
@@ -76,19 +39,6 @@ const PhotoCollage: React.FC<{ photos: string[] }> = ({ photos }) => {
             ))}
         </div>
     );
-};
-
-const THEME_ASSETS: Record<ThemeType, any> = {
-  christmas: { fontTitle: 'font-christmas', printBorder: 'border-double border-4 border-red-800', decoration: '🎄', watermark: '🎅' },
-  birthday: { fontTitle: 'font-fun', printBorder: 'border-dashed border-4 border-pink-500', decoration: '🎂', watermark: '🎉' },
-  easter: { fontTitle: 'font-hand', printBorder: 'border-dotted border-4 border-green-500', decoration: '🐣', watermark: '🌸' },
-  halloween: { fontTitle: 'font-christmas', printBorder: 'border-solid border-4 border-orange-500', decoration: '🎃', watermark: '🕸️' },
-  graduation: { fontTitle: 'font-elegant', printBorder: 'border-double border-4 border-red-900', decoration: '🎓', watermark: '📜' },
-  confirmation: { fontTitle: 'font-script', printBorder: 'border-solid border-2 border-gray-400', decoration: '🕊️', watermark: '⛪' },
-  communion: { fontTitle: 'font-hand', printBorder: 'border-double border-4 border-yellow-500', decoration: '🥖', watermark: '🍇' },
-  wedding: { fontTitle: 'font-script', printBorder: 'border-solid border-1 border-rose-300', decoration: '💍', watermark: '❤️' },
-  elegant: { fontTitle: 'font-elegant', printBorder: 'border-double border-4 border-gray-900', decoration: '⚜️', watermark: '⚜️' },
-  generic: { fontTitle: 'font-body', printBorder: 'border-solid border-2 border-gray-300', decoration: '🎁', watermark: '🎁' }
 };
 
 const CrosswordGrid: React.FC<CrosswordGridProps> = ({ data, onComplete, onEdit }) => {
@@ -119,6 +69,8 @@ const CrosswordGrid: React.FC<CrosswordGridProps> = ({ data, onComplete, onEdit 
     const newGrid: CellData[][] = Array(data.height).fill(null).map((_, y) =>
       Array(data.width).fill(null).map((_, x) => ({ x, y, userChar: '', partOfWords: [] }))
     );
+    
+    // Fill grid logic
     data.words.forEach(w => {
       for (let i = 0; i < w.word.length; i++) {
         const x = w.direction === Direction.ACROSS ? w.startX + i : w.startX;
@@ -130,6 +82,7 @@ const CrosswordGrid: React.FC<CrosswordGridProps> = ({ data, onComplete, onEdit 
         }
       }
     });
+
     if (data.solution) {
       data.solution.cells.forEach(solCell => {
         if (newGrid[solCell.y]?.[solCell.x]) {
@@ -138,6 +91,7 @@ const CrosswordGrid: React.FC<CrosswordGridProps> = ({ data, onComplete, onEdit 
         }
       });
     }
+
     inputRefs.current = Array(data.height).fill(null).map(() => Array(data.width).fill(null));
     setGrid(newGrid);
     setEditableMessage(data.message);
@@ -177,32 +131,23 @@ const CrosswordGrid: React.FC<CrosswordGridProps> = ({ data, onComplete, onEdit 
       } catch (e) { console.error(e); } finally { setIsRegeneratingMsg(false); }
   };
 
-  const activeWord = useMemo(() => {
-    if (!selectedCell || !isCrossword) return null;
-    const cell = grid[selectedCell.y]?.[selectedCell.x];
-    if (!cell || !cell.partOfWords.length) return null;
-    return data.words.find(w => cell.partOfWords.includes(w.id) && w.direction === currentDirection) || 
-           data.words.find(w => cell.partOfWords.includes(w.id));
-  }, [selectedCell, currentDirection, data, isCrossword]);
-
+  // --- RENDER HELPERS ---
   const renderGridCells = (isPrint = false) => (
     <div className={`grid gap-[1px] ${isPrint ? '' : 'bg-black/10 p-2 rounded-lg'}`} style={{ gridTemplateColumns: `repeat(${data.width}, minmax(0, 1fr))`, aspectRatio: `${data.width}/${data.height}` }}>
       {grid.map((row, y) => row.map((cell, x) => {
           const isSelected = !isPrint && selectedCell?.x === x && selectedCell?.y === y;
-          const isInActiveWord = !isPrint && !isSelected && activeWord && ((activeWord.direction === Direction.ACROSS && y === activeWord.startY && x >= activeWord.startX && x < activeWord.startX + activeWord.word.length) || (activeWord.direction === Direction.DOWN && x === activeWord.startX && y >= activeWord.startY && y < activeWord.startY + activeWord.word.length));
+          const displayChar = (revealAnswers || isPrint) ? cell.char : cell.userChar; // If revealing or printing, show correct char
           
-          if (!cell.char) return <div key={`${x}-${y}`} className={`${isPrint ? 'bg-gray-100 border border-gray-300' : 'bg-black/5 rounded-sm'}`} />;
-          
-          const displayChar = (revealAnswers || isPrint) && revealAnswers ? cell.char : cell.userChar;
+          if (!cell.char) return <div key={`${x}-${y}`} className={`${isPrint ? 'bg-gray-50 border border-gray-200' : 'bg-black/5 rounded-sm'}`} />;
           
           return (
-            <div key={`${x}-${y}`} onClick={() => !isPrint && handleCellClick(x, y)} className={`relative flex items-center justify-center ${isPrint ? 'border-r border-b border-black text-black' : `w-full h-full text-xl font-bold cursor-pointer ${isSelected ? 'bg-yellow-200' : isInActiveWord ? 'bg-blue-50' : 'bg-white'}`}`} style={isPrint ? { width: '100%', height: '100%' } : {}}>
-              {cell.number && <span className={`absolute top-0 left-0 leading-none ${isPrint ? 'text-[8px] p-[1px]' : 'text-[9px] p-0.5 text-gray-500'}`}>{cell.number}</span>}
+            <div key={`${x}-${y}`} onClick={() => !isPrint && handleCellClick(x, y)} className={`relative flex items-center justify-center ${isPrint ? 'border-r border-b border-black text-black' : `w-full h-full text-xl font-bold cursor-pointer ${isSelected ? 'bg-yellow-200' : 'bg-white'}`}`} style={isPrint ? { width: '100%', height: '100%' } : {}}>
+              {cell.number && <span className={`absolute top-0 left-0 leading-none ${isPrint ? 'text-[6px] p-[1px]' : 'text-[9px] p-0.5 text-gray-500'}`}>{cell.number}</span>}
               {cell.isSolutionCell && isPrint && <div className="absolute inset-0 bg-yellow-100/30 -z-10" />}
-              {cell.isSolutionCell && isPrint && cell.solutionIndex && <div className="absolute bottom-0 right-0 text-[8px] p-[1px] font-bold text-gray-500">{cell.solutionIndex}</div>}
+              {cell.isSolutionCell && isPrint && cell.solutionIndex && <div className="absolute bottom-0 right-0 text-[6px] p-[1px] font-bold text-gray-500">{cell.solutionIndex}</div>}
               
               {isPrint ? (
-                  <span className="font-bold text-lg">{displayChar}</span>
+                  <span className="font-bold text-lg">{displayChar}</span> // Per la stampa, mostriamo la soluzione se revealAnswers è attivo, altrimenti vuoto
               ) : (
                   isSelected && !revealAnswers ? (
                      <input ref={(el) => { inputRefs.current[y][x] = el; }} maxLength={1} className="w-full h-full text-center bg-transparent outline-none uppercase" value={cell.userChar} onChange={(e) => handleInput(x, y, e.target.value)} />
@@ -217,220 +162,192 @@ const CrosswordGrid: React.FC<CrosswordGridProps> = ({ data, onComplete, onEdit 
   );
 
   return (
-    <div className="flex flex-col items-center gap-6 w-full max-w-6xl mx-auto pb-10">
-       <WowEffect theme={data.theme} />
+    <div className="flex flex-col items-center gap-8 w-full pb-20">
        
-       {/* Actions Bar */}
-       <div className="flex gap-2 justify-center z-10 sticky top-2">
-            <button onClick={onEdit} className="bg-white px-4 py-2 rounded-full shadow-lg border text-sm flex items-center gap-2 font-bold hover:bg-gray-50 text-gray-700"><Edit size={16} /> Modifica</button>
-            <button onClick={() => setShowPrintGuide(true)} className="bg-gradient-to-r from-blue-600 to-indigo-600 text-white px-6 py-2 rounded-full shadow-lg text-sm flex items-center gap-2 font-bold hover:scale-105 transition-transform"><Printer size={16} /> STAMPA</button>
-            <button onClick={() => setRevealAnswers(!revealAnswers)} className={`px-4 py-2 rounded-full shadow-lg border text-sm flex items-center gap-2 font-bold transition-colors ${revealAnswers ? 'bg-yellow-100 text-yellow-800 border-yellow-300' : 'bg-white text-gray-700'}`}>{revealAnswers ? <EyeOff size={16}/> : <Eye size={16}/>} {revealAnswers ? 'Nascondi' : 'Soluzione'}</button>
+       {/* TOOLBAR */}
+       <div className="flex flex-wrap gap-2 justify-center z-20 sticky top-2 p-2 bg-black/5 rounded-full backdrop-blur-sm">
+            <button onClick={onEdit} className="bg-white px-4 py-2 rounded-full shadow border text-sm flex items-center gap-2 font-bold hover:bg-gray-50 text-gray-700"><Edit size={16} /> Modifica</button>
+            <button onClick={() => setShowPrintGuide(true)} className="bg-blue-600 text-white px-6 py-2 rounded-full shadow text-sm flex items-center gap-2 font-bold hover:bg-blue-700"><Printer size={16} /> STAMPA</button>
+            <button onClick={() => setRevealAnswers(!revealAnswers)} className={`px-4 py-2 rounded-full shadow border text-sm flex items-center gap-2 font-bold transition-colors ${revealAnswers ? 'bg-yellow-100 text-yellow-800 border-yellow-300' : 'bg-white text-gray-700'}`}>{revealAnswers ? <EyeOff size={16}/> : <Eye size={16}/>} {revealAnswers ? 'Nascondi' : 'Soluzione'}</button>
        </div>
        
-       {/* Print Guide Modal */}
+       {/* PRINT GUIDE MODAL */}
        {showPrintGuide && (
            <div className="fixed inset-0 bg-black/80 z-50 flex items-center justify-center p-4 animate-in fade-in" onClick={() => setShowPrintGuide(false)}>
                <div className="bg-white rounded-2xl p-8 text-center shadow-2xl max-w-md border-4 border-blue-100" onClick={e => e.stopPropagation()}>
                    <div className="bg-blue-100 w-16 h-16 rounded-full flex items-center justify-center mx-auto mb-4 text-blue-600"><Printer size={32}/></div>
                    <h3 className="text-2xl font-bold mb-2 text-gray-800">Stampa Libretto</h3>
                    <div className="text-left text-sm text-gray-600 mb-6 space-y-3 bg-gray-50 p-4 rounded-xl">
-                       <p className="flex items-start gap-2"><span className="bg-blue-600 text-white rounded-full w-5 h-5 flex items-center justify-center text-xs shrink-0 mt-0.5">1</span> Usa un foglio <b>A4</b> standard.</p>
-                       <p className="flex items-start gap-2"><span className="bg-blue-600 text-white rounded-full w-5 h-5 flex items-center justify-center text-xs shrink-0 mt-0.5">2</span> Seleziona <b>Stampa su entrambi i lati</b> (Fronte/Retro).</p>
-                       <p className="flex items-start gap-2"><span className="bg-blue-600 text-white rounded-full w-5 h-5 flex items-center justify-center text-xs shrink-0 mt-0.5">3</span> Scegli capovolgimento sul <b>Lato Corto</b> (Short Edge).</p>
+                       <p className="flex items-start gap-2"><span className="bg-blue-600 text-white rounded-full w-5 h-5 flex items-center justify-center text-xs shrink-0 mt-0.5">1</span> Usa foglio <b>A4</b>.</p>
+                       <p className="flex items-start gap-2"><span className="bg-blue-600 text-white rounded-full w-5 h-5 flex items-center justify-center text-xs shrink-0 mt-0.5">2</span> Stampa su <b>Entrambi i lati</b>.</p>
+                       <p className="flex items-start gap-2"><span className="bg-blue-600 text-white rounded-full w-5 h-5 flex items-center justify-center text-xs shrink-0 mt-0.5">3</span> Capovolgi sul <b>Lato Corto</b>.</p>
                    </div>
                    <button onClick={() => {window.print(); setShowPrintGuide(false);}} className="bg-blue-600 text-white w-full py-3 rounded-xl font-bold text-lg hover:bg-blue-700 transition-colors">🖨️ Stampa Ora</button>
                </div>
            </div>
        )}
 
-       {/* --- ANTEPRIMA ESTERNO (FRONTE/RETRO) A SCHERMO --- */}
-       <div className="w-full max-w-6xl animate-fade-in mb-8">
-            <h3 className="text-center text-white/80 font-bold uppercase tracking-widest mb-4 flex items-center justify-center gap-2"><BookOpen size={16}/> Esterno del Biglietto</h3>
-            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 items-start">
-                
-                {/* RETRO */}
-                <div className="bg-white p-6 rounded-2xl shadow-xl border-4 border-white flex flex-col h-full min-h-[400px]">
-                    <div className="text-xs font-bold text-gray-400 uppercase text-center mb-1">Retro (Sinistra)</div>
-                    <div className="border-r border-dashed border-gray-300 h-full flex flex-col items-center justify-center opacity-70 p-8">
-                        <div className="text-6xl opacity-20 mb-4">{themeAssets.decoration}</div>
-                        <div className="text-sm text-gray-400 uppercase tracking-widest mb-8 text-center">Enigmistica Auguri<br/>Generato con IA</div>
-                        <Printer size={32} className="mx-auto mb-2 opacity-30"/>
-                    </div>
-                </div>
+       {/* --- FOGLIO 1: ESTERNO (Fronte/Retro) --- */}
+       <div className="w-full max-w-5xl px-4 md:px-0">
+            <h3 className="text-center text-white font-bold uppercase tracking-widest mb-4 flex items-center justify-center gap-2 drop-shadow-md">
+                <FileText size={20}/> FOGLIO 1 (Esterno)
+            </h3>
+            
+            {/* SHEET CONTAINER - A4 Aspect Ratio */}
+            <div className="bg-white w-full aspect-[297/210] shadow-2xl flex relative overflow-hidden rounded-sm">
+                 <div className="absolute inset-y-0 left-1/2 w-px bg-gray-300 border-l border-dashed border-gray-400 opacity-50 z-10"></div>
+                 
+                 {/* LEFT HALF: RETRO (Back Cover) */}
+                 <div className="w-1/2 h-full p-8 flex flex-col items-center justify-center text-center border-r border-gray-100 bg-gray-50/30">
+                     <span className="absolute top-2 left-2 text-[10px] uppercase text-gray-300 font-bold">Retro Biglietto</span>
+                     <div className="text-6xl opacity-20 mb-4">{themeAssets.decoration}</div>
+                     <div className="text-xs text-gray-400 uppercase tracking-widest mb-2 font-bold">Enigmistica Auguri</div>
+                     <p className="text-[10px] text-gray-400">Un regalo speciale per te</p>
+                     <div className="mt-8 opacity-40"><Printer size={24}/></div>
+                 </div>
 
-                {/* FRONTE (COPERTINA) */}
-                <div className="bg-white p-6 rounded-2xl shadow-xl border-4 border-white flex flex-col h-full min-h-[400px]">
-                     <div className="text-xs font-bold text-gray-400 uppercase text-center mb-1">Copertina (Destra)</div>
-                     <div className={`border-2 ${themeAssets.printBorder} rounded-xl p-8 flex flex-col items-center text-center h-full justify-center`}>
-                        <h1 className={`text-4xl ${themeAssets.fontTitle} mb-4`}>{data.title}</h1>
-                        <div className="w-16 h-1 bg-gray-800 mb-4 opacity-50"></div>
-                        <p className="text-lg uppercase text-gray-500 mb-8">{data.eventDate}</p>
-                        {data.images?.extraImage ? (
-                           <img src={data.images.extraImage} className="h-48 object-contain mb-4 grayscale" />
-                        ) : (
-                           <div className="text-8xl opacity-80">{themeAssets.decoration}</div>
-                        )}
-                        <p className="mt-8 text-sm italic text-gray-400">"Un pensiero speciale per te..."</p>
+                 {/* RIGHT HALF: FRONTE (Front Cover) */}
+                 <div className={`w-1/2 h-full p-8 flex flex-col items-center justify-center text-center ${themeAssets.printBorder} border-l-0 relative`}>
+                     <span className="absolute top-2 right-2 text-[10px] uppercase text-gray-300 font-bold">Copertina</span>
+                     <h1 className={`text-4xl md:text-5xl ${themeAssets.fontTitle} mb-4 text-gray-900 leading-tight`}>{data.title}</h1>
+                     <div className="w-16 h-1 bg-gray-800 mb-4 opacity-50"></div>
+                     <p className="text-sm md:text-base uppercase text-gray-500 mb-8 font-bold tracking-widest">{data.eventDate}</p>
+                     {data.images?.extraImage ? (
+                        <img src={data.images.extraImage} className="h-32 md:h-48 object-contain mb-4 grayscale hover:grayscale-0 transition-all" />
+                     ) : (
+                        <div className="text-8xl opacity-80 animate-pulse">{themeAssets.decoration}</div>
+                     )}
+                     <div className="mt-auto">
+                        <p className="text-xs italic text-gray-400">"Apri per scoprire..."</p>
                      </div>
-                </div>
+                 </div>
             </div>
        </div>
 
+       {/* --- FOGLIO 2: INTERNO (Dedica/Gioco) --- */}
+       <div className="w-full max-w-5xl px-4 md:px-0">
+           <h3 className="text-center text-white font-bold uppercase tracking-widest mb-4 flex items-center justify-center gap-2 drop-shadow-md">
+                <BookOpen size={20}/> FOGLIO 2 (Interno)
+           </h3>
 
-       {/* --- ANTEPRIMA INTERNO (DEDICA/CRUCIVERBA) --- */}
-       <div className="w-full max-w-6xl">
-           <h3 className="text-center text-white/80 font-bold uppercase tracking-widest mb-4 flex items-center justify-center gap-2"><BookOpen size={16}/> Interno del Biglietto</h3>
-           <div className={`grid grid-cols-1 lg:grid-cols-2 gap-6 items-start relative z-10 ${isCrossword ? '' : 'max-w-xl mx-auto'}`}>
-               
-               {/* LEFT SIDE: DEDICATION CARD */}
-               <div className="bg-white p-6 rounded-2xl shadow-xl border-4 border-white flex flex-col gap-4">
-                    <div className="text-xs font-bold text-gray-400 uppercase text-center mb-1">Interno Sinistro (Dedica)</div>
-                    <div className={`border-2 ${themeAssets.printBorder} rounded-xl p-6 flex flex-col items-center text-center relative bg-white`}>
-                        <div className="absolute top-2 right-2 opacity-20 text-4xl">{themeAssets.decoration}</div>
-                        
-                        {/* Photo Area */}
+           {/* SHEET CONTAINER - A4 Aspect Ratio */}
+           <div className="bg-white w-full aspect-[297/210] shadow-2xl flex relative overflow-hidden rounded-sm">
+                <div className="absolute inset-y-0 left-1/2 w-px bg-gray-300 border-l border-dashed border-gray-400 opacity-50 z-10"></div>
+
+                {/* LEFT HALF: DEDICA */}
+                <div className={`w-1/2 h-full p-6 flex flex-col items-center justify-between text-center ${themeAssets.printBorder} border-r-0 relative bg-white`}>
+                     <span className="absolute top-2 left-2 text-[10px] uppercase text-gray-300 font-bold">Lato Sinistro</span>
+                     
+                     {/* Photo Area */}
+                     <div className="flex-1 w-full flex flex-col items-center justify-center">
                         {photos.length > 0 ? (
-                            <div className="w-3/4 max-w-[250px] aspect-square rounded-lg overflow-hidden border-4 border-white shadow-md mb-6 rotate-1 hover:rotate-0 transition-transform duration-300">
+                            <div className="w-[70%] aspect-square border-4 border-white shadow-lg overflow-hidden rounded-sm bg-gray-100 rotate-1 mb-4">
                                  <PhotoCollage photos={photos} />
                             </div>
                         ) : data.images?.extraImage ? (
-                            <img src={data.images.extraImage} className="h-40 object-contain mb-6" />
+                            <img src={data.images.extraImage} className="h-32 object-contain mb-4" />
                         ) : null}
 
-                        {/* Editable Message */}
-                        <div className="w-full relative group mb-4">
+                        {/* Editable Message Container */}
+                        <div className="w-full relative group">
                             {isEditingMsg ? (
-                                <div className="w-full animate-in zoom-in-95">
-                                    <textarea className="w-full p-3 bg-gray-50 border-2 border-blue-200 rounded-xl text-center text-lg focus:outline-none focus:border-blue-400 font-hand" rows={4} value={editableMessage} onChange={(e) => setEditableMessage(e.target.value)}/>
+                                <div className="w-full animate-in zoom-in-95 bg-white p-2 rounded-xl shadow-lg border border-blue-200 z-20 absolute top-[-50px] left-0">
+                                    <textarea className="w-full p-2 bg-gray-50 border border-blue-200 rounded-lg text-center text-sm focus:outline-none focus:border-blue-400 font-hand" rows={4} value={editableMessage} onChange={(e) => setEditableMessage(e.target.value)}/>
                                     <div className="flex gap-2 mt-2 justify-center">
-                                        <button onClick={() => setIsEditingMsg(false)} className="bg-green-500 text-white text-xs px-4 py-1.5 rounded-full font-bold hover:bg-green-600">Salva</button>
+                                        <button onClick={() => setIsEditingMsg(false)} className="bg-green-500 text-white text-xs px-3 py-1 rounded-full font-bold">Fatto</button>
                                     </div>
                                 </div>
                             ) : (
-                                <div className="relative cursor-pointer hover:scale-[1.02] transition-transform" onClick={() => setIsEditingMsg(true)}>
-                                    <p className={`text-2xl leading-relaxed ${themeAssets.fontTitle} p-4 rounded-xl hover:bg-yellow-50/50 border border-transparent hover:border-yellow-200`}>
-                                        "{editableMessage}"
-                                    </p>
-                                    <span className="absolute -top-2 -right-2 opacity-0 group-hover:opacity-100 text-gray-400 bg-white rounded-full p-1.5 shadow-md pointer-events-none transition-opacity"><Edit size={14}/></span>
+                                <div className="relative cursor-pointer hover:bg-yellow-50 rounded-xl p-2 transition-colors border border-transparent hover:border-yellow-200" onClick={() => setIsEditingMsg(true)}>
+                                    <p className={`text-xl md:text-2xl leading-relaxed ${themeAssets.fontTitle} text-gray-800`}>"{editableMessage}"</p>
+                                    <span className="absolute -top-2 -right-2 opacity-0 group-hover:opacity-100 text-gray-400 bg-white rounded-full p-1 shadow-md pointer-events-none"><Edit size={12}/></span>
                                 </div>
                             )}
                         </div>
 
-                        {/* AI Re-writer */}
-                        <div className="flex flex-col gap-2 w-full mt-2 pt-4 border-t border-gray-100">
-                             <span className="text-[10px] text-gray-400 font-bold uppercase tracking-widest">Riscrivi con IA</span>
-                             <div className="flex flex-wrap gap-2 justify-center">
-                                <button disabled={isRegeneratingMsg} onClick={() => handleRegenerateMessage('funny')} className="text-xs bg-gray-50 px-3 py-1.5 rounded-full hover:bg-blue-100 border transition-colors">😂 Simpatico</button>
-                                <button disabled={isRegeneratingMsg} onClick={() => handleRegenerateMessage('heartfelt')} className="text-xs bg-gray-50 px-3 py-1.5 rounded-full hover:bg-blue-100 border transition-colors">❤️ Dolce</button>
-                                <button disabled={isRegeneratingMsg} onClick={() => handleRegenerateMessage('rhyme')} className="text-xs bg-gray-50 px-3 py-1.5 rounded-full hover:bg-blue-100 border transition-colors">🎵 Rima</button>
-                                <button disabled={isRegeneratingMsg} onClick={() => setCustomPromptMode(!customPromptMode)} className="text-xs bg-gray-50 px-3 py-1.5 rounded-full hover:bg-blue-100 border transition-colors">✨ Su Misura</button>
-                            </div>
+                        {/* AI Tools for Message */}
+                        <div className="mt-2 flex gap-1 justify-center opacity-0 group-hover:opacity-100 transition-opacity">
+                            <button onClick={() => handleRegenerateMessage('funny')} className="text-[10px] bg-gray-100 px-2 py-1 rounded hover:bg-blue-100">😂</button>
+                            <button onClick={() => handleRegenerateMessage('heartfelt')} className="text-[10px] bg-gray-100 px-2 py-1 rounded hover:bg-blue-100">❤️</button>
+                            <button onClick={() => handleRegenerateMessage('rhyme')} className="text-[10px] bg-gray-100 px-2 py-1 rounded hover:bg-blue-100">🎵</button>
                         </div>
-                        
-                        {customPromptMode && (
-                            <div className="flex gap-1 mt-2 w-full animate-in slide-in-from-top-2 fade-in">
-                                <input className="border text-xs flex-1 p-2 rounded-lg outline-none focus:ring-1 focus:ring-blue-400" placeholder="Es: come un pirata" value={customPromptText} onChange={e=>setCustomPromptText(e.target.value)}/>
-                                <button onClick={()=>handleRegenerateMessage('custom')} className="bg-blue-500 text-white text-xs px-3 rounded-lg font-bold">Vai</button>
+
+                         {generatedOptions.length > 0 && (
+                            <div className="absolute bottom-10 left-4 right-4 bg-white p-2 rounded-xl shadow-xl border border-blue-200 z-30 text-left max-h-40 overflow-y-auto">
+                                <span className="text-[10px] font-bold text-blue-500 uppercase mb-1 block">Scegli:</span>
+                                {generatedOptions.map((opt, idx) => (
+                                    <button key={idx} onClick={() => { setEditableMessage(opt); setGeneratedOptions([]); }} className="w-full text-left text-xs p-2 hover:bg-blue-50 rounded border-b last:border-0 border-gray-100 mb-1">{opt}</button>
+                                ))}
                             </div>
                         )}
-                        
-                        {isRegeneratingMsg && <div className="mt-2 text-blue-500 text-xs flex items-center justify-center gap-1"><RefreshCw size={12} className="animate-spin"/> Genero idee...</div>}
+                     </div>
 
-                        {generatedOptions.length > 0 && (
-                            <div className="mt-3 w-full bg-blue-50 p-3 rounded-xl border border-blue-100 text-left animate-in zoom-in-95 duration-200 relative z-20">
-                                <span className="text-[10px] font-bold text-blue-400 uppercase mb-2 block">Scegli un'opzione:</span>
-                                <div className="space-y-2">
-                                    {generatedOptions.map((opt, idx) => (
-                                        <button 
-                                            key={idx}
-                                            onClick={() => { setEditableMessage(opt); setGeneratedOptions([]); }}
-                                            className="w-full text-left text-sm p-3 bg-white rounded-lg border hover:border-blue-400 hover:shadow-md transition-all flex items-start gap-2 group"
-                                        >
-                                            <div className="mt-0.5 w-4 h-4 rounded-full border border-gray-300 group-hover:border-blue-500 group-hover:bg-blue-500 flex items-center justify-center shrink-0">
-                                                <div className="w-1.5 h-1.5 bg-white rounded-full opacity-0 group-hover:opacity-100"/>
+                     <div className="flex gap-2 text-2xl mt-2 justify-center">
+                         {data.stickers?.slice(0,5).map((s,i) => <span key={i}>{s}</span>)}
+                     </div>
+                </div>
+
+                {/* RIGHT HALF: GIOCO */}
+                <div className="w-1/2 h-full p-4 md:p-6 flex flex-col relative">
+                    <span className="absolute top-2 right-2 text-[10px] uppercase text-gray-300 font-bold">Lato Destro</span>
+                    
+                    {isCrossword ? (
+                        <>
+                            <h2 className="text-lg font-bold uppercase border-b-2 border-black mb-2 pb-1 text-center tracking-widest">Cruciverba</h2>
+                            
+                            {/* Hidden Word Box */}
+                            {data.solution && (
+                                <div className="mb-2 bg-yellow-50 border border-yellow-200 p-1 rounded-lg text-center mx-auto inline-block">
+                                    <div className="flex justify-center gap-0.5">
+                                        {data.solution.word.split('').map((c,i) => (
+                                            <div key={i} className={`w-4 h-4 border rounded text-[10px] flex items-center justify-center font-bold ${revealAnswers ? 'bg-yellow-400 text-white border-yellow-500' : 'bg-white border-yellow-200 text-transparent'}`}>
+                                                {c}
                                             </div>
-                                            <span className="flex-1 leading-snug">{opt}</span>
-                                        </button>
-                                    ))}
+                                        ))}
+                                    </div>
                                 </div>
-                                <button onClick={() => setGeneratedOptions([])} className="text-xs text-gray-400 underline mt-2 w-full text-center hover:text-gray-600">Annulla</button>
+                            )}
+
+                            {/* GRID */}
+                            <div className="flex-1 flex items-start justify-center overflow-hidden min-h-0">
+                                <div style={{ width: '90%', maxHeight: '100%', aspectRatio: `${data.width}/${data.height}` }}>
+                                    {renderGridCells(true)} {/* Use Print Mode Rendering for better clarity on sheet view */}
+                                </div>
                             </div>
-                        )}
-
-                        {data.stickers && <div className="flex flex-wrap justify-center gap-2 mt-6 text-3xl">{data.stickers.map((s,i) => <span key={i} className="hover:scale-125 transition-transform cursor-default">{s}</span>)}</div>}
-                    </div>
-               </div>
-
-               {/* RIGHT SIDE: CROSSWORD CARD */}
-               {isCrossword && (
-                 <div className="bg-white p-6 rounded-2xl shadow-xl border-4 border-white">
-                     <div className="text-xs font-bold text-gray-400 uppercase text-center mb-1">Interno Destro (Cruciverba)</div>
-                     
-                     {data.solution && (
-                         <div className="mb-4 bg-yellow-50 border border-yellow-200 p-3 rounded-xl text-center">
-                             <span className="text-[10px] font-bold uppercase text-yellow-700 tracking-wider mb-1 block">Parola Nascosta</span>
-                             <div className="flex justify-center gap-1">
-                                 {data.solution.word.split('').map((c,i) => (
-                                     <div key={i} className={`w-6 h-6 border-2 rounded text-sm flex items-center justify-center font-bold ${revealAnswers ? 'bg-yellow-400 text-white border-yellow-500' : 'bg-white border-yellow-200 text-transparent'}`}>
-                                         {c}
-                                     </div>
-                                 ))}
-                             </div>
-                         </div>
-                     )}
-
-                     <div className="mb-6">
-                        {renderGridCells()}
-                     </div>
-                     
-                     {/* Clues List on Screen */}
-                     <div className="bg-gray-50 rounded-xl p-4 border border-gray-100 max-h-60 overflow-y-auto custom-scrollbar">
-                         <div className="grid grid-cols-1 gap-4 text-sm">
-                             <div>
-                                 <h4 className="font-bold text-gray-700 mb-2 flex items-center gap-1"><ArrowRight size={14}/> Orizzontali</h4>
-                                 <ul className="space-y-1">
-                                     {data.words.filter(w => w.direction === Direction.ACROSS).map(w => (
-                                         <li key={w.id} className={`text-gray-600 ${activeWord?.id === w.id ? 'text-blue-600 font-bold bg-blue-50 rounded px-1' : ''}`}>
-                                             <span className="font-bold mr-1">{w.number}.</span>{w.clue}
-                                         </li>
-                                     ))}
-                                 </ul>
-                             </div>
-                             <div>
-                                 <h4 className="font-bold text-gray-700 mb-2 flex items-center gap-1"><ArrowRight size={14} className="rotate-90"/> Verticali</h4>
-                                 <ul className="space-y-1">
-                                     {data.words.filter(w => w.direction === Direction.DOWN).map(w => (
-                                         <li key={w.id} className={`text-gray-600 ${activeWord?.id === w.id ? 'text-blue-600 font-bold bg-blue-50 rounded px-1' : ''}`}>
-                                             <span className="font-bold mr-1">{w.number}.</span>{w.clue}
-                                         </li>
-                                     ))}
-                                 </ul>
-                             </div>
-                         </div>
-                     </div>
-                 </div>
-               )}
+                            
+                            {/* CLUES - NOW INSIDE THE SHEET */}
+                            <div className="mt-2 text-[9px] md:text-[10px] grid grid-cols-2 gap-2 leading-tight w-full border-t border-black pt-2 overflow-y-auto max-h-[30%]">
+                                <div className="pr-1">
+                                    <b className="block border-b border-gray-300 mb-1 pb-0.5 font-bold">Orizzontali</b>
+                                    {data.words.filter(w=>w.direction===Direction.ACROSS).map(w=><div key={w.id} className="mb-0.5"><b className="mr-1">{w.number}.</b>{w.clue}</div>)}
+                                </div>
+                                <div className="pl-1 border-l border-gray-100">
+                                    <b className="block border-b border-gray-300 mb-1 pb-0.5 font-bold">Verticali</b>
+                                    {data.words.filter(w=>w.direction===Direction.DOWN).map(w=><div key={w.id} className="mb-0.5"><b className="mr-1">{w.number}.</b>{w.clue}</div>)}
+                                </div>
+                            </div>
+                        </>
+                    ) : (
+                       <div className="flex-1 flex items-center justify-center opacity-20 border-2 border-dashed border-gray-300 rounded-xl m-4">
+                           <p className="text-xl font-hand rotate-[-5deg] text-center">Spazio per dedica<br/>scritta a mano...</p>
+                       </div>
+                    )}
+                </div>
            </div>
        </div>
 
-       {/* --- PRINT LAYOUT: 2-PAGE BOOKLET --- */}
+       {/* --- PRINT LAYOUT (HIDDEN ON SCREEN) --- */}
        <div className="hidden print:block">
-           {/* SHEET 1: ESTERNO (Retro + Fronte) */}
+           {/* SHEET 1: ESTERNO */}
            <div className="print-sheet flex flex-row">
                <div className="watermark">{themeAssets.watermark}</div>
-               
-               {/* RETRO (Back Cover) - Left Half of Sheet 1 */}
+               {/* Retro */}
                <div className="print-half border-r border-gray-200 flex flex-col items-center justify-center text-center">
                     <div className="text-4xl opacity-20 mb-4">{themeAssets.decoration}</div>
                     <div className="text-sm text-gray-400 uppercase tracking-widest mb-8">Enigmistica Auguri</div>
                     <div className="text-[10px] text-gray-400">Generato con ❤️ e IA</div>
-                    <div className="mt-auto mb-10 opacity-50">
-                        <Printer size={24} className="mx-auto mb-2"/>
-                        <p className="text-[10px]">Made for you</p>
-                    </div>
                </div>
-
-               {/* FRONTE (Front Cover) - Right Half of Sheet 1 */}
+               {/* Fronte */}
                <div className={`print-half ${themeAssets.printBorder} border-l-0 flex flex-col items-center justify-center text-center p-10`}>
                    <h1 className={`text-5xl ${themeAssets.fontTitle} mb-4 text-black`}>{data.title}</h1>
                    <div className="w-20 h-1 bg-black mb-4"></div>
@@ -446,11 +363,10 @@ const CrosswordGrid: React.FC<CrosswordGridProps> = ({ data, onComplete, onEdit 
                </div>
            </div>
 
-           {/* SHEET 2: INTERNO (Dedica + Gioco) */}
+           {/* SHEET 2: INTERNO */}
            <div className="print-sheet flex flex-row">
                <div className="watermark">{themeAssets.watermark}</div>
-
-               {/* INTERNO SINISTRO (Dedica) */}
+               {/* Dedica */}
                <div className={`print-half ${themeAssets.printBorder} border-r-0 flex flex-col items-center text-center p-8`}>
                    <div className="flex-1 flex flex-col items-center justify-center w-full gap-6">
                         {photos.length > 0 ? (
@@ -460,29 +376,35 @@ const CrosswordGrid: React.FC<CrosswordGridProps> = ({ data, onComplete, onEdit 
                         ) : (
                              <div className="text-8xl opacity-10">{themeAssets.decoration}</div>
                         )}
-                        
                         <div className="px-6 py-4">
                              <p className={`text-2xl leading-relaxed ${themeAssets.fontTitle} text-black`}>"{editableMessage}"</p>
                         </div>
-                        
                         <div className="flex gap-4 text-4xl mt-2 grayscale opacity-80">
                              {data.stickers?.slice(0,5).map((s,i) => <span key={i}>{s}</span>)}
                         </div>
                    </div>
                </div>
-
-               {/* INTERNO DESTRO (Gioco) */}
+               {/* Gioco */}
                <div className={`print-half ${themeAssets.printBorder} border-l-0 flex flex-col p-8`}>
                    {isCrossword ? (
                        <div className="flex-1 w-full flex flex-col h-full">
                            <h2 className="text-xl font-bold uppercase border-b-2 border-black mb-4 pb-2 text-center tracking-widest">Cruciverba</h2>
-                           
-                           {/* Grid Area */}
+                           {/* Solution Box Print */}
+                            {data.solution && (
+                                <div className="mb-4 text-center">
+                                    <div className="inline-flex gap-1 border border-black p-1 rounded bg-gray-50">
+                                        {data.solution.word.split('').map((c,i) => (
+                                            <div key={i} className={`w-5 h-5 border border-black text-xs flex items-center justify-center font-bold`}>
+                                                {revealAnswers ? c : ''}
+                                            </div>
+                                        ))}
+                                    </div>
+                                </div>
+                            )}
+
                            <div className="flex-1 flex items-center justify-center mb-6 min-h-0">
                                <div style={{ width: '90%', maxHeight: '100%' }}>{renderGridCells(true)}</div>
                            </div>
-                           
-                           {/* Clues Area */}
                            <div className="text-[10px] grid grid-cols-2 gap-6 leading-tight w-full border-t-2 border-black pt-4">
                                 <div>
                                     <b className="block border-b border-gray-400 mb-2 pb-0.5 uppercase font-bold text-sm">Orizzontali</b>
