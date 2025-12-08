@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef, useMemo } from 'react';
 import { CrosswordData, CellData, Direction, ThemeType } from '../types';
 import { regenerateGreetingOptions } from '../services/geminiService';
-import { Printer, Edit, Wand2, Eye, EyeOff, Check, RefreshCw } from 'lucide-react';
+import { Printer, Edit, Wand2, Eye, EyeOff, Check, RefreshCw, ArrowRight } from 'lucide-react';
 
 interface CrosswordGridProps {
   data: CrosswordData;
@@ -168,7 +168,7 @@ const CrosswordGrid: React.FC<CrosswordGridProps> = ({ data, onComplete, onEdit 
   const handleRegenerateMessage = async (tone: 'funny' | 'heartfelt' | 'rhyme' | 'custom') => {
       if (isRegeneratingMsg) return;
       setIsRegeneratingMsg(true);
-      setGeneratedOptions([]); // Clear previous
+      setGeneratedOptions([]); 
       try {
           const options = await regenerateGreetingOptions(editableMessage, data.theme, data.recipientName, tone, tone === 'custom' ? customPromptText : undefined);
           setGeneratedOptions(options);
@@ -190,14 +190,26 @@ const CrosswordGrid: React.FC<CrosswordGridProps> = ({ data, onComplete, onEdit 
       {grid.map((row, y) => row.map((cell, x) => {
           const isSelected = !isPrint && selectedCell?.x === x && selectedCell?.y === y;
           const isInActiveWord = !isPrint && !isSelected && activeWord && ((activeWord.direction === Direction.ACROSS && y === activeWord.startY && x >= activeWord.startX && x < activeWord.startX + activeWord.word.length) || (activeWord.direction === Direction.DOWN && x === activeWord.startX && y >= activeWord.startY && y < activeWord.startY + activeWord.word.length));
+          
           if (!cell.char) return <div key={`${x}-${y}`} className={`${isPrint ? 'bg-gray-100 border border-gray-300' : 'bg-black/5 rounded-sm'}`} />;
+          
+          // Logic for displaying char: If revealAnswers is true, SHOW THE CORRECT CHAR. Otherwise user char.
+          const displayChar = (revealAnswers || isPrint) && revealAnswers ? cell.char : cell.userChar;
+          
           return (
             <div key={`${x}-${y}`} onClick={() => !isPrint && handleCellClick(x, y)} className={`relative flex items-center justify-center ${isPrint ? 'border-r border-b border-black text-black' : `w-full h-full text-xl font-bold cursor-pointer ${isSelected ? 'bg-yellow-200' : isInActiveWord ? 'bg-blue-50' : 'bg-white'}`}`} style={isPrint ? { width: '100%', height: '100%' } : {}}>
               {cell.number && <span className={`absolute top-0 left-0 leading-none ${isPrint ? 'text-[8px] p-[1px]' : 'text-[9px] p-0.5 text-gray-500'}`}>{cell.number}</span>}
               {cell.isSolutionCell && isPrint && <div className="absolute inset-0 bg-yellow-100/30 -z-10" />}
               {cell.isSolutionCell && isPrint && cell.solutionIndex && <div className="absolute bottom-0 right-0 text-[8px] p-[1px] font-bold text-gray-500">{cell.solutionIndex}</div>}
-              {isPrint ? <span className="font-bold text-lg">{revealAnswers ? cell.char : ''}</span> : (
-                  isSelected ? <input ref={(el) => { inputRefs.current[y][x] = el; }} maxLength={1} className="w-full h-full text-center bg-transparent outline-none uppercase" value={cell.userChar} onChange={(e) => handleInput(x, y, e.target.value)} /> : <span>{cell.userChar}</span>
+              
+              {isPrint ? (
+                  <span className="font-bold text-lg">{displayChar}</span>
+              ) : (
+                  isSelected && !revealAnswers ? (
+                     <input ref={(el) => { inputRefs.current[y][x] = el; }} maxLength={1} className="w-full h-full text-center bg-transparent outline-none uppercase" value={cell.userChar} onChange={(e) => handleInput(x, y, e.target.value)} />
+                  ) : (
+                     <span className={revealAnswers ? 'text-green-600' : ''}>{displayChar}</span>
+                  )
               )}
             </div>
           );
@@ -208,51 +220,74 @@ const CrosswordGrid: React.FC<CrosswordGridProps> = ({ data, onComplete, onEdit 
   return (
     <div className="flex flex-col items-center gap-6 w-full max-w-6xl mx-auto pb-10">
        <WowEffect theme={data.theme} />
+       
+       {/* Actions Bar */}
        <div className="flex gap-2 justify-center z-10 sticky top-2">
-            <button onClick={onEdit} className="bg-white px-3 py-1 rounded-full shadow border text-sm flex items-center gap-2"><Edit size={14} /> Modifica</button>
-            <button onClick={() => setShowPrintGuide(true)} className="bg-blue-600 text-white px-4 py-1 rounded-full shadow border text-sm flex items-center gap-2 font-bold"><Printer size={14} /> STAMPA</button>
-            <button onClick={() => setRevealAnswers(!revealAnswers)} className="bg-white px-3 py-1 rounded-full shadow border text-sm flex items-center gap-2">{revealAnswers ? <EyeOff size={14}/> : <Eye size={14}/>} {revealAnswers ? 'Nascondi' : 'Soluzione'}</button>
+            <button onClick={onEdit} className="bg-white px-4 py-2 rounded-full shadow-lg border text-sm flex items-center gap-2 font-bold hover:bg-gray-50 text-gray-700"><Edit size={16} /> Modifica</button>
+            <button onClick={() => setShowPrintGuide(true)} className="bg-gradient-to-r from-blue-600 to-indigo-600 text-white px-6 py-2 rounded-full shadow-lg text-sm flex items-center gap-2 font-bold hover:scale-105 transition-transform"><Printer size={16} /> STAMPA</button>
+            <button onClick={() => setRevealAnswers(!revealAnswers)} className={`px-4 py-2 rounded-full shadow-lg border text-sm flex items-center gap-2 font-bold transition-colors ${revealAnswers ? 'bg-yellow-100 text-yellow-800 border-yellow-300' : 'bg-white text-gray-700'}`}>{revealAnswers ? <EyeOff size={16}/> : <Eye size={16}/>} {revealAnswers ? 'Nascondi' : 'Soluzione'}</button>
        </div>
        
-       {showPrintGuide && <div className="fixed inset-0 bg-black/80 z-50 flex items-center justify-center p-4" onClick={() => setShowPrintGuide(false)}><div className="bg-white rounded-xl p-6 text-center shadow-2xl max-w-sm"><h3 className="text-xl font-bold mb-2">Stampa</h3><p className="text-sm mb-4">Usa foglio A4 Orizzontale.</p><button onClick={() => {window.print(); setShowPrintGuide(false);}} className="bg-blue-600 text-white w-full py-2 rounded-lg font-bold">Stampa Ora</button></div></div>}
+       {/* Print Guide Modal */}
+       {showPrintGuide && (
+           <div className="fixed inset-0 bg-black/80 z-50 flex items-center justify-center p-4 animate-in fade-in" onClick={() => setShowPrintGuide(false)}>
+               <div className="bg-white rounded-2xl p-8 text-center shadow-2xl max-w-md border-4 border-blue-100" onClick={e => e.stopPropagation()}>
+                   <div className="bg-blue-100 w-16 h-16 rounded-full flex items-center justify-center mx-auto mb-4 text-blue-600"><Printer size={32}/></div>
+                   <h3 className="text-2xl font-bold mb-2 text-gray-800">Stampa Libretto</h3>
+                   <div className="text-left text-sm text-gray-600 mb-6 space-y-3 bg-gray-50 p-4 rounded-xl">
+                       <p className="flex items-start gap-2"><span className="bg-blue-600 text-white rounded-full w-5 h-5 flex items-center justify-center text-xs shrink-0 mt-0.5">1</span> Usa un foglio <b>A4</b> standard.</p>
+                       <p className="flex items-start gap-2"><span className="bg-blue-600 text-white rounded-full w-5 h-5 flex items-center justify-center text-xs shrink-0 mt-0.5">2</span> Seleziona <b>Stampa su entrambi i lati</b> (Fronte/Retro).</p>
+                       <p className="flex items-start gap-2"><span className="bg-blue-600 text-white rounded-full w-5 h-5 flex items-center justify-center text-xs shrink-0 mt-0.5">3</span> Scegli capovolgimento sul <b>Lato Corto</b> (Short Edge).</p>
+                   </div>
+                   <button onClick={() => {window.print(); setShowPrintGuide(false);}} className="bg-blue-600 text-white w-full py-3 rounded-xl font-bold text-lg hover:bg-blue-700 transition-colors">🖨️ Stampa Ora</button>
+               </div>
+           </div>
+       )}
 
        <div className={`w-full grid grid-cols-1 lg:grid-cols-2 gap-6 items-start relative z-10 ${isCrossword ? '' : 'max-w-xl'}`}>
-           {/* LEFT SIDE: GREETING & PHOTO */}
+           {/* LEFT SIDE: DEDICATION CARD */}
            <div className="bg-white p-6 rounded-2xl shadow-xl border-4 border-white flex flex-col gap-4">
-                <div className={`border-2 ${themeAssets.printBorder} rounded-xl p-4 flex flex-col items-center text-center relative`}>
+                <div className="text-xs font-bold text-gray-400 uppercase text-center mb-1">Anteprima Interno Sinistro</div>
+                <div className={`border-2 ${themeAssets.printBorder} rounded-xl p-6 flex flex-col items-center text-center relative bg-white`}>
                     <div className="absolute top-2 right-2 opacity-20 text-4xl">{themeAssets.decoration}</div>
+                    
+                    {/* Photo Area */}
                     {photos.length > 0 ? (
-                        <div className="w-3/4 max-w-[250px] aspect-square rounded-lg overflow-hidden border shadow-sm mb-4">
+                        <div className="w-3/4 max-w-[250px] aspect-square rounded-lg overflow-hidden border-4 border-white shadow-md mb-6 rotate-1 hover:rotate-0 transition-transform duration-300">
                              <PhotoCollage photos={photos} />
                         </div>
                     ) : data.images?.extraImage ? (
-                        <img src={data.images.extraImage} className="h-40 object-contain mb-4" />
+                        <img src={data.images.extraImage} className="h-40 object-contain mb-6" />
                     ) : null}
 
-                    {/* Editable Message Area */}
-                    <div className="w-full relative group">
+                    {/* Editable Message */}
+                    <div className="w-full relative group mb-4">
                         {isEditingMsg ? (
-                            <div className="w-full">
-                                <textarea className="w-full p-2 bg-gray-50 border rounded text-center text-lg focus:ring-2 focus:ring-blue-400" rows={3} value={editableMessage} onChange={(e) => setEditableMessage(e.target.value)}/>
-                                <button onClick={() => setIsEditingMsg(false)} className="bg-green-500 text-white text-xs px-3 py-1 rounded mt-1 font-bold">Salva</button>
+                            <div className="w-full animate-in zoom-in-95">
+                                <textarea className="w-full p-3 bg-gray-50 border-2 border-blue-200 rounded-xl text-center text-lg focus:outline-none focus:border-blue-400 font-hand" rows={4} value={editableMessage} onChange={(e) => setEditableMessage(e.target.value)}/>
+                                <div className="flex gap-2 mt-2 justify-center">
+                                    <button onClick={() => setIsEditingMsg(false)} className="bg-green-500 text-white text-xs px-4 py-1.5 rounded-full font-bold hover:bg-green-600">Salva</button>
+                                </div>
                             </div>
                         ) : (
-                            <div className="relative">
-                                <p className={`text-xl ${themeAssets.fontTitle} mb-2 p-2 rounded hover:bg-yellow-50 cursor-text transition-colors`} onClick={() => setIsEditingMsg(true)}>
+                            <div className="relative cursor-pointer hover:scale-[1.02] transition-transform" onClick={() => setIsEditingMsg(true)}>
+                                <p className={`text-2xl leading-relaxed ${themeAssets.fontTitle} p-4 rounded-xl hover:bg-yellow-50/50 border border-transparent hover:border-yellow-200`}>
                                     "{editableMessage}"
                                 </p>
-                                <span className="absolute -top-1 -right-1 opacity-0 group-hover:opacity-100 text-gray-400 bg-white rounded-full p-1 shadow-sm pointer-events-none"><Edit size={12}/></span>
+                                <span className="absolute -top-2 -right-2 opacity-0 group-hover:opacity-100 text-gray-400 bg-white rounded-full p-1.5 shadow-md pointer-events-none transition-opacity"><Edit size={14}/></span>
                             </div>
                         )}
                     </div>
 
-                    {/* AI TOOLS */}
-                    <div className="flex flex-wrap gap-2 justify-center mt-2 pt-2 border-t border-gray-100 w-full">
-                        <span className="text-[10px] text-gray-400 w-full uppercase font-bold tracking-wider">Cambia Stile</span>
-                        <button disabled={isRegeneratingMsg} onClick={() => handleRegenerateMessage('funny')} className="text-xs bg-gray-50 px-3 py-1.5 rounded-full hover:bg-blue-100 border transition-colors">😂 Simpatico</button>
-                        <button disabled={isRegeneratingMsg} onClick={() => handleRegenerateMessage('heartfelt')} className="text-xs bg-gray-50 px-3 py-1.5 rounded-full hover:bg-blue-100 border transition-colors">❤️ Dolce</button>
-                        <button disabled={isRegeneratingMsg} onClick={() => handleRegenerateMessage('rhyme')} className="text-xs bg-gray-50 px-3 py-1.5 rounded-full hover:bg-blue-100 border transition-colors">🎵 Rima</button>
-                        <button disabled={isRegeneratingMsg} onClick={() => setCustomPromptMode(!customPromptMode)} className="text-xs bg-gray-50 px-3 py-1.5 rounded-full hover:bg-blue-100 border transition-colors">✨ Su Misura</button>
+                    {/* AI Re-writer */}
+                    <div className="flex flex-col gap-2 w-full mt-2 pt-4 border-t border-gray-100">
+                         <span className="text-[10px] text-gray-400 font-bold uppercase tracking-widest">Riscrivi con IA</span>
+                         <div className="flex flex-wrap gap-2 justify-center">
+                            <button disabled={isRegeneratingMsg} onClick={() => handleRegenerateMessage('funny')} className="text-xs bg-gray-50 px-3 py-1.5 rounded-full hover:bg-blue-100 border transition-colors">😂 Simpatico</button>
+                            <button disabled={isRegeneratingMsg} onClick={() => handleRegenerateMessage('heartfelt')} className="text-xs bg-gray-50 px-3 py-1.5 rounded-full hover:bg-blue-100 border transition-colors">❤️ Dolce</button>
+                            <button disabled={isRegeneratingMsg} onClick={() => handleRegenerateMessage('rhyme')} className="text-xs bg-gray-50 px-3 py-1.5 rounded-full hover:bg-blue-100 border transition-colors">🎵 Rima</button>
+                            <button disabled={isRegeneratingMsg} onClick={() => setCustomPromptMode(!customPromptMode)} className="text-xs bg-gray-50 px-3 py-1.5 rounded-full hover:bg-blue-100 border transition-colors">✨ Su Misura</button>
+                        </div>
                     </div>
                     
                     {customPromptMode && (
@@ -262,23 +297,22 @@ const CrosswordGrid: React.FC<CrosswordGridProps> = ({ data, onComplete, onEdit 
                         </div>
                     )}
                     
-                    {isRegeneratingMsg && <div className="mt-2 text-blue-500 text-xs flex items-center gap-1"><RefreshCw size={12} className="animate-spin"/> Genero idee...</div>}
+                    {isRegeneratingMsg && <div className="mt-2 text-blue-500 text-xs flex items-center justify-center gap-1"><RefreshCw size={12} className="animate-spin"/> Genero idee...</div>}
 
-                    {/* Generated Options Popup */}
                     {generatedOptions.length > 0 && (
-                        <div className="mt-3 w-full bg-blue-50 p-3 rounded-xl border border-blue-100 text-left animate-in zoom-in-95 duration-200">
+                        <div className="mt-3 w-full bg-blue-50 p-3 rounded-xl border border-blue-100 text-left animate-in zoom-in-95 duration-200 relative z-20">
                             <span className="text-[10px] font-bold text-blue-400 uppercase mb-2 block">Scegli un'opzione:</span>
                             <div className="space-y-2">
                                 {generatedOptions.map((opt, idx) => (
                                     <button 
                                         key={idx}
                                         onClick={() => { setEditableMessage(opt); setGeneratedOptions([]); }}
-                                        className="w-full text-left text-sm p-2 bg-white rounded border hover:border-blue-400 hover:shadow-sm transition-all flex items-start gap-2 group"
+                                        className="w-full text-left text-sm p-3 bg-white rounded-lg border hover:border-blue-400 hover:shadow-md transition-all flex items-start gap-2 group"
                                     >
-                                        <div className="mt-0.5 w-4 h-4 rounded-full border border-gray-300 group-hover:border-blue-500 group-hover:bg-blue-500 flex items-center justify-center">
+                                        <div className="mt-0.5 w-4 h-4 rounded-full border border-gray-300 group-hover:border-blue-500 group-hover:bg-blue-500 flex items-center justify-center shrink-0">
                                             <div className="w-1.5 h-1.5 bg-white rounded-full opacity-0 group-hover:opacity-100"/>
                                         </div>
-                                        <span className="flex-1">{opt}</span>
+                                        <span className="flex-1 leading-snug">{opt}</span>
                                     </button>
                                 ))}
                             </div>
@@ -286,81 +320,148 @@ const CrosswordGrid: React.FC<CrosswordGridProps> = ({ data, onComplete, onEdit 
                         </div>
                     )}
 
-                    {data.stickers && <div className="flex flex-wrap justify-center gap-2 mt-4 text-3xl">{data.stickers.map((s,i) => <span key={i}>{s}</span>)}</div>}
+                    {data.stickers && <div className="flex flex-wrap justify-center gap-2 mt-6 text-3xl">{data.stickers.map((s,i) => <span key={i} className="hover:scale-125 transition-transform cursor-default">{s}</span>)}</div>}
                 </div>
            </div>
 
-           {/* RIGHT SIDE: GRID */}
+           {/* RIGHT SIDE: CROSSWORD CARD */}
            {isCrossword && (
              <div className="bg-white p-6 rounded-2xl shadow-xl border-4 border-white">
-                 {data.solution && <div className="mb-4 bg-yellow-50 border p-2 rounded text-center"><span className="text-[10px] font-bold uppercase">Soluzione</span><div className="flex justify-center gap-1">{data.solution.word.split('').map((c,i)=><div key={i} className="w-5 h-5 border bg-white text-xs flex items-center justify-center font-bold">{revealAnswers ? c : ''}</div>)}</div></div>}
-                 {renderGridCells()}
-                 {activeWord && <div className="mt-4 bg-gray-50 p-2 rounded text-center border"><span className="text-xs font-bold text-gray-400 block">{activeWord.number}. {activeWord.direction}</span><p className="font-bold">{activeWord.clue}</p></div>}
+                 <div className="text-xs font-bold text-gray-400 uppercase text-center mb-1">Anteprima Interno Destro</div>
+                 
+                 {data.solution && (
+                     <div className="mb-4 bg-yellow-50 border border-yellow-200 p-3 rounded-xl text-center">
+                         <span className="text-[10px] font-bold uppercase text-yellow-700 tracking-wider mb-1 block">Parola Nascosta</span>
+                         <div className="flex justify-center gap-1">
+                             {data.solution.word.split('').map((c,i) => (
+                                 <div key={i} className={`w-6 h-6 border-2 rounded text-sm flex items-center justify-center font-bold ${revealAnswers ? 'bg-yellow-400 text-white border-yellow-500' : 'bg-white border-yellow-200 text-transparent'}`}>
+                                     {c}
+                                 </div>
+                             ))}
+                         </div>
+                     </div>
+                 )}
+
+                 <div className="mb-6">
+                    {renderGridCells()}
+                 </div>
+                 
+                 {/* Clues List on Screen */}
+                 <div className="bg-gray-50 rounded-xl p-4 border border-gray-100 max-h-60 overflow-y-auto custom-scrollbar">
+                     <div className="grid grid-cols-1 gap-4 text-sm">
+                         <div>
+                             <h4 className="font-bold text-gray-700 mb-2 flex items-center gap-1"><ArrowRight size={14}/> Orizzontali</h4>
+                             <ul className="space-y-1">
+                                 {data.words.filter(w => w.direction === Direction.ACROSS).map(w => (
+                                     <li key={w.id} className={`text-gray-600 ${activeWord?.id === w.id ? 'text-blue-600 font-bold bg-blue-50 rounded px-1' : ''}`}>
+                                         <span className="font-bold mr-1">{w.number}.</span>{w.clue}
+                                     </li>
+                                 ))}
+                             </ul>
+                         </div>
+                         <div>
+                             <h4 className="font-bold text-gray-700 mb-2 flex items-center gap-1"><ArrowRight size={14} className="rotate-90"/> Verticali</h4>
+                             <ul className="space-y-1">
+                                 {data.words.filter(w => w.direction === Direction.DOWN).map(w => (
+                                     <li key={w.id} className={`text-gray-600 ${activeWord?.id === w.id ? 'text-blue-600 font-bold bg-blue-50 rounded px-1' : ''}`}>
+                                         <span className="font-bold mr-1">{w.number}.</span>{w.clue}
+                                     </li>
+                                 ))}
+                             </ul>
+                         </div>
+                     </div>
+                 </div>
              </div>
            )}
        </div>
 
-       {/* PRINT LAYOUT - FIXED A4 BOOKLET (Left: Back, Right: Front) */}
-       <div className="hidden print:flex print-sheet" style={{ width: '297mm', height: '210mm', overflow: 'hidden', flexDirection: 'row' }}>
-           <div className="watermark">{themeAssets.watermark}</div>
-           
-           {/* LEFT PAGE (Retro/Back Cover) - Contains Dedication, Photos, Stickers */}
-           <div className={`print-half ${themeAssets.printBorder} border-r-0 flex flex-col items-center text-center justify-between`} style={{ width: '148.5mm', height: '210mm', padding: '15mm' }}>
-               <div className="text-[8px] text-gray-400 uppercase tracking-widest mb-4">Retro del Biglietto</div>
+       {/* --- PRINT LAYOUT: 2-PAGE BOOKLET --- */}
+       <div className="hidden print:block">
+           {/* SHEET 1: ESTERNO (Retro + Fronte) */}
+           <div className="print-sheet flex flex-row">
+               <div className="watermark">{themeAssets.watermark}</div>
                
-               {/* Content centered vertically */}
-               <div className="flex-1 flex flex-col items-center justify-center w-full gap-4">
-                   <div className="w-full flex justify-center">
-                       {photos.length > 0 ? (
-                           <div className="w-[80%] aspect-square border-4 border-white shadow-sm overflow-hidden rounded-sm">
-                               <PhotoCollage photos={photos} />
-                           </div>
-                       ) : data.images?.extraImage ? (
-                           <img src={data.images.extraImage} className="max-h-[80mm] object-contain" />
-                       ) : <div className="text-9xl opacity-10">{themeAssets.decoration}</div>}
+               {/* RETRO (Back Cover) - Left Half of Sheet 1 */}
+               <div className="print-half border-r border-gray-200 flex flex-col items-center justify-center text-center">
+                    <div className="text-4xl opacity-20 mb-4">{themeAssets.decoration}</div>
+                    <div className="text-sm text-gray-400 uppercase tracking-widest mb-8">Enigmistica Auguri</div>
+                    <div className="text-[10px] text-gray-400">Generato con ❤️ e IA</div>
+                    <div className="mt-auto mb-10 opacity-50">
+                        <Printer size={24} className="mx-auto mb-2"/>
+                        <p className="text-[10px]">Made for you</p>
+                    </div>
+               </div>
+
+               {/* FRONTE (Front Cover) - Right Half of Sheet 1 */}
+               <div className={`print-half ${themeAssets.printBorder} border-l-0 flex flex-col items-center justify-center text-center p-10`}>
+                   <h1 className={`text-5xl ${themeAssets.fontTitle} mb-4 text-black`}>{data.title}</h1>
+                   <div className="w-20 h-1 bg-black mb-4"></div>
+                   <p className="text-xl uppercase text-gray-600 mb-10 tracking-widest">{data.eventDate}</p>
+                   {data.images?.extraImage ? (
+                       <img src={data.images.extraImage} className="max-h-60 object-contain grayscale contrast-125" />
+                   ) : (
+                       <div className="text-9xl opacity-80 text-black">{themeAssets.decoration}</div>
+                   )}
+                   <div className="mt-auto">
+                       <p className="text-sm italic">"Un pensiero speciale per te..."</p>
                    </div>
-                   
-                   <div className="px-4">
-                        <p className={`text-xl leading-relaxed ${themeAssets.fontTitle}`}>"{editableMessage}"</p>
-                   </div>
-                   
-                   <div className="flex gap-3 text-3xl mt-2">
-                        {data.stickers?.slice(0,5).map((s,i) => <span key={i}>{s}</span>)}
+               </div>
+           </div>
+
+           {/* SHEET 2: INTERNO (Dedica + Gioco) */}
+           <div className="print-sheet flex flex-row">
+               <div className="watermark">{themeAssets.watermark}</div>
+
+               {/* INTERNO SINISTRO (Dedica) */}
+               <div className={`print-half ${themeAssets.printBorder} border-r-0 flex flex-col items-center text-center p-8`}>
+                   <div className="flex-1 flex flex-col items-center justify-center w-full gap-6">
+                        {photos.length > 0 ? (
+                            <div className="w-[80%] aspect-square border-4 border-white shadow-sm overflow-hidden rounded-sm bg-white">
+                                <PhotoCollage photos={photos} />
+                            </div>
+                        ) : (
+                             <div className="text-8xl opacity-10">{themeAssets.decoration}</div>
+                        )}
+                        
+                        <div className="px-6 py-4">
+                             <p className={`text-2xl leading-relaxed ${themeAssets.fontTitle} text-black`}>"{editableMessage}"</p>
+                        </div>
+                        
+                        <div className="flex gap-4 text-4xl mt-2 grayscale opacity-80">
+                             {data.stickers?.slice(0,5).map((s,i) => <span key={i}>{s}</span>)}
+                        </div>
                    </div>
                </div>
 
-               <div className="text-[10px] text-gray-400 mt-4">Creato con Enigmistica Auguri</div>
-           </div>
-
-           {/* RIGHT PAGE (Fronte/Front Cover) - Contains Title and Crossword (The "Gift") */}
-           <div className={`print-half ${themeAssets.printBorder} flex flex-col items-center`} style={{ width: '148.5mm', height: '210mm', padding: '15mm' }}>
-                <div className="text-[8px] text-gray-400 uppercase tracking-widest mb-4">Fronte del Biglietto</div>
-               
-               <h1 className={`text-3xl ${themeAssets.fontTitle} mb-1 text-center`}>{data.title}</h1>
-               <p className="text-xs uppercase text-gray-500 mb-6">{data.eventDate}</p>
-
-               {isCrossword ? (
-                   <div className="flex-1 w-full flex flex-col">
-                       <div className="flex-1 flex items-center justify-center mb-4">
-                           <div style={{ width: '95%' }}>{renderGridCells(true)}</div>
+               {/* INTERNO DESTRO (Gioco) */}
+               <div className={`print-half ${themeAssets.printBorder} border-l-0 flex flex-col p-8`}>
+                   {isCrossword ? (
+                       <div className="flex-1 w-full flex flex-col h-full">
+                           <h2 className="text-xl font-bold uppercase border-b-2 border-black mb-4 pb-2 text-center tracking-widest">Cruciverba</h2>
+                           
+                           {/* Grid Area */}
+                           <div className="flex-1 flex items-center justify-center mb-6 min-h-0">
+                               <div style={{ width: '90%', maxHeight: '100%' }}>{renderGridCells(true)}</div>
+                           </div>
+                           
+                           {/* Clues Area */}
+                           <div className="text-[10px] grid grid-cols-2 gap-6 leading-tight w-full border-t-2 border-black pt-4">
+                                <div>
+                                    <b className="block border-b border-gray-400 mb-2 pb-0.5 uppercase font-bold text-sm">Orizzontali</b>
+                                    {data.words.filter(w=>w.direction===Direction.ACROSS).map(w=><div key={w.id} className="mb-1"><b className="mr-1 text-sm">{w.number}.</b>{w.clue}</div>)}
+                                </div>
+                                <div>
+                                    <b className="block border-b border-gray-400 mb-2 pb-0.5 uppercase font-bold text-sm">Verticali</b>
+                                    {data.words.filter(w=>w.direction===Direction.DOWN).map(w=><div key={w.id} className="mb-1"><b className="mr-1 text-sm">{w.number}.</b>{w.clue}</div>)}
+                                </div>
+                           </div>
                        </div>
-                       
-                       <div className="text-[9px] grid grid-cols-2 gap-4 leading-tight w-full border-t pt-2 border-black">
-                            <div>
-                                <b className="block border-b border-black mb-1 pb-0.5 uppercase">Orizzontali</b>
-                                {data.words.filter(w=>w.direction===Direction.ACROSS).map(w=><div key={w.id}><b className="mr-1">{w.number}.</b>{w.clue}</div>)}
-                            </div>
-                            <div>
-                                <b className="block border-b border-black mb-1 pb-0.5 uppercase">Verticali</b>
-                                {data.words.filter(w=>w.direction===Direction.DOWN).map(w=><div key={w.id}><b className="mr-1">{w.number}.</b>{w.clue}</div>)}
-                            </div>
+                   ) : (
+                       <div className="flex-1 flex items-center justify-center opacity-20 border-2 border-dashed border-gray-300 m-8 rounded-xl">
+                           <p className="text-3xl font-hand rotate-[-5deg]">Spazio per la tua dedica scritta a mano...</p>
                        </div>
-                   </div>
-               ) : (
-                   <div className="flex-1 flex items-center justify-center opacity-20">
-                       <p className="text-2xl font-hand rotate-[-5deg]">Spazio per dedica a mano...</p>
-                   </div>
-               )}
+                   )}
+               </div>
            </div>
        </div>
     </div>
