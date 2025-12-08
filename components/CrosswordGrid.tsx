@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { CrosswordData, CellData, Direction, ThemeType } from '../types';
 import { regenerateGreetingOptions } from '../services/geminiService';
-import { Printer, Edit, Eye, EyeOff, BookOpen, FileText, Sparkles, X, MoveDiagonal } from 'lucide-react';
+import { Printer, Edit, Eye, EyeOff, BookOpen, FileText, Sparkles, X, MoveDiagonal, Check } from 'lucide-react';
 
 interface CrosswordGridProps {
   data: CrosswordData;
@@ -107,7 +107,6 @@ const CrosswordGrid: React.FC<CrosswordGridProps> = ({ data, onComplete, onEdit 
   useEffect(() => {
     const handleMouseMove = (e: MouseEvent) => {
         if (!isResizingWatermark) return;
-        // Simple scale logic based on mouse Y movement (pulling down increases size)
         setWatermarkScale(prev => {
             const newScale = prev + e.movementY * 0.01;
             return Math.max(0.5, Math.min(newScale, 5.0)); // Min 0.5x, Max 5x
@@ -162,6 +161,11 @@ const CrosswordGrid: React.FC<CrosswordGridProps> = ({ data, onComplete, onEdit 
       } catch (e) { console.error(e); } finally { setIsRegeneratingMsg(false); }
   };
 
+  const selectGeneratedOption = (option: string) => {
+      setEditableMessage(option);
+      setGeneratedOptions([]);
+  };
+
   // --- RENDER HELPERS ---
   const renderGridCells = (isPrint = false) => (
     <div className={`grid gap-[1px] ${isPrint ? '' : 'bg-black/10 p-2 rounded-lg'}`} style={{ gridTemplateColumns: `repeat(${data.width}, minmax(0, 1fr))`, aspectRatio: `${data.width}/${data.height}` }}>
@@ -173,7 +177,7 @@ const CrosswordGrid: React.FC<CrosswordGridProps> = ({ data, onComplete, onEdit 
           
           let bgClass = 'bg-white';
           if (isSelected && !isPrint) bgClass = 'bg-blue-100'; 
-          else if (cell.isSolutionCell) bgClass = 'bg-yellow-100'; // SEMPRE GIALLO se soluzione
+          else if (cell.isSolutionCell) bgClass = 'bg-yellow-100'; 
           
           return (
             <div 
@@ -182,10 +186,8 @@ const CrosswordGrid: React.FC<CrosswordGridProps> = ({ data, onComplete, onEdit 
                 className={`relative flex items-center justify-center ${isPrint ? 'border-r border-b border-black text-black' : `w-full h-full text-xl font-bold cursor-pointer ${bgClass}`}`} 
                 style={isPrint ? { width: '100%', height: '100%' } : {}}
             >
-              {/* Numero Casella */}
               {cell.number && <span className={`absolute top-0 left-0 leading-none ${isPrint ? 'text-[6px] p-[1px]' : 'text-[9px] p-0.5 text-gray-500'}`}>{cell.number}</span>}
               
-              {/* Indice numerico soluzione */}
               {cell.isSolutionCell && cell.solutionIndex && (
                   <div className={`absolute bottom-0 right-0 leading-none font-bold text-gray-500 bg-white/50 rounded-tl ${isPrint ? 'text-[6px] p-[1px]' : 'text-[8px] p-0.5'}`}>
                       {cell.solutionIndex}
@@ -216,6 +218,35 @@ const CrosswordGrid: React.FC<CrosswordGridProps> = ({ data, onComplete, onEdit 
   return (
     <div className="flex flex-col items-center gap-8 w-full pb-20">
        
+       {/* SELECTION MODAL (Placed high in DOM to avoid z-index/clipping issues) */}
+       {generatedOptions.length > 0 && (
+            <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm" onClick={() => setGeneratedOptions([])}>
+                <div className="bg-white rounded-2xl shadow-2xl w-full max-w-md overflow-hidden animate-in zoom-in-95 duration-200" onClick={e => e.stopPropagation()}>
+                    <div className="bg-blue-600 p-4 flex justify-between items-center text-white">
+                        <div className="flex items-center gap-2 font-bold">
+                            <Sparkles size={20} className="text-yellow-300"/>
+                            <span>Scegli una frase</span>
+                        </div>
+                        <button onClick={() => setGeneratedOptions([])} className="hover:bg-blue-700 p-1 rounded-full"><X size={20}/></button>
+                    </div>
+                    <div className="p-4 flex flex-col gap-3 bg-gray-50">
+                        {generatedOptions.map((opt, idx) => (
+                            <button 
+                                key={idx} 
+                                onClick={(e) => { e.stopPropagation(); selectGeneratedOption(opt); }} 
+                                className="text-left p-4 bg-white hover:bg-blue-50 border-2 border-gray-100 hover:border-blue-300 rounded-xl transition-all shadow-sm group relative"
+                            >
+                                <p className="text-gray-800 text-sm md:text-base pr-6 font-medium leading-relaxed">"{opt}"</p>
+                                <span className="absolute right-4 top-1/2 -translate-y-1/2 opacity-0 group-hover:opacity-100 text-blue-500 bg-blue-100 p-1 rounded-full">
+                                    <Check size={16}/>
+                                </span>
+                            </button>
+                        ))}
+                    </div>
+                </div>
+            </div>
+       )}
+
        {/* TOOLBAR */}
        <div className="flex flex-wrap gap-2 justify-center z-20 sticky top-2 p-2 bg-black/5 rounded-full backdrop-blur-sm">
             <button onClick={onEdit} className="bg-white px-4 py-2 rounded-full shadow border text-sm flex items-center gap-2 font-bold hover:bg-gray-50 text-gray-700"><Edit size={16} /> Modifica</button>
@@ -351,37 +382,6 @@ const CrosswordGrid: React.FC<CrosswordGridProps> = ({ data, onComplete, onEdit 
                             <button onClick={() => handleRegenerateMessage('heartfelt')} className="text-[10px] bg-gray-100 px-2 py-1 rounded hover:bg-blue-100" title="Genera Frase Dolce">❤️</button>
                             <button onClick={() => handleRegenerateMessage('rhyme')} className="text-[10px] bg-gray-100 px-2 py-1 rounded hover:bg-blue-100" title="Genera Frase in Rima">🎵</button>
                         </div>
-
-                        {/* SELECTION MODAL */}
-                        {generatedOptions.length > 0 && (
-                            <div className="absolute bottom-4 left-4 right-4 bg-white p-4 rounded-xl shadow-2xl border-2 border-blue-500 z-50 animate-in slide-in-from-bottom-5 fade-in duration-300 flex flex-col gap-2">
-                                <div className="flex justify-between items-center border-b border-gray-100 pb-2">
-                                    <div>
-                                        <span className="text-xs font-black text-blue-600 uppercase flex items-center gap-1">
-                                            <Sparkles size={12}/> Clicca per scegliere:
-                                        </span>
-                                    </div>
-                                    <button 
-                                        onClick={() => setGeneratedOptions([])} 
-                                        className="bg-gray-100 hover:bg-gray-200 text-gray-500 p-1 rounded-full transition-colors"
-                                        title="Chiudi"
-                                    >
-                                        <X size={14}/>
-                                    </button>
-                                </div>
-                                <div className="flex flex-col gap-2 max-h-48 overflow-y-auto custom-scrollbar p-1">
-                                    {generatedOptions.map((opt, idx) => (
-                                        <button 
-                                            key={idx} 
-                                            onClick={() => { setEditableMessage(opt); setGeneratedOptions([]); }} 
-                                            className="text-left text-xs md:text-sm p-3 bg-blue-50 hover:bg-blue-600 hover:text-white rounded-lg border border-blue-100 transition-all shadow-sm active:scale-95 group"
-                                        >
-                                           {opt}
-                                        </button>
-                                    ))}
-                                </div>
-                            </div>
-                        )}
                      </div>
 
                      <div className="flex gap-2 text-2xl mt-2 justify-center">
