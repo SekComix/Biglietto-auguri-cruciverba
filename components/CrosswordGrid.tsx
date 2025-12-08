@@ -256,10 +256,18 @@ const CrosswordGrid: React.FC<CrosswordGridProps> = ({ data, onComplete, onEdit 
 
            {/* SHEET CONTAINER - A4 Aspect Ratio */}
            <div className="bg-white w-full aspect-[297/210] shadow-2xl flex relative overflow-hidden rounded-sm">
+                
+                {/* WATERMARK BACKGROUND (INTERNAL PAGES ONLY) */}
+                <div className="absolute inset-0 flex items-center justify-center pointer-events-none z-0 overflow-hidden">
+                    <span className="text-[200px] opacity-[0.03] select-none scale-150 rotate-12 text-black">
+                        {themeAssets.watermark}
+                    </span>
+                </div>
+
                 <div className="absolute inset-y-0 left-1/2 w-px bg-gray-300 border-l border-dashed border-gray-400 opacity-50 z-10"></div>
 
                 {/* LEFT HALF: DEDICA */}
-                <div className={`w-1/2 h-full p-6 flex flex-col items-center justify-between text-center ${themeAssets.printBorder} border-r-0 relative bg-white`}>
+                <div className={`w-1/2 h-full p-6 flex flex-col items-center justify-between text-center ${themeAssets.printBorder} border-r-0 relative bg-white/90 z-10`}>
                      <span className="absolute top-2 left-2 text-[10px] uppercase text-gray-300 font-bold">Lato Sinistro</span>
                      
                      {/* Photo Area */}
@@ -335,7 +343,7 @@ const CrosswordGrid: React.FC<CrosswordGridProps> = ({ data, onComplete, onEdit 
                 </div>
 
                 {/* RIGHT HALF: GIOCO */}
-                <div className="w-1/2 h-full p-4 md:p-6 flex flex-col relative">
+                <div className="w-1/2 h-full p-4 md:p-6 flex flex-col relative z-10 bg-white/90">
                     <span className="absolute top-2 right-2 text-[10px] uppercase text-gray-300 font-bold">Lato Destro</span>
                     
                     {isCrossword ? (
