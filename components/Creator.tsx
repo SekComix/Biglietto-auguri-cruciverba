@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { generateCrossword } from '../services/geminiService';
-import { CrosswordData, ManualInput, ThemeType, ToneType } from '../types';
-import { Loader2, Wand2, Plus, Trash2, Gift, PartyPopper, CalendarHeart, Crown, KeyRound, Image as ImageIcon, Upload, Calendar, AlertCircle, Grid3X3, MailOpen, Images, Ghost, GraduationCap, ScrollText, HeartHandshake, BookOpen, Search, X, Smile, Heart, Music, Sparkles, Edit, PenTool, LayoutGrid } from 'lucide-react';
+import { CrosswordData, ManualInput, ThemeType, ToneType, Direction } from '../types';
+import { Loader2, Wand2, Plus, Trash2, Gift, PartyPopper, CalendarHeart, Crown, KeyRound, Image as ImageIcon, Upload, Calendar, AlertCircle, Grid3X3, MailOpen, Images, Ghost, GraduationCap, ScrollText, HeartHandshake, BookOpen, Search, X, Smile, Heart, Music, Sparkles, Edit, PenTool, LayoutGrid, Zap } from 'lucide-react';
 
 interface CreatorProps {
   onCreated: (data: CrosswordData) => void;
@@ -226,6 +226,35 @@ export const Creator: React.FC<CreatorProps> = ({ onCreated, initialData }) => {
     }
   };
 
+  const handleQuickPreview = () => {
+    const demoData: CrosswordData = {
+        type: 'crossword',
+        theme: theme, // Usa il tema selezionato
+        title: 'Buon Natale Esempio',
+        recipientName: recipientName || 'Mario Rossi',
+        eventDate: eventDate || '25 Dicembre',
+        message: 'Questo è un messaggio di esempio per visualizzare subito l\'anteprima del biglietto.',
+        width: 10,
+        height: 10,
+        words: [
+            { id: 'd1', word: 'RENNA', clue: 'L\'animale che traina la slitta', direction: Direction.ACROSS, startX: 1, startY: 1, number: 1 },
+            { id: 'd2', word: 'NATALE', clue: 'La festa più attesa dell\'anno', direction: Direction.DOWN, startX: 3, startY: 0, number: 2 },
+            { id: 'd3', word: 'DONI', clue: 'Si scambiano per affetto', direction: Direction.ACROSS, startX: 3, startY: 4, number: 3 },
+            { id: 'd4', word: 'ELFI', clue: 'Aiutanti di Babbo Natale', direction: Direction.DOWN, startX: 6, startY: 2, number: 4 }
+        ],
+        solution: {
+            word: 'TEST',
+            cells: [{x:1, y:1, char:'R', index:0}, {x:3, y:4, char:'E', index:1}, {x:6, y:2, char:'E', index:2}, {x:3, y:5, char:'T', index:3}]
+        },
+        images: {
+            photos: photos.length > 0 ? photos : ['https://images.unsplash.com/photo-1543589077-47d81606c1bf?auto=format&fit=crop&w=400&q=80'],
+            extraImage: extraImage
+        },
+        stickers: selectedStickers.length > 0 ? selectedStickers : ['🎅', '🎄', '⭐']
+    };
+    onCreated(demoData);
+  };
+
   const renderPhotoPreview = () => {
     const count = photos.length;
     if (count === 0) return null;
@@ -265,8 +294,15 @@ export const Creator: React.FC<CreatorProps> = ({ onCreated, initialData }) => {
       )}
 
       <div className={`transition-opacity duration-500 ${loading ? 'opacity-20 pointer-events-none' : 'opacity-100'}`}>
-          <div className="text-center mb-8">
+          <div className="text-center mb-8 relative">
             <h2 className="font-bold text-3xl md:text-4xl text-gray-800 mb-2 font-body">Crea il Tuo Biglietto</h2>
+            <button 
+                type="button" 
+                onClick={handleQuickPreview}
+                className="absolute top-0 right-0 text-xs bg-gray-100 hover:bg-yellow-100 text-gray-500 hover:text-yellow-700 px-3 py-1.5 rounded-full border border-gray-200 transition-colors flex items-center gap-1"
+            >
+                <Zap size={12} fill="currentColor"/> Anteprima Rapida
+            </button>
           </div>
 
           <div className="mb-6">
