@@ -1,7 +1,7 @@
-import React, { useState, useEffect, useRef, useMemo } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { CrosswordData, CellData, Direction, ThemeType } from '../types';
 import { regenerateGreetingOptions } from '../services/geminiService';
-import { Printer, Edit, Eye, EyeOff, RefreshCw, ArrowRight, BookOpen, FileText, Sparkles, X } from 'lucide-react';
+import { Printer, Edit, Eye, EyeOff, BookOpen, FileText, Sparkles, X } from 'lucide-react';
 
 interface CrosswordGridProps {
   data: CrosswordData;
@@ -140,10 +140,12 @@ const CrosswordGrid: React.FC<CrosswordGridProps> = ({ data, onComplete, onEdit 
           
           if (!cell.char) return <div key={`${x}-${y}`} className={`${isPrint ? 'bg-gray-50 border border-gray-200' : 'bg-black/5 rounded-sm'}`} />;
           
-          // Logica colori: Giallo per la soluzione, Blu per la selezione
+          // --- LOGICA COLORI RIPRISTINATA ---
+          // Se è selezionata dall'utente: Blu chiaro
+          // Se è una cella soluzione: Giallo chiaro (sia print che screen per chiarezza)
           let bgClass = 'bg-white';
-          if (isSelected && !isPrint) bgClass = 'bg-blue-100'; // Selezione utente
-          else if (cell.isSolutionCell) bgClass = isPrint ? 'bg-white' : 'bg-yellow-100'; // Casella soluzione
+          if (isSelected && !isPrint) bgClass = 'bg-blue-100'; 
+          else if (cell.isSolutionCell) bgClass = 'bg-yellow-100'; // SEMPRE GIALLO se soluzione
           
           return (
             <div 
@@ -152,15 +154,12 @@ const CrosswordGrid: React.FC<CrosswordGridProps> = ({ data, onComplete, onEdit 
                 className={`relative flex items-center justify-center ${isPrint ? 'border-r border-b border-black text-black' : `w-full h-full text-xl font-bold cursor-pointer ${bgClass}`}`} 
                 style={isPrint ? { width: '100%', height: '100%' } : {}}
             >
-              {/* Numero Casella */}
+              {/* Numero Casella (angolo alto sx) */}
               {cell.number && <span className={`absolute top-0 left-0 leading-none ${isPrint ? 'text-[6px] p-[1px]' : 'text-[9px] p-0.5 text-gray-500'}`}>{cell.number}</span>}
               
-              {/* Evidenziazione Soluzione (Giallo anche in stampa se voluto, ma qui lo metto leggero) */}
-              {cell.isSolutionCell && isPrint && <div className="absolute inset-0 bg-yellow-100/30 -z-10" />}
-              
-              {/* Indice numerico soluzione (piccolino in basso a dx) - ORA VISIBILE SEMPRE */}
+              {/* Indice numerico soluzione (angolo basso dx) - SEMPRE VISIBILE */}
               {cell.isSolutionCell && cell.solutionIndex && (
-                  <div className={`absolute bottom-0 right-0 leading-none font-bold text-gray-400 ${isPrint ? 'text-[6px] p-[1px]' : 'text-[8px] p-0.5'}`}>
+                  <div className={`absolute bottom-0 right-0 leading-none font-bold text-gray-500 bg-white/50 rounded-tl ${isPrint ? 'text-[6px] p-[1px]' : 'text-[8px] p-0.5'}`}>
                       {cell.solutionIndex}
                   </div>
               )}
