@@ -1,12 +1,13 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { CrosswordData, CellData, Direction, ThemeType } from '../types';
 import { regenerateGreetingOptions } from '../services/geminiService';
-import { Printer, Edit, Eye, EyeOff, BookOpen, FileText, Sparkles, X, MoveDiagonal, Check } from 'lucide-react';
+import { Printer, Edit, Eye, EyeOff, BookOpen, FileText, Sparkles, X, MoveDiagonal, Check, Palette, CheckCircle2 } from 'lucide-react';
 
 interface CrosswordGridProps {
   data: CrosswordData;
   onComplete: () => void;
   onEdit: () => void; 
+  onUpdate: (data: Partial<CrosswordData>) => void;
 }
 
 const THEME_ASSETS: Record<ThemeType, any> = {
@@ -41,7 +42,7 @@ const PhotoCollage: React.FC<{ photos: string[] }> = ({ photos }) => {
     );
 };
 
-const CrosswordGrid: React.FC<CrosswordGridProps> = ({ data, onComplete, onEdit }) => {
+const CrosswordGrid: React.FC<CrosswordGridProps> = ({ data, onComplete, onEdit, onUpdate }) => {
   const [grid, setGrid] = useState<CellData[][]>([]);
   const [selectedCell, setSelectedCell] = useState<{ x: number; y: number } | null>(null);
   const [currentDirection, setCurrentDirection] = useState<Direction>(Direction.ACROSS);
@@ -59,6 +60,7 @@ const CrosswordGrid: React.FC<CrosswordGridProps> = ({ data, onComplete, onEdit 
 
   // Watermark resizing state
   const [watermarkScale, setWatermarkScale] = useState(1.5);
+  const [isEditingWatermark, setIsEditingWatermark] = useState(false);
   const [isResizingWatermark, setIsResizingWatermark] = useState(false);
   const watermarkRef = useRef<HTMLDivElement>(null);
 
@@ -66,6 +68,13 @@ const CrosswordGrid: React.FC<CrosswordGridProps> = ({ data, onComplete, onEdit 
   const isCrossword = data.type === 'crossword';
   const photos = data.images?.photos || (data.images?.photo ? [data.images.photo] : []);
   const currentYear = new Date().getFullYear();
+
+  // Sync editableMessage with parent data whenever it changes
+  useEffect(() => {
+    if (editableMessage !== data.message) {
+        onUpdate({ message: editableMessage });
+    }
+  }, [editableMessage]);
 
   useEffect(() => {
     if (!isCrossword) {
@@ -101,7 +110,8 @@ const CrosswordGrid: React.FC<CrosswordGridProps> = ({ data, onComplete, onEdit 
     inputRefs.current = Array(data.height).fill(null).map(() => Array(data.width).fill(null));
     setGrid(newGrid);
     setEditableMessage(data.message);
-  }, [data]);
+  }, [data.words, data.solution, data.height, data.width, data.type]); 
+  // removed `data` from deps to avoid loop, specifically check content.
 
   // Handle Watermark Resizing
   useEffect(() => {
@@ -218,7 +228,7 @@ const CrosswordGrid: React.FC<CrosswordGridProps> = ({ data, onComplete, onEdit 
   return (
     <div className="flex flex-col items-center gap-8 w-full pb-20">
        
-       {/* SELECTION MODAL (Placed high in DOM to avoid z-index/clipping issues) */}
+       {/* SELECTION MODAL */}
        {generatedOptions.length > 0 && (
             <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm" onClick={() => setGeneratedOptions([])}>
                 <div className="bg-white rounded-2xl shadow-2xl w-full max-w-md overflow-hidden animate-in zoom-in-95 duration-200" onClick={e => e.stopPropagation()}>
@@ -250,8 +260,11 @@ const CrosswordGrid: React.FC<CrosswordGridProps> = ({ data, onComplete, onEdit 
        {/* TOOLBAR */}
        <div className="flex flex-wrap gap-2 justify-center z-20 sticky top-2 p-2 bg-black/5 rounded-full backdrop-blur-sm">
             <button onClick={onEdit} className="bg-white px-4 py-2 rounded-full shadow border text-sm flex items-center gap-2 font-bold hover:bg-gray-50 text-gray-700"><Edit size={16} /> Modifica</button>
-            <button onClick={() => setShowPrintGuide(true)} className="bg-blue-600 text-white px-6 py-2 rounded-full shadow text-sm flex items-center gap-2 font-bold hover:bg-blue-700"><Printer size={16} /> STAMPA</button>
+            <button onClick={() => setIsEditingWatermark(!isEditingWatermark)} className={`px-4 py-2 rounded-full shadow border text-sm flex items-center gap-2 font-bold transition-colors ${isEditingWatermark ? 'bg-blue-600 text-white border-blue-600' : 'bg-white text-gray-700'}`}>
+                {isEditingWatermark ? <CheckCircle2 size={16}/> : <Palette size={16}/>} {isEditingWatermark ? 'Fatto' : 'Sfondo'}
+            </button>
             <button onClick={() => setRevealAnswers(!revealAnswers)} className={`px-4 py-2 rounded-full shadow border text-sm flex items-center gap-2 font-bold transition-colors ${revealAnswers ? 'bg-yellow-100 text-yellow-800 border-yellow-300' : 'bg-white text-gray-700'}`}>{revealAnswers ? <EyeOff size={16}/> : <Eye size={16}/>} {revealAnswers ? 'Nascondi' : 'Soluzione'}</button>
+            <button onClick={() => setShowPrintGuide(true)} className="bg-blue-600 text-white px-6 py-2 rounded-full shadow text-sm flex items-center gap-2 font-bold hover:bg-blue-700"><Printer size={16} /> STAMPA</button>
        </div>
        
        {/* PRINT GUIDE MODAL */}
@@ -276,7 +289,7 @@ const CrosswordGrid: React.FC<CrosswordGridProps> = ({ data, onComplete, onEdit 
                 <FileText size={20}/> FOGLIO 1 (Esterno)
             </h3>
             
-            {/* SHEET CONTAINER - A4 Aspect Ratio */}
+            {/* SHEET CONTAINER */}
             <div className="bg-white w-full aspect-[297/210] shadow-2xl flex relative overflow-hidden rounded-sm">
                  <div className="absolute inset-y-0 left-1/2 w-px bg-gray-300 border-l border-dashed border-gray-400 opacity-50 z-10"></div>
                  
@@ -315,125 +328,134 @@ const CrosswordGrid: React.FC<CrosswordGridProps> = ({ data, onComplete, onEdit 
                 <BookOpen size={20}/> FOGLIO 2 (Interno)
            </h3>
 
-           {/* SHEET CONTAINER - A4 Aspect Ratio */}
+           {/* SHEET CONTAINER */}
            <div className="bg-white w-full aspect-[297/210] shadow-2xl flex relative overflow-hidden rounded-sm select-none">
                 
-                {/* WATERMARK BACKGROUND (RESIZABLE) */}
-                <div className="absolute inset-0 flex items-center justify-center z-0 overflow-hidden pointer-events-none">
+                {/* WATERMARK BACKGROUND (RESIZABLE) - VISUALIZZA SOPRA SE IN EDIT MODE */}
+                <div 
+                    className={`absolute inset-0 flex items-center justify-center overflow-hidden transition-all duration-300
+                    ${isEditingWatermark ? 'z-50 pointer-events-auto bg-black/5' : 'z-0 pointer-events-none'}`}
+                >
                     <div 
                         ref={watermarkRef}
-                        className="relative group pointer-events-auto"
+                        className={`relative group ${isEditingWatermark ? 'cursor-move' : ''}`}
                         style={{ transform: `scale(${watermarkScale}) rotate(12deg)` }}
                     >
                         {/* Filigrana effettiva */}
-                        <span className="text-[100px] opacity-[0.05] text-black cursor-default">
+                        <span className={`text-[100px] text-black transition-opacity ${isEditingWatermark ? 'opacity-20' : 'opacity-[0.05]'}`}>
                             {themeAssets.watermark}
                         </span>
 
-                        {/* MANIGLIA DI RIDIMENSIONAMENTO (VISIBILE SOLO A SCHERMO SU HOVER) */}
-                        <div 
-                            onMouseDown={(e) => { e.stopPropagation(); setIsResizingWatermark(true); }}
-                            className="absolute bottom-0 right-0 w-8 h-8 bg-blue-500 rounded-full cursor-se-resize flex items-center justify-center shadow-lg opacity-0 group-hover:opacity-100 transition-opacity z-50 print:hidden hover:bg-blue-600"
-                            title="Trascina per ingrandire/rimpicciolire"
-                        >
-                            <MoveDiagonal size={16} className="text-white"/>
-                        </div>
-                        {/* Border on hover to show limits */}
-                        <div className="absolute inset-[-20px] border-2 border-dashed border-blue-300 rounded-lg opacity-0 group-hover:opacity-100 pointer-events-none print:hidden"></div>
+                        {/* MANIGLIA DI RIDIMENSIONAMENTO - SEMPRE VISIBILE IN EDIT MODE */}
+                        {isEditingWatermark && (
+                            <>
+                                <div className="absolute inset-[-10px] border-4 border-dashed border-blue-400 rounded-xl opacity-50 animate-pulse pointer-events-none"></div>
+                                <div 
+                                    onMouseDown={(e) => { e.stopPropagation(); setIsResizingWatermark(true); }}
+                                    className="absolute bottom-[-20px] right-[-20px] w-12 h-12 bg-blue-600 border-4 border-white rounded-full cursor-se-resize flex items-center justify-center shadow-xl z-50 hover:scale-110 transition-transform"
+                                    title="Trascina per ridimensionare"
+                                >
+                                    <MoveDiagonal size={20} className="text-white"/>
+                                </div>
+                            </>
+                        )}
                     </div>
                 </div>
 
                 <div className="absolute inset-y-0 left-1/2 w-px bg-gray-300 border-l border-dashed border-gray-400 opacity-50 z-10"></div>
 
-                {/* LEFT HALF: DEDICA */}
-                <div className={`w-1/2 h-full p-6 flex flex-col items-center justify-between text-center ${themeAssets.printBorder} border-r-0 relative bg-white/90 z-10`}>
-                     <span className="absolute top-2 left-2 text-[10px] uppercase text-gray-300 font-bold">Lato Sinistro</span>
-                     
-                     {/* Photo Area */}
-                     <div className="flex-1 w-full flex flex-col items-center justify-center relative">
-                        {photos.length > 0 ? (
-                            <div className="w-[70%] aspect-square border-4 border-white shadow-lg overflow-hidden rounded-sm bg-gray-100 rotate-1 mb-4">
-                                 <PhotoCollage photos={photos} />
-                            </div>
-                        ) : data.images?.extraImage ? (
-                            <img src={data.images.extraImage} className="h-32 object-contain mb-4" />
-                        ) : null}
+                {/* CONTENT LAYERS - DIMMED IN EDIT MODE */}
+                <div className={`absolute inset-0 flex z-10 transition-opacity duration-300 ${isEditingWatermark ? 'opacity-20 pointer-events-none blur-[1px]' : 'opacity-100'}`}>
+                    {/* LEFT HALF: DEDICA */}
+                    <div className={`w-1/2 h-full p-6 flex flex-col items-center justify-between text-center ${themeAssets.printBorder} border-r-0 relative bg-white/90`}>
+                        <span className="absolute top-2 left-2 text-[10px] uppercase text-gray-300 font-bold">Lato Sinistro</span>
+                        
+                        {/* Photo Area */}
+                        <div className="flex-1 w-full flex flex-col items-center justify-center relative">
+                            {photos.length > 0 ? (
+                                <div className="w-[70%] aspect-square border-4 border-white shadow-lg overflow-hidden rounded-sm bg-gray-100 rotate-1 mb-4">
+                                    <PhotoCollage photos={photos} />
+                                </div>
+                            ) : data.images?.extraImage ? (
+                                <img src={data.images.extraImage} className="h-32 object-contain mb-4" />
+                            ) : null}
 
-                        {/* Editable Message Container */}
-                        <div className="w-full relative group">
-                            {isEditingMsg ? (
-                                <div className="w-full animate-in zoom-in-95 bg-white p-2 rounded-xl shadow-lg border border-blue-200 z-20 absolute top-[-50px] left-0">
-                                    <textarea className="w-full p-2 bg-gray-50 border border-blue-200 rounded-lg text-center text-sm focus:outline-none focus:border-blue-400 font-hand" rows={4} value={editableMessage} onChange={(e) => setEditableMessage(e.target.value)}/>
-                                    <div className="flex gap-2 mt-2 justify-center">
-                                        <button onClick={() => setIsEditingMsg(false)} className="bg-green-500 text-white text-xs px-3 py-1 rounded-full font-bold">Fatto</button>
+                            {/* Editable Message Container */}
+                            <div className="w-full relative group">
+                                {isEditingMsg ? (
+                                    <div className="w-full animate-in zoom-in-95 bg-white p-2 rounded-xl shadow-lg border border-blue-200 z-20 absolute top-[-50px] left-0 pointer-events-auto">
+                                        <textarea className="w-full p-2 bg-gray-50 border border-blue-200 rounded-lg text-center text-sm focus:outline-none focus:border-blue-400 font-hand" rows={4} value={editableMessage} onChange={(e) => setEditableMessage(e.target.value)}/>
+                                        <div className="flex gap-2 mt-2 justify-center">
+                                            <button onClick={() => setIsEditingMsg(false)} className="bg-green-500 text-white text-xs px-3 py-1 rounded-full font-bold">Fatto</button>
+                                        </div>
                                     </div>
-                                </div>
-                            ) : (
-                                <div className="relative cursor-pointer hover:bg-yellow-50 rounded-xl p-2 transition-colors border border-transparent hover:border-yellow-200" onClick={() => setIsEditingMsg(true)}>
-                                    <p className={`text-xl md:text-2xl leading-relaxed ${themeAssets.fontTitle} text-gray-800`}>"{editableMessage}"</p>
-                                    <span className="absolute -top-2 -right-2 opacity-0 group-hover:opacity-100 text-gray-400 bg-white rounded-full p-1 shadow-md pointer-events-none"><Edit size={12}/></span>
-                                </div>
-                            )}
+                                ) : (
+                                    <div className="relative cursor-pointer hover:bg-yellow-50 rounded-xl p-2 transition-colors border border-transparent hover:border-yellow-200 pointer-events-auto" onClick={() => setIsEditingMsg(true)}>
+                                        <p className={`text-xl md:text-2xl leading-relaxed ${themeAssets.fontTitle} text-gray-800`}>"{editableMessage}"</p>
+                                        <span className="absolute -top-2 -right-2 opacity-0 group-hover:opacity-100 text-gray-400 bg-white rounded-full p-1 shadow-md pointer-events-none"><Edit size={12}/></span>
+                                    </div>
+                                )}
+                            </div>
+
+                            {/* AI Tools for Message */}
+                            <div className="mt-2 flex gap-1 justify-center opacity-0 group-hover:opacity-100 transition-opacity pointer-events-auto">
+                                <button onClick={() => handleRegenerateMessage('funny')} className="text-[10px] bg-gray-100 px-2 py-1 rounded hover:bg-blue-100" title="Genera Frase Simpatica">😂</button>
+                                <button onClick={() => handleRegenerateMessage('heartfelt')} className="text-[10px] bg-gray-100 px-2 py-1 rounded hover:bg-blue-100" title="Genera Frase Dolce">❤️</button>
+                                <button onClick={() => handleRegenerateMessage('rhyme')} className="text-[10px] bg-gray-100 px-2 py-1 rounded hover:bg-blue-100" title="Genera Frase in Rima">🎵</button>
+                            </div>
                         </div>
 
-                        {/* AI Tools for Message */}
-                        <div className="mt-2 flex gap-1 justify-center opacity-0 group-hover:opacity-100 transition-opacity">
-                            <button onClick={() => handleRegenerateMessage('funny')} className="text-[10px] bg-gray-100 px-2 py-1 rounded hover:bg-blue-100" title="Genera Frase Simpatica">😂</button>
-                            <button onClick={() => handleRegenerateMessage('heartfelt')} className="text-[10px] bg-gray-100 px-2 py-1 rounded hover:bg-blue-100" title="Genera Frase Dolce">❤️</button>
-                            <button onClick={() => handleRegenerateMessage('rhyme')} className="text-[10px] bg-gray-100 px-2 py-1 rounded hover:bg-blue-100" title="Genera Frase in Rima">🎵</button>
+                        <div className="flex gap-2 text-2xl mt-2 justify-center">
+                            {data.stickers?.slice(0,5).map((s,i) => <span key={i}>{s}</span>)}
                         </div>
-                     </div>
+                    </div>
 
-                     <div className="flex gap-2 text-2xl mt-2 justify-center">
-                         {data.stickers?.slice(0,5).map((s,i) => <span key={i}>{s}</span>)}
-                     </div>
-                </div>
+                    {/* RIGHT HALF: GIOCO */}
+                    <div className="w-1/2 h-full p-4 md:p-6 flex flex-col relative z-10 bg-white/90">
+                        <span className="absolute top-2 right-2 text-[10px] uppercase text-gray-300 font-bold">Lato Destro</span>
+                        
+                        {isCrossword ? (
+                            <>
+                                <h2 className="text-lg font-bold uppercase border-b-2 border-black mb-2 pb-1 text-center tracking-widest">Cruciverba</h2>
+                                
+                                {/* Hidden Word Box */}
+                                {data.solution && (
+                                    <div className="mb-2 bg-yellow-50 border border-yellow-200 p-1 rounded-lg text-center mx-auto inline-block">
+                                        <div className="flex justify-center gap-0.5">
+                                            {data.solution.word.split('').map((c,i) => (
+                                                <div key={i} className={`w-4 h-4 border rounded text-[10px] flex items-center justify-center font-bold ${revealAnswers ? 'bg-yellow-400 text-white border-yellow-500' : 'bg-white border-yellow-200 text-gray-400'}`}>
+                                                    {revealAnswers ? c : (i+1)}
+                                                </div>
+                                            ))}
+                                        </div>
+                                    </div>
+                                )}
 
-                {/* RIGHT HALF: GIOCO */}
-                <div className="w-1/2 h-full p-4 md:p-6 flex flex-col relative z-10 bg-white/90">
-                    <span className="absolute top-2 right-2 text-[10px] uppercase text-gray-300 font-bold">Lato Destro</span>
-                    
-                    {isCrossword ? (
-                        <>
-                            <h2 className="text-lg font-bold uppercase border-b-2 border-black mb-2 pb-1 text-center tracking-widest">Cruciverba</h2>
-                            
-                            {/* Hidden Word Box */}
-                            {data.solution && (
-                                <div className="mb-2 bg-yellow-50 border border-yellow-200 p-1 rounded-lg text-center mx-auto inline-block">
-                                    <div className="flex justify-center gap-0.5">
-                                        {data.solution.word.split('').map((c,i) => (
-                                            <div key={i} className={`w-4 h-4 border rounded text-[10px] flex items-center justify-center font-bold ${revealAnswers ? 'bg-yellow-400 text-white border-yellow-500' : 'bg-white border-yellow-200 text-gray-400'}`}>
-                                                {revealAnswers ? c : (i+1)}
-                                            </div>
-                                        ))}
+                                {/* GRID */}
+                                <div className="flex-1 flex items-start justify-center overflow-hidden min-h-0 pointer-events-auto">
+                                    <div style={{ width: '90%', maxHeight: '100%', aspectRatio: `${data.width}/${data.height}` }}>
+                                        {renderGridCells(false)}
                                     </div>
                                 </div>
-                            )}
-
-                            {/* GRID */}
-                            <div className="flex-1 flex items-start justify-center overflow-hidden min-h-0">
-                                <div style={{ width: '90%', maxHeight: '100%', aspectRatio: `${data.width}/${data.height}` }}>
-                                    {renderGridCells(false)}
+                                
+                                {/* CLUES */}
+                                <div className="mt-2 text-[9px] md:text-[10px] grid grid-cols-2 gap-2 leading-tight w-full border-t border-black pt-2 overflow-y-auto max-h-[35%] custom-scrollbar pointer-events-auto">
+                                    <div className="pr-1">
+                                        <b className="block border-b border-gray-300 mb-1 pb-0.5 font-bold text-xs">Orizzontali</b>
+                                        {data.words.filter(w=>w.direction===Direction.ACROSS).map(w=><div key={w.id} className="mb-0.5"><b className="mr-1">{w.number}.</b>{w.clue}</div>)}
+                                    </div>
+                                    <div className="pl-1 border-l border-gray-100">
+                                        <b className="block border-b border-gray-300 mb-1 pb-0.5 font-bold text-xs">Verticali</b>
+                                        {data.words.filter(w=>w.direction===Direction.DOWN).map(w=><div key={w.id} className="mb-0.5"><b className="mr-1">{w.number}.</b>{w.clue}</div>)}
+                                    </div>
                                 </div>
-                            </div>
-                            
-                            {/* CLUES */}
-                            <div className="mt-2 text-[9px] md:text-[10px] grid grid-cols-2 gap-2 leading-tight w-full border-t border-black pt-2 overflow-y-auto max-h-[35%]">
-                                <div className="pr-1">
-                                    <b className="block border-b border-gray-300 mb-1 pb-0.5 font-bold text-xs">Orizzontali</b>
-                                    {data.words.filter(w=>w.direction===Direction.ACROSS).map(w=><div key={w.id} className="mb-0.5"><b className="mr-1">{w.number}.</b>{w.clue}</div>)}
-                                </div>
-                                <div className="pl-1 border-l border-gray-100">
-                                    <b className="block border-b border-gray-300 mb-1 pb-0.5 font-bold text-xs">Verticali</b>
-                                    {data.words.filter(w=>w.direction===Direction.DOWN).map(w=><div key={w.id} className="mb-0.5"><b className="mr-1">{w.number}.</b>{w.clue}</div>)}
-                                </div>
-                            </div>
-                        </>
-                    ) : (
-                       <div className="flex-1 flex items-center justify-center opacity-20 border-2 border-dashed border-gray-300 rounded-xl m-4">
-                           <p className="text-xl font-hand rotate-[-5deg] text-center">Spazio per dedica<br/>scritta a mano...</p>
-                       </div>
-                    )}
+                            </>
+                        ) : (
+                        <div className="flex-1 flex items-center justify-center opacity-20 border-2 border-dashed border-gray-300 m-8 rounded-xl">
+                            <p className="text-xl font-hand rotate-[-5deg] text-center">Spazio per dedica<br/>scritta a mano...</p>
+                        </div>
+                        )}
+                    </div>
                 </div>
            </div>
        </div>
