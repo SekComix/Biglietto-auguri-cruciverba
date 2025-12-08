@@ -226,11 +226,12 @@ export const Creator: React.FC<CreatorProps> = ({ onCreated, initialData }) => {
     }
   };
 
+  // --- FUNZIONE PER GENERARE UN ESEMPIO RAPIDO ---
   const handleQuickPreview = () => {
     const demoData: CrosswordData = {
         type: 'crossword',
-        theme: theme, // Usa il tema selezionato
-        title: 'Buon Natale Esempio',
+        theme: theme, 
+        title: `Buon ${THEMES.find(t=>t.id===theme)?.label || 'Natale'} Esempio`,
         recipientName: recipientName || 'Mario Rossi',
         eventDate: eventDate || '25 Dicembre',
         message: 'Questo è un messaggio di esempio per visualizzare subito l\'anteprima del biglietto.',
@@ -296,12 +297,15 @@ export const Creator: React.FC<CreatorProps> = ({ onCreated, initialData }) => {
       <div className={`transition-opacity duration-500 ${loading ? 'opacity-20 pointer-events-none' : 'opacity-100'}`}>
           <div className="text-center mb-8 relative">
             <h2 className="font-bold text-3xl md:text-4xl text-gray-800 mb-2 font-body">Crea il Tuo Biglietto</h2>
+            
+            {/* --- PULSANTE ANTEPRIMA RAPIDA --- */}
             <button 
                 type="button" 
                 onClick={handleQuickPreview}
-                className="absolute top-0 right-0 text-xs bg-gray-100 hover:bg-yellow-100 text-gray-500 hover:text-yellow-700 px-3 py-1.5 rounded-full border border-gray-200 transition-colors flex items-center gap-1"
+                className="absolute top-0 right-0 text-xs bg-gray-100 hover:bg-yellow-100 text-gray-500 hover:text-yellow-700 px-3 py-1.5 rounded-full border border-gray-200 transition-colors flex items-center gap-1 font-bold shadow-sm"
+                title="Genera un biglietto di esempio senza inserire dati"
             >
-                <Zap size={12} fill="currentColor"/> Anteprima Rapida
+                <Zap size={14} className="text-yellow-500 fill-current"/> Test Rapido
             </button>
           </div>
 
