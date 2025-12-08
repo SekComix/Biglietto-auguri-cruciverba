@@ -35,6 +35,17 @@ const STICKER_CATEGORIES: Record<string, string[]> = {
 };
 
 export const Creator: React.FC<CreatorProps> = ({ onCreated, initialData }) => {
+  const currentYear = new Date().getFullYear();
+  // Date di default con anno corrente
+  const DEFAULT_DATES: Partial<Record<ThemeType, string>> = {
+    christmas: `25 Dicembre`,
+    halloween: `31 Ottobre`,
+    easter: `Pasqua`,
+    birthday: `Oggi`,
+    wedding: `Oggi`,
+    graduation: `Oggi`
+  };
+
   const [contentType, setContentType] = useState<'crossword' | 'simple'>('crossword');
   const [mode, setMode] = useState<'ai' | 'manual'>('ai');
   const [tone, setTone] = useState<ToneType>('surprise');
@@ -228,30 +239,37 @@ export const Creator: React.FC<CreatorProps> = ({ onCreated, initialData }) => {
 
   // --- FUNZIONE PER GENERARE UN ESEMPIO RAPIDO ---
   const handleQuickPreview = () => {
+    // 1. Data evento automatica per temi fissi
+    const autoDate = DEFAULT_DATES[theme] || 'Data Speciale';
+    const finalDate = eventDate.trim() || autoDate;
+    
+    // 2. Destinatario generico se manca
+    const finalName = recipientName.trim() || 'Mario';
+
     const demoData: CrosswordData = {
         type: 'crossword',
         theme: theme, 
-        title: `Buon ${THEMES.find(t=>t.id===theme)?.label || 'Natale'} Esempio`,
-        recipientName: recipientName || 'Mario Rossi',
-        eventDate: eventDate || '25 Dicembre',
-        message: 'Questo è un messaggio di esempio per visualizzare subito l\'anteprima del biglietto.',
+        title: `Per ${finalName}`, // Titolo sistemato
+        recipientName: finalName,
+        eventDate: finalDate,
+        message: `Tanti auguri ${finalName}! Questo è un esempio di come verrà il tuo biglietto. Personalizzalo con le tue foto e parole!`,
         width: 10,
         height: 10,
         words: [
-            { id: 'd1', word: 'RENNA', clue: 'L\'animale che traina la slitta', direction: Direction.ACROSS, startX: 1, startY: 1, number: 1 },
-            { id: 'd2', word: 'NATALE', clue: 'La festa più attesa dell\'anno', direction: Direction.DOWN, startX: 3, startY: 0, number: 2 },
-            { id: 'd3', word: 'DONI', clue: 'Si scambiano per affetto', direction: Direction.ACROSS, startX: 3, startY: 4, number: 3 },
-            { id: 'd4', word: 'ELFI', clue: 'Aiutanti di Babbo Natale', direction: Direction.DOWN, startX: 6, startY: 2, number: 4 }
+            { id: 'd1', word: 'AUGURI', clue: 'Si fanno alle feste', direction: Direction.ACROSS, startX: 1, startY: 1, number: 1 },
+            { id: 'd2', word: 'GIOIA', clue: 'Felicità immensa', direction: Direction.DOWN, startX: 3, startY: 0, number: 2 },
+            { id: 'd3', word: 'REGALI', clue: 'Pacchetti con fiocco', direction: Direction.ACROSS, startX: 3, startY: 4, number: 3 },
+            { id: 'd4', word: 'AMICI', clue: 'Persone care', direction: Direction.DOWN, startX: 6, startY: 2, number: 4 }
         ],
         solution: {
             word: 'TEST',
-            cells: [{x:1, y:1, char:'R', index:0}, {x:3, y:4, char:'E', index:1}, {x:6, y:2, char:'E', index:2}, {x:3, y:5, char:'T', index:3}]
+            cells: [{x:1, y:1, char:'A', index:0}, {x:3, y:4, char:'R', index:1}, {x:6, y:2, char:'A', index:2}, {x:3, y:5, char:'E', index:3}]
         },
         images: {
             photos: photos.length > 0 ? photos : ['https://images.unsplash.com/photo-1543589077-47d81606c1bf?auto=format&fit=crop&w=400&q=80'],
             extraImage: extraImage
         },
-        stickers: selectedStickers.length > 0 ? selectedStickers : ['🎅', '🎄', '⭐']
+        stickers: selectedStickers.length > 0 ? selectedStickers : ['⭐', '🎉', '❤️']
     };
     onCreated(demoData);
   };
@@ -339,7 +357,7 @@ export const Creator: React.FC<CreatorProps> = ({ onCreated, initialData }) => {
             </div>
             <div>
               <label className="block text-xs font-bold text-gray-400 mb-2 uppercase">Data Evento</label>
-              <input type="text" placeholder="es. 25 Dicembre" className="w-full p-3 border-2 border-gray-200 rounded-xl font-bold focus:border-blue-400 outline-none" value={eventDate} onChange={(e) => setEventDate(e.target.value)} />
+              <input type="text" placeholder={DEFAULT_DATES[theme] || "es. 25 Dicembre"} className="w-full p-3 border-2 border-gray-200 rounded-xl font-bold focus:border-blue-400 outline-none" value={eventDate} onChange={(e) => setEventDate(e.target.value)} />
             </div>
           </div>
 
