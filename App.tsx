@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { Creator } from './components/Creator';
-import { CrosswordGrid } from './components/CrosswordGrid';
+import CrosswordGrid from './components/CrosswordGrid';
 import { CrosswordData, ThemeType } from './types';
 import { Edit3, Sparkles } from 'lucide-react';
 
