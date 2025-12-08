@@ -136,21 +136,46 @@ const CrosswordGrid: React.FC<CrosswordGridProps> = ({ data, onComplete, onEdit 
     <div className={`grid gap-[1px] ${isPrint ? '' : 'bg-black/10 p-2 rounded-lg'}`} style={{ gridTemplateColumns: `repeat(${data.width}, minmax(0, 1fr))`, aspectRatio: `${data.width}/${data.height}` }}>
       {grid.map((row, y) => row.map((cell, x) => {
           const isSelected = !isPrint && selectedCell?.x === x && selectedCell?.y === y;
-          const displayChar = (revealAnswers || isPrint) ? cell.char : cell.userChar; // If revealing or printing, show correct char
+          const displayChar = (revealAnswers || isPrint) ? cell.char : cell.userChar; 
           
           if (!cell.char) return <div key={`${x}-${y}`} className={`${isPrint ? 'bg-gray-50 border border-gray-200' : 'bg-black/5 rounded-sm'}`} />;
           
+          // Logica colori: Giallo per la soluzione, Blu per la selezione
+          let bgClass = 'bg-white';
+          if (isSelected && !isPrint) bgClass = 'bg-blue-100'; // Selezione utente
+          else if (cell.isSolutionCell) bgClass = isPrint ? 'bg-white' : 'bg-yellow-100'; // Casella soluzione
+          
           return (
-            <div key={`${x}-${y}`} onClick={() => !isPrint && handleCellClick(x, y)} className={`relative flex items-center justify-center ${isPrint ? 'border-r border-b border-black text-black' : `w-full h-full text-xl font-bold cursor-pointer ${isSelected ? 'bg-yellow-200' : 'bg-white'}`}`} style={isPrint ? { width: '100%', height: '100%' } : {}}>
+            <div 
+                key={`${x}-${y}`} 
+                onClick={() => !isPrint && handleCellClick(x, y)} 
+                className={`relative flex items-center justify-center ${isPrint ? 'border-r border-b border-black text-black' : `w-full h-full text-xl font-bold cursor-pointer ${bgClass}`}`} 
+                style={isPrint ? { width: '100%', height: '100%' } : {}}
+            >
+              {/* Numero Casella */}
               {cell.number && <span className={`absolute top-0 left-0 leading-none ${isPrint ? 'text-[6px] p-[1px]' : 'text-[9px] p-0.5 text-gray-500'}`}>{cell.number}</span>}
+              
+              {/* Evidenziazione Soluzione (Giallo anche in stampa se voluto, ma qui lo metto leggero) */}
               {cell.isSolutionCell && isPrint && <div className="absolute inset-0 bg-yellow-100/30 -z-10" />}
-              {cell.isSolutionCell && isPrint && cell.solutionIndex && <div className="absolute bottom-0 right-0 text-[6px] p-[1px] font-bold text-gray-500">{cell.solutionIndex}</div>}
+              
+              {/* Indice numerico soluzione (piccolino in basso a dx) - ORA VISIBILE SEMPRE */}
+              {cell.isSolutionCell && cell.solutionIndex && (
+                  <div className={`absolute bottom-0 right-0 leading-none font-bold text-gray-400 ${isPrint ? 'text-[6px] p-[1px]' : 'text-[8px] p-0.5'}`}>
+                      {cell.solutionIndex}
+                  </div>
+              )}
               
               {isPrint ? (
-                  <span className="font-bold text-lg">{displayChar}</span> // Per la stampa, mostriamo la soluzione se revealAnswers è attivo, altrimenti vuoto
+                  <span className="font-bold text-lg">{displayChar}</span>
               ) : (
                   isSelected && !revealAnswers ? (
-                     <input ref={(el) => { inputRefs.current[y][x] = el; }} maxLength={1} className="w-full h-full text-center bg-transparent outline-none uppercase" value={cell.userChar} onChange={(e) => handleInput(x, y, e.target.value)} />
+                     <input 
+                        ref={(el) => { inputRefs.current[y][x] = el; }} 
+                        maxLength={1} 
+                        className="w-full h-full text-center bg-transparent outline-none uppercase" 
+                        value={cell.userChar} 
+                        onChange={(e) => handleInput(x, y, e.target.value)} 
+                     />
                   ) : (
                      <span className={revealAnswers ? 'text-green-600' : ''}>{displayChar}</span>
                   )
@@ -318,13 +343,13 @@ const CrosswordGrid: React.FC<CrosswordGridProps> = ({ data, onComplete, onEdit 
                         <>
                             <h2 className="text-lg font-bold uppercase border-b-2 border-black mb-2 pb-1 text-center tracking-widest">Cruciverba</h2>
                             
-                            {/* Hidden Word Box */}
+                            {/* Hidden Word Box - EVIDENZIATO */}
                             {data.solution && (
                                 <div className="mb-2 bg-yellow-50 border border-yellow-200 p-1 rounded-lg text-center mx-auto inline-block">
                                     <div className="flex justify-center gap-0.5">
                                         {data.solution.word.split('').map((c,i) => (
-                                            <div key={i} className={`w-4 h-4 border rounded text-[10px] flex items-center justify-center font-bold ${revealAnswers ? 'bg-yellow-400 text-white border-yellow-500' : 'bg-white border-yellow-200 text-transparent'}`}>
-                                                {c}
+                                            <div key={i} className={`w-4 h-4 border rounded text-[10px] flex items-center justify-center font-bold ${revealAnswers ? 'bg-yellow-400 text-white border-yellow-500' : 'bg-white border-yellow-200 text-gray-400'}`}>
+                                                {revealAnswers ? c : (i+1)}
                                             </div>
                                         ))}
                                     </div>
@@ -334,25 +359,25 @@ const CrosswordGrid: React.FC<CrosswordGridProps> = ({ data, onComplete, onEdit 
                             {/* GRID */}
                             <div className="flex-1 flex items-start justify-center overflow-hidden min-h-0">
                                 <div style={{ width: '90%', maxHeight: '100%', aspectRatio: `${data.width}/${data.height}` }}>
-                                    {renderGridCells(true)} {/* Use Print Mode Rendering for better clarity on sheet view */}
+                                    {renderGridCells(false)} {/* Render normale per schermo, non print mode */}
                                 </div>
                             </div>
                             
                             {/* CLUES - NOW INSIDE THE SHEET */}
-                            <div className="mt-2 text-[9px] md:text-[10px] grid grid-cols-2 gap-2 leading-tight w-full border-t border-black pt-2 overflow-y-auto max-h-[30%]">
+                            <div className="mt-2 text-[9px] md:text-[10px] grid grid-cols-2 gap-2 leading-tight w-full border-t border-black pt-2 overflow-y-auto max-h-[35%]">
                                 <div className="pr-1">
-                                    <b className="block border-b border-gray-300 mb-1 pb-0.5 font-bold">Orizzontali</b>
+                                    <b className="block border-b border-gray-300 mb-1 pb-0.5 font-bold text-xs">Orizzontali</b>
                                     {data.words.filter(w=>w.direction===Direction.ACROSS).map(w=><div key={w.id} className="mb-0.5"><b className="mr-1">{w.number}.</b>{w.clue}</div>)}
                                 </div>
                                 <div className="pl-1 border-l border-gray-100">
-                                    <b className="block border-b border-gray-300 mb-1 pb-0.5 font-bold">Verticali</b>
+                                    <b className="block border-b border-gray-300 mb-1 pb-0.5 font-bold text-xs">Verticali</b>
                                     {data.words.filter(w=>w.direction===Direction.DOWN).map(w=><div key={w.id} className="mb-0.5"><b className="mr-1">{w.number}.</b>{w.clue}</div>)}
                                 </div>
                             </div>
                         </>
                     ) : (
-                       <div className="flex-1 flex items-center justify-center opacity-20 border-2 border-dashed border-gray-300 m-8 rounded-xl">
-                           <p className="text-3xl font-hand rotate-[-5deg]">Spazio per la tua dedica scritta a mano...</p>
+                       <div className="flex-1 flex items-center justify-center opacity-20 border-2 border-dashed border-gray-300 rounded-xl m-4">
+                           <p className="text-xl font-hand rotate-[-5deg] text-center">Spazio per dedica<br/>scritta a mano...</p>
                        </div>
                     )}
                 </div>
@@ -418,7 +443,7 @@ const CrosswordGrid: React.FC<CrosswordGridProps> = ({ data, onComplete, onEdit 
                                     <div className="inline-flex gap-1 border border-black p-1 rounded bg-gray-50">
                                         {data.solution.word.split('').map((c,i) => (
                                             <div key={i} className={`w-5 h-5 border border-black text-xs flex items-center justify-center font-bold`}>
-                                                {revealAnswers ? c : ''}
+                                                {revealAnswers ? c : (i+1)}
                                             </div>
                                         ))}
                                     </div>
