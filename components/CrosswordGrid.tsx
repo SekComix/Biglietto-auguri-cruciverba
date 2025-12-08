@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { CrosswordData, CellData, Direction, ThemeType } from '../types';
 import { regenerateGreetingOptions } from '../services/geminiService';
-import { Printer, Edit, Eye, EyeOff, BookOpen, FileText, Sparkles, X } from 'lucide-react';
+import { Printer, Edit, Eye, EyeOff, BookOpen, FileText, Sparkles, X, MoveDiagonal } from 'lucide-react';
 
 interface CrosswordGridProps {
   data: CrosswordData;
@@ -57,9 +57,15 @@ const CrosswordGrid: React.FC<CrosswordGridProps> = ({ data, onComplete, onEdit 
   const [revealAnswers, setRevealAnswers] = useState(false);
   const inputRefs = useRef<(HTMLInputElement | null)[][]>([]);
 
+  // Watermark resizing state
+  const [watermarkScale, setWatermarkScale] = useState(1.5);
+  const [isResizingWatermark, setIsResizingWatermark] = useState(false);
+  const watermarkRef = useRef<HTMLDivElement>(null);
+
   const themeAssets = THEME_ASSETS[data.theme] || THEME_ASSETS.generic;
   const isCrossword = data.type === 'crossword';
   const photos = data.images?.photos || (data.images?.photo ? [data.images.photo] : []);
+  const currentYear = new Date().getFullYear();
 
   useEffect(() => {
     if (!isCrossword) {
@@ -96,6 +102,31 @@ const CrosswordGrid: React.FC<CrosswordGridProps> = ({ data, onComplete, onEdit 
     setGrid(newGrid);
     setEditableMessage(data.message);
   }, [data]);
+
+  // Handle Watermark Resizing
+  useEffect(() => {
+    const handleMouseMove = (e: MouseEvent) => {
+        if (!isResizingWatermark) return;
+        // Simple scale logic based on mouse Y movement (pulling down increases size)
+        setWatermarkScale(prev => {
+            const newScale = prev + e.movementY * 0.01;
+            return Math.max(0.5, Math.min(newScale, 5.0)); // Min 0.5x, Max 5x
+        });
+    };
+    const handleMouseUp = () => {
+        setIsResizingWatermark(false);
+    };
+
+    if (isResizingWatermark) {
+        window.addEventListener('mousemove', handleMouseMove);
+        window.addEventListener('mouseup', handleMouseUp);
+    }
+    return () => {
+        window.removeEventListener('mousemove', handleMouseMove);
+        window.removeEventListener('mouseup', handleMouseUp);
+    };
+  }, [isResizingWatermark]);
+
 
   const handleCellClick = (x: number, y: number) => {
     if (!grid[y][x].char) return;
@@ -140,9 +171,6 @@ const CrosswordGrid: React.FC<CrosswordGridProps> = ({ data, onComplete, onEdit 
           
           if (!cell.char) return <div key={`${x}-${y}`} className={`${isPrint ? 'bg-gray-50 border border-gray-200' : 'bg-black/5 rounded-sm'}`} />;
           
-          // --- LOGICA COLORI RIPRISTINATA ---
-          // Se è selezionata dall'utente: Blu chiaro
-          // Se è una cella soluzione: Giallo chiaro (sia print che screen per chiarezza)
           let bgClass = 'bg-white';
           if (isSelected && !isPrint) bgClass = 'bg-blue-100'; 
           else if (cell.isSolutionCell) bgClass = 'bg-yellow-100'; // SEMPRE GIALLO se soluzione
@@ -154,10 +182,10 @@ const CrosswordGrid: React.FC<CrosswordGridProps> = ({ data, onComplete, onEdit 
                 className={`relative flex items-center justify-center ${isPrint ? 'border-r border-b border-black text-black' : `w-full h-full text-xl font-bold cursor-pointer ${bgClass}`}`} 
                 style={isPrint ? { width: '100%', height: '100%' } : {}}
             >
-              {/* Numero Casella (angolo alto sx) */}
+              {/* Numero Casella */}
               {cell.number && <span className={`absolute top-0 left-0 leading-none ${isPrint ? 'text-[6px] p-[1px]' : 'text-[9px] p-0.5 text-gray-500'}`}>{cell.number}</span>}
               
-              {/* Indice numerico soluzione (angolo basso dx) - SEMPRE VISIBILE */}
+              {/* Indice numerico soluzione */}
               {cell.isSolutionCell && cell.solutionIndex && (
                   <div className={`absolute bottom-0 right-0 leading-none font-bold text-gray-500 bg-white/50 rounded-tl ${isPrint ? 'text-[6px] p-[1px]' : 'text-[8px] p-0.5'}`}>
                       {cell.solutionIndex}
@@ -235,7 +263,9 @@ const CrosswordGrid: React.FC<CrosswordGridProps> = ({ data, onComplete, onEdit 
                      <span className="absolute top-2 right-2 text-[10px] uppercase text-gray-300 font-bold">Copertina</span>
                      <h1 className={`text-4xl md:text-5xl ${themeAssets.fontTitle} mb-4 text-gray-900 leading-tight`}>{data.title}</h1>
                      <div className="w-16 h-1 bg-gray-800 mb-4 opacity-50"></div>
-                     <p className="text-sm md:text-base uppercase text-gray-500 mb-8 font-bold tracking-widest">{data.eventDate}</p>
+                     <p className="text-sm md:text-base uppercase text-gray-500 mb-8 font-bold tracking-widest">
+                         {data.eventDate} <span className="text-black/30 mx-1">•</span> {currentYear}
+                     </p>
                      {data.images?.extraImage ? (
                         <img src={data.images.extraImage} className="h-32 md:h-48 object-contain mb-4 grayscale hover:grayscale-0 transition-all" />
                      ) : (
@@ -255,13 +285,31 @@ const CrosswordGrid: React.FC<CrosswordGridProps> = ({ data, onComplete, onEdit 
            </h3>
 
            {/* SHEET CONTAINER - A4 Aspect Ratio */}
-           <div className="bg-white w-full aspect-[297/210] shadow-2xl flex relative overflow-hidden rounded-sm">
+           <div className="bg-white w-full aspect-[297/210] shadow-2xl flex relative overflow-hidden rounded-sm select-none">
                 
-                {/* WATERMARK BACKGROUND (INTERNAL PAGES ONLY) */}
-                <div className="absolute inset-0 flex items-center justify-center pointer-events-none z-0 overflow-hidden">
-                    <span className="text-[200px] opacity-[0.03] select-none scale-150 rotate-12 text-black">
-                        {themeAssets.watermark}
-                    </span>
+                {/* WATERMARK BACKGROUND (RESIZABLE) */}
+                <div className="absolute inset-0 flex items-center justify-center z-0 overflow-hidden pointer-events-none">
+                    <div 
+                        ref={watermarkRef}
+                        className="relative group pointer-events-auto"
+                        style={{ transform: `scale(${watermarkScale}) rotate(12deg)` }}
+                    >
+                        {/* Filigrana effettiva */}
+                        <span className="text-[100px] opacity-[0.05] text-black cursor-default">
+                            {themeAssets.watermark}
+                        </span>
+
+                        {/* MANIGLIA DI RIDIMENSIONAMENTO (VISIBILE SOLO A SCHERMO SU HOVER) */}
+                        <div 
+                            onMouseDown={(e) => { e.stopPropagation(); setIsResizingWatermark(true); }}
+                            className="absolute bottom-0 right-0 w-8 h-8 bg-blue-500 rounded-full cursor-se-resize flex items-center justify-center shadow-lg opacity-0 group-hover:opacity-100 transition-opacity z-50 print:hidden hover:bg-blue-600"
+                            title="Trascina per ingrandire/rimpicciolire"
+                        >
+                            <MoveDiagonal size={16} className="text-white"/>
+                        </div>
+                        {/* Border on hover to show limits */}
+                        <div className="absolute inset-[-20px] border-2 border-dashed border-blue-300 rounded-lg opacity-0 group-hover:opacity-100 pointer-events-none print:hidden"></div>
+                    </div>
                 </div>
 
                 <div className="absolute inset-y-0 left-1/2 w-px bg-gray-300 border-l border-dashed border-gray-400 opacity-50 z-10"></div>
@@ -299,9 +347,9 @@ const CrosswordGrid: React.FC<CrosswordGridProps> = ({ data, onComplete, onEdit 
 
                         {/* AI Tools for Message */}
                         <div className="mt-2 flex gap-1 justify-center opacity-0 group-hover:opacity-100 transition-opacity">
-                            <button onClick={() => handleRegenerateMessage('funny')} className="text-[10px] bg-gray-100 px-2 py-1 rounded hover:bg-blue-100">😂</button>
-                            <button onClick={() => handleRegenerateMessage('heartfelt')} className="text-[10px] bg-gray-100 px-2 py-1 rounded hover:bg-blue-100">❤️</button>
-                            <button onClick={() => handleRegenerateMessage('rhyme')} className="text-[10px] bg-gray-100 px-2 py-1 rounded hover:bg-blue-100">🎵</button>
+                            <button onClick={() => handleRegenerateMessage('funny')} className="text-[10px] bg-gray-100 px-2 py-1 rounded hover:bg-blue-100" title="Genera Frase Simpatica">😂</button>
+                            <button onClick={() => handleRegenerateMessage('heartfelt')} className="text-[10px] bg-gray-100 px-2 py-1 rounded hover:bg-blue-100" title="Genera Frase Dolce">❤️</button>
+                            <button onClick={() => handleRegenerateMessage('rhyme')} className="text-[10px] bg-gray-100 px-2 py-1 rounded hover:bg-blue-100" title="Genera Frase in Rima">🎵</button>
                         </div>
 
                         {/* SELECTION MODAL */}
@@ -310,9 +358,8 @@ const CrosswordGrid: React.FC<CrosswordGridProps> = ({ data, onComplete, onEdit 
                                 <div className="flex justify-between items-center border-b border-gray-100 pb-2">
                                     <div>
                                         <span className="text-xs font-black text-blue-600 uppercase flex items-center gap-1">
-                                            <Sparkles size={12}/> Idee trovate!
+                                            <Sparkles size={12}/> Clicca per scegliere:
                                         </span>
-                                        <span className="text-[10px] text-gray-500">Clicca su quella che ti piace:</span>
                                     </div>
                                     <button 
                                         onClick={() => setGeneratedOptions([])} 
@@ -350,7 +397,7 @@ const CrosswordGrid: React.FC<CrosswordGridProps> = ({ data, onComplete, onEdit 
                         <>
                             <h2 className="text-lg font-bold uppercase border-b-2 border-black mb-2 pb-1 text-center tracking-widest">Cruciverba</h2>
                             
-                            {/* Hidden Word Box - EVIDENZIATO */}
+                            {/* Hidden Word Box */}
                             {data.solution && (
                                 <div className="mb-2 bg-yellow-50 border border-yellow-200 p-1 rounded-lg text-center mx-auto inline-block">
                                     <div className="flex justify-center gap-0.5">
@@ -366,11 +413,11 @@ const CrosswordGrid: React.FC<CrosswordGridProps> = ({ data, onComplete, onEdit 
                             {/* GRID */}
                             <div className="flex-1 flex items-start justify-center overflow-hidden min-h-0">
                                 <div style={{ width: '90%', maxHeight: '100%', aspectRatio: `${data.width}/${data.height}` }}>
-                                    {renderGridCells(false)} {/* Render normale per schermo, non print mode */}
+                                    {renderGridCells(false)}
                                 </div>
                             </div>
                             
-                            {/* CLUES - NOW INSIDE THE SHEET */}
+                            {/* CLUES */}
                             <div className="mt-2 text-[9px] md:text-[10px] grid grid-cols-2 gap-2 leading-tight w-full border-t border-black pt-2 overflow-y-auto max-h-[35%]">
                                 <div className="pr-1">
                                     <b className="block border-b border-gray-300 mb-1 pb-0.5 font-bold text-xs">Orizzontali</b>
@@ -395,7 +442,9 @@ const CrosswordGrid: React.FC<CrosswordGridProps> = ({ data, onComplete, onEdit 
        <div className="hidden print:block">
            {/* SHEET 1: ESTERNO */}
            <div className="print-sheet flex flex-row">
-               <div className="watermark">{themeAssets.watermark}</div>
+               {/* WATERMARK PRINT (STATIC) */}
+               <div className="watermark" style={{ transform: `translate(-50%, -50%) scale(${watermarkScale}) rotate(12deg)` }}>{themeAssets.watermark}</div>
+               
                {/* Retro */}
                <div className="print-half border-r border-gray-200 flex flex-col items-center justify-center text-center">
                     <div className="text-4xl opacity-20 mb-4">{themeAssets.decoration}</div>
@@ -406,7 +455,7 @@ const CrosswordGrid: React.FC<CrosswordGridProps> = ({ data, onComplete, onEdit 
                <div className={`print-half ${themeAssets.printBorder} border-l-0 flex flex-col items-center justify-center text-center p-10`}>
                    <h1 className={`text-5xl ${themeAssets.fontTitle} mb-4 text-black`}>{data.title}</h1>
                    <div className="w-20 h-1 bg-black mb-4"></div>
-                   <p className="text-xl uppercase text-gray-600 mb-10 tracking-widest">{data.eventDate}</p>
+                   <p className="text-xl uppercase text-gray-600 mb-10 tracking-widest">{data.eventDate} • {currentYear}</p>
                    {data.images?.extraImage ? (
                        <img src={data.images.extraImage} className="max-h-60 object-contain grayscale contrast-125" />
                    ) : (
@@ -420,7 +469,7 @@ const CrosswordGrid: React.FC<CrosswordGridProps> = ({ data, onComplete, onEdit 
 
            {/* SHEET 2: INTERNO */}
            <div className="print-sheet flex flex-row">
-               <div className="watermark">{themeAssets.watermark}</div>
+               <div className="watermark" style={{ transform: `translate(-50%, -50%) scale(${watermarkScale}) rotate(12deg)` }}>{themeAssets.watermark}</div>
                {/* Dedica */}
                <div className={`print-half ${themeAssets.printBorder} border-r-0 flex flex-col items-center text-center p-8`}>
                    <div className="flex-1 flex flex-col items-center justify-center w-full gap-6">
