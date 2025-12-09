@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
-import { generateCrossword } from '../services/geminiService';
+import { generateCrossword, regenerateGreetingOptions } from '../services/geminiService';
 import { CrosswordData, ManualInput, ThemeType, ToneType, Direction } from '../types';
-import { Loader2, Wand2, Plus, Trash2, Gift, PartyPopper, CalendarHeart, Crown, KeyRound, Image as ImageIcon, Upload, Calendar, AlertCircle, Grid3X3, MailOpen, Images, Ghost, GraduationCap, ScrollText, HeartHandshake, BookOpen, Search, X, Smile, Heart, Music, Sparkles, Edit, PenTool, LayoutGrid, Zap } from 'lucide-react';
+import { Loader2, Wand2, Plus, Trash2, Gift, PartyPopper, CalendarHeart, Crown, KeyRound, Image as ImageIcon, Upload, Calendar, AlertCircle, Grid3X3, MailOpen, Images, Ghost, GraduationCap, ScrollText, HeartHandshake, BookOpen, Search, X, Smile, Heart, Music, Sparkles, Edit, PenTool, LayoutGrid, Zap, Check } from 'lucide-react';
 
 interface CreatorProps {
   onCreated: (data: CrosswordData) => void;
@@ -36,7 +36,6 @@ const STICKER_CATEGORIES: Record<string, string[]> = {
 
 export const Creator: React.FC<CreatorProps> = ({ onCreated, initialData }) => {
   const currentYear = new Date().getFullYear();
-  // Date di default con anno corrente
   const DEFAULT_DATES: Partial<Record<ThemeType, string>> = {
     christmas: `25 Dicembre`,
     halloween: `31 Ottobre`,
@@ -61,6 +60,10 @@ export const Creator: React.FC<CreatorProps> = ({ onCreated, initialData }) => {
   const [photos, setPhotos] = useState<string[]>([]); 
   const [selectedStickers, setSelectedStickers] = useState<string[]>([]);
   const [activeStickerTab, setActiveStickerTab] = useState('Natale');
+
+  // AI Suggestions
+  const [isGeneratingSuggestions, setIsGeneratingSuggestions] = useState(false);
+  const [suggestedPhrases, setSuggestedPhrases] = useState<string[]>([]);
 
   const [loading, setLoading] = useState(false);
   const [statusMsg, setStatusMsg] = useState('');
@@ -95,7 +98,6 @@ export const Creator: React.FC<CreatorProps> = ({ onCreated, initialData }) => {
             setTopic(initialData.originalInput);
         }
     } else {
-        // RESET COMPLETO SE NUOVO
         setRecipientName('');
         setEventDate('');
         setTopic('');
@@ -112,7 +114,6 @@ export const Creator: React.FC<CreatorProps> = ({ onCreated, initialData }) => {
     if (!files || files.length === 0) return;
 
     setProcessingImg(type);
-
     const fileArray = Array.from(files);
     const filesToProcess = type === 'photo' ? fileArray.slice(0, 9 - (photos.length)) : [fileArray[0]];
 
@@ -157,10 +158,7 @@ export const Creator: React.FC<CreatorProps> = ({ onCreated, initialData }) => {
           };
           img.src = event.target?.result as string;
         };
-        reader.onerror = () => {
-            setError("Errore caricamento immagine");
-            setProcessingImg(null);
-        };
+        reader.onerror = () => { setError("Errore caricamento"); setProcessingImg(null); };
         reader.readAsDataURL(file);
     });
   };
@@ -193,6 +191,20 @@ export const Creator: React.FC<CreatorProps> = ({ onCreated, initialData }) => {
     setManualWords(newWords);
   };
 
+  const handleGenerateSuggestions = async () => {
+      if (!recipientName) { setError("Inserisci prima il nome del festeggiato"); return; }
+      setIsGeneratingSuggestions(true);
+      setSuggestedPhrases([]);
+      try {
+          const phrases = await regenerateGreetingOptions("placeholder", theme, recipientName, tone, customTone);
+          setSuggestedPhrases(phrases);
+      } catch (e) {
+          setError("Impossibile generare idee.");
+      } finally {
+          setIsGeneratingSuggestions(false);
+      }
+  };
+
   const handleGenerate = async (e: React.FormEvent) => {
     e.preventDefault();
     if (loading || processingImg) return; 
@@ -209,12 +221,15 @@ export const Creator: React.FC<CreatorProps> = ({ onCreated, initialData }) => {
             if (validWords.length < 2) throw new Error("Inserisci almeno 2 parole complete.");
             inputData = validWords;
           } else {
-            if (!topic.trim()) throw new Error("Inserisci un argomento per il cruciverba.");
+            // In Crossword mode, topic is the "theme description", message is separate? 
+            // The prompt logic in service uses inputData as topic for crossword words AND as message description if mode is AI.
+            // But user wants to pick phrase first. 
+            // If topic is already a full sentence picked from suggestions, we use it as is.
+            if (!topic.trim()) throw new Error("Inserisci un argomento o scegli una frase.");
           }
       } else {
           // SIMPLE MODE
-          if (!topic.trim() && mode === 'ai') throw new Error("Inserisci un argomento.");
-          if (mode === 'manual' && !topic.trim()) throw new Error("Inserisci un messaggio di auguri.");
+          if (!topic.trim()) throw new Error("Scrivi un messaggio o scegline uno.");
       }
 
       if (!recipientName.trim()) throw new Error("Inserisci il nome del festeggiato.");
@@ -247,19 +262,15 @@ export const Creator: React.FC<CreatorProps> = ({ onCreated, initialData }) => {
     }
   };
 
-  // --- FUNZIONE PER GENERARE UN ESEMPIO RAPIDO ---
   const handleQuickPreview = () => {
-    // 1. Data evento automatica per temi fissi
     const autoDate = DEFAULT_DATES[theme] || 'Data Speciale';
     const finalDate = eventDate.trim() || autoDate;
-    
-    // 2. Destinatario generico se manca
     const finalName = recipientName.trim() || 'Mario';
 
     const demoData: CrosswordData = {
         type: 'crossword',
         theme: theme, 
-        title: `Per ${finalName}`, // Titolo sistemato
+        title: `Per ${finalName}`,
         recipientName: finalName,
         eventDate: finalDate,
         message: `Tanti auguri ${finalName}! Questo è un esempio di come verrà il tuo biglietto. Personalizzalo con le tue foto e parole!`,
@@ -325,16 +336,7 @@ export const Creator: React.FC<CreatorProps> = ({ onCreated, initialData }) => {
       <div className={`transition-opacity duration-500 ${loading ? 'opacity-20 pointer-events-none' : 'opacity-100'}`}>
           <div className="text-center mb-8 relative">
             <h2 className="font-bold text-3xl md:text-4xl text-gray-800 mb-2 font-body">Crea il Tuo Biglietto</h2>
-            
-            {/* --- PULSANTE ANTEPRIMA RAPIDA --- */}
-            <button 
-                type="button" 
-                onClick={handleQuickPreview}
-                className="absolute top-0 right-0 text-xs bg-gray-100 hover:bg-yellow-100 text-gray-500 hover:text-yellow-700 px-3 py-1.5 rounded-full border border-gray-200 transition-colors flex items-center gap-1 font-bold shadow-sm"
-                title="Genera un biglietto di esempio senza inserire dati"
-            >
-                <Zap size={14} className="text-yellow-500 fill-current"/> Test Rapido
-            </button>
+            <button type="button" onClick={handleQuickPreview} className="absolute top-0 right-0 text-xs bg-gray-100 hover:bg-yellow-100 text-gray-500 hover:text-yellow-700 px-3 py-1.5 rounded-full border border-gray-200 transition-colors flex items-center gap-1 font-bold shadow-sm"><Zap size={14} className="text-yellow-500 fill-current"/> Test Rapido</button>
           </div>
 
           <div className="mb-6">
@@ -411,19 +413,46 @@ export const Creator: React.FC<CreatorProps> = ({ onCreated, initialData }) => {
 
                 {(mode === 'ai' || contentType === 'simple') ? (
                      <div className="w-full">
-                         <textarea
-                            rows={3}
-                            className="w-full p-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-blue-500 outline-none resize-none"
-                            placeholder={
-                                contentType === 'simple' && mode === 'manual' 
-                                ? "Scrivi qui il tuo messaggio di auguri completo..." 
-                                : contentType === 'simple' && mode === 'ai'
-                                ? "Descrivi il biglietto (es: Auguri divertenti per lo zio Carlo che ama il vino...)"
-                                : "Argomento del Cruciverba (es: Zio Carlo, ama la pesca...)"
-                            }
-                            value={topic}
-                            onChange={(e) => setTopic(e.target.value)}
-                        />
+                         <div className="relative">
+                            <textarea
+                                rows={3}
+                                className="w-full p-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-blue-500 outline-none resize-none"
+                                placeholder={
+                                    contentType === 'simple' && mode === 'manual' 
+                                    ? "Scrivi qui il tuo messaggio di auguri..." 
+                                    : "Argomento Cruciverba (es: Zio Carlo, ama la pesca...) o scrivi qui gli auguri."
+                                }
+                                value={topic}
+                                onChange={(e) => setTopic(e.target.value)}
+                            />
+                            <button 
+                                type="button" 
+                                onClick={handleGenerateSuggestions}
+                                disabled={isGeneratingSuggestions || !recipientName}
+                                className={`absolute right-2 bottom-2 text-xs bg-blue-600 text-white px-3 py-1.5 rounded-full font-bold flex items-center gap-1 hover:bg-blue-700 transition-all ${isGeneratingSuggestions ? 'opacity-70 cursor-wait' : ''}`}
+                            >
+                                {isGeneratingSuggestions ? <Loader2 size={12} className="animate-spin"/> : <Sparkles size={12}/>} 
+                                Suggeriscimi Frasi
+                            </button>
+                         </div>
+
+                         {/* SUGGESTED PHRASES LIST */}
+                         {suggestedPhrases.length > 0 && (
+                             <div className="mt-3 grid gap-2 animate-in slide-in-from-top-2">
+                                 <p className="text-xs font-bold text-gray-400 uppercase">Scegli una frase:</p>
+                                 {suggestedPhrases.map((phrase, i) => (
+                                     <button 
+                                        key={i}
+                                        type="button"
+                                        onClick={() => { setTopic(phrase); setSuggestedPhrases([]); }}
+                                        className="text-left text-sm p-3 bg-white border border-gray-200 rounded-lg hover:border-blue-400 hover:bg-blue-50 transition-colors flex gap-2 group"
+                                     >
+                                        <span className="mt-0.5 text-blue-500 opacity-0 group-hover:opacity-100 transition-opacity"><Check size={14}/></span>
+                                        {phrase}
+                                     </button>
+                                 ))}
+                             </div>
+                         )}
                      </div>
                 ) : (
                     <div className="space-y-2">
@@ -487,8 +516,6 @@ export const Creator: React.FC<CreatorProps> = ({ onCreated, initialData }) => {
                 <label className="text-xs font-bold text-gray-400 uppercase">Decorazioni</label>
                 <span className={`text-xs font-bold ${selectedStickers.length >= 5 ? 'text-red-500' : 'text-blue-500'}`}>{selectedStickers.length}/5</span>
              </div>
-             
-             {/* RIEPILOGO STICKER SELEZIONATI PER FACILITARE MODIFICA */}
              {selectedStickers.length > 0 && (
                 <div className="flex gap-2 mb-3 bg-white p-2 rounded-lg border border-dashed border-gray-200 overflow-x-auto custom-scrollbar">
                     <span className="text-[10px] text-gray-400 font-bold uppercase shrink-0 py-1">I tuoi sticker:</span>
@@ -497,21 +524,11 @@ export const Creator: React.FC<CreatorProps> = ({ onCreated, initialData }) => {
                     ))}
                 </div>
              )}
-
-             {/* Sticker Categories */}
              <div className="flex gap-2 overflow-x-auto pb-2 mb-2 custom-scrollbar">
                 {Object.keys(STICKER_CATEGORIES).map(cat => (
-                    <button 
-                        key={cat} 
-                        type="button" 
-                        onClick={() => setActiveStickerTab(cat)}
-                        className={`text-xs px-2 py-1 rounded-full whitespace-nowrap transition-colors ${activeStickerTab === cat ? 'bg-blue-600 text-white font-bold' : 'bg-white text-gray-600 hover:bg-gray-100 border'}`}
-                    >
-                        {cat}
-                    </button>
+                    <button key={cat} type="button" onClick={() => setActiveStickerTab(cat)} className={`text-xs px-2 py-1 rounded-full whitespace-nowrap transition-colors ${activeStickerTab === cat ? 'bg-blue-600 text-white font-bold' : 'bg-white text-gray-600 hover:bg-gray-100 border'}`}>{cat}</button>
                 ))}
              </div>
-
              <div className="flex flex-wrap gap-2 justify-center max-h-32 overflow-y-auto p-1 custom-scrollbar bg-white rounded-lg border-inner shadow-inner">
                 {STICKER_CATEGORIES[activeStickerTab].map(s => (
                     <button key={s} type="button" onClick={() => toggleSticker(s)} disabled={!selectedStickers.includes(s) && selectedStickers.length >= 5} className={`text-2xl p-2 rounded-full transition-all duration-300 ${selectedStickers.includes(s) ? 'bg-blue-50 shadow-md scale-110 ring-2 ring-blue-200' : 'opacity-60 hover:opacity-100 hover:scale-105'} ${!selectedStickers.includes(s) && selectedStickers.length >= 5 ? 'opacity-20 cursor-not-allowed' : ''}`}>{s}</button>
