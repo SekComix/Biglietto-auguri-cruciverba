@@ -174,9 +174,12 @@ const CrosswordGrid: React.FC<CrosswordGridProps> = ({ data, onComplete, onEdit,
 
         if (!sheet1 || !sheet2) throw new Error("Elements not found");
 
-        // Options for html2canvas
+        // Wait a tick for images to be potentially ready (though mostly controlled by React)
+        await new Promise(resolve => setTimeout(resolve, 500));
+
+        // Use scale 2 for high quality (approx 2246px width)
         const options = {
-            scale: 2, // 2x resolution for better quality
+            scale: 2, 
             useCORS: true,
             logging: false,
             backgroundColor: '#ffffff'
@@ -185,8 +188,8 @@ const CrosswordGrid: React.FC<CrosswordGridProps> = ({ data, onComplete, onEdit,
         const canvas1 = await html2canvas(sheet1, options);
         const canvas2 = await html2canvas(sheet2, options);
 
-        const imgData1 = canvas1.toDataURL('image/jpeg', 0.9);
-        const imgData2 = canvas2.toDataURL('image/jpeg', 0.9);
+        const imgData1 = canvas1.toDataURL('image/jpeg', 0.95);
+        const imgData2 = canvas2.toDataURL('image/jpeg', 0.95);
 
         const pdf = new jsPDF({
             orientation: 'landscape',
@@ -194,6 +197,7 @@ const CrosswordGrid: React.FC<CrosswordGridProps> = ({ data, onComplete, onEdit,
             format: 'a4'
         });
 
+        // A4 Dimensions
         const pdfWidth = 297;
         const pdfHeight = 210;
 
@@ -449,19 +453,19 @@ const CrosswordGrid: React.FC<CrosswordGridProps> = ({ data, onComplete, onEdit,
            </div>
        </div>
 
-       {/* --- HIDDEN PDF EXPORT STAGE (FIXED LAYOUT) --- */}
-       {/* Questo container è invisibile e contiene il layout esatto per il PDF */}
-       <div ref={exportRef} style={{ position: 'fixed', top: 0, left: '-9999px', width: '297mm', zIndex: -100 }}>
+       {/* --- HIDDEN PDF EXPORT STAGE (FIXED PIXEL LAYOUT for 96 DPI A4) --- */}
+       {/* Width: 1123px (A4 landscape 96dpi), Height: 794px */}
+       <div ref={exportRef} style={{ position: 'fixed', top: 0, left: '-9999px', width: '1123px', zIndex: -100 }}>
             {/* SHEET 1 */}
-            <div id="pdf-sheet-1" style={{ width: '297mm', height: '210mm', display: 'flex', position: 'relative', backgroundColor: 'white', overflow: 'hidden' }}>
+            <div id="pdf-sheet-1" style={{ width: '1123px', height: '794px', display: 'flex', position: 'relative', backgroundColor: 'white', overflow: 'hidden' }}>
                  <div style={{ position: 'absolute', top: '50%', left: '50%', transform: `translate(-50%, -50%) translate(${wmSheet1.x}px, ${wmSheet1.y}px) scale(${wmSheet1.scale}) rotate(12deg)`, fontSize: '300px', opacity: 0.1, zIndex: 0, whiteSpace: 'nowrap' }}>{themeAssets.watermark}</div>
                  {/* Retro */}
-                 <div style={{ width: '50%', height: '100%', padding: '20mm', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', textAlign: 'center', borderRight: '1px solid #eee' }}>
+                 <div style={{ width: '50%', height: '100%', padding: '60px', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', textAlign: 'center', borderRight: '1px solid #eee' }}>
                     <div style={{ fontSize: '80px', opacity: 0.2, marginBottom: '20px' }}>{themeAssets.decoration}</div>
                     <div style={{ fontSize: '14px', textTransform: 'uppercase', color: '#999', letterSpacing: '2px' }}>Enigmistica Auguri</div>
                  </div>
                  {/* Fronte */}
-                 <div className={themeAssets.printBorder} style={{ width: '50%', height: '100%', padding: '20mm', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', textAlign: 'center', borderLeft: 'none', position: 'relative' }}>
+                 <div className={themeAssets.printBorder} style={{ width: '50%', height: '100%', padding: '60px', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', textAlign: 'center', borderLeft: 'none', position: 'relative' }}>
                      <h1 className={themeAssets.fontTitle} style={{ fontSize: '50px', marginBottom: '10px', lineHeight: 1.2 }}>{data.title}</h1>
                      <div style={{ width: '80px', height: '3px', background: '#333', marginBottom: '20px' }}></div>
                      <p style={{ fontSize: '18px', textTransform: 'uppercase', color: '#666', letterSpacing: '2px', marginBottom: '40px' }}>{data.eventDate} • {currentYear}</p>
@@ -475,10 +479,10 @@ const CrosswordGrid: React.FC<CrosswordGridProps> = ({ data, onComplete, onEdit,
             </div>
 
             {/* SHEET 2 */}
-            <div id="pdf-sheet-2" style={{ width: '297mm', height: '210mm', display: 'flex', position: 'relative', backgroundColor: 'white', overflow: 'hidden' }}>
+            <div id="pdf-sheet-2" style={{ width: '1123px', height: '794px', display: 'flex', position: 'relative', backgroundColor: 'white', overflow: 'hidden' }}>
                  <div style={{ position: 'absolute', top: '50%', left: '50%', transform: `translate(-50%, -50%) translate(${wmSheet2.x}px, ${wmSheet2.y}px) scale(${wmSheet2.scale}) rotate(12deg)`, fontSize: '300px', opacity: 0.1, zIndex: 0, whiteSpace: 'nowrap' }}>{themeAssets.watermark}</div>
                  {/* Dedica */}
-                 <div className={themeAssets.printBorder} style={{ width: '50%', height: '100%', padding: '15mm', display: 'flex', flexDirection: 'column', alignItems: 'center', textAlign: 'center', borderRight: 'none' }}>
+                 <div className={themeAssets.printBorder} style={{ width: '50%', height: '100%', padding: '40px', display: 'flex', flexDirection: 'column', alignItems: 'center', textAlign: 'center', borderRight: 'none' }}>
                      <div style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', width: '100%' }}>
                         {photos.length > 0 ? (
                             <div style={{ width: '80%', aspectRatio: '1/1', border: '5px solid white', boxShadow: '0 4px 6px rgba(0,0,0,0.1)', overflow: 'hidden', backgroundColor: '#f3f4f6', marginBottom: '20px' }}>
@@ -494,7 +498,7 @@ const CrosswordGrid: React.FC<CrosswordGridProps> = ({ data, onComplete, onEdit,
                      </div>
                  </div>
                  {/* Gioco */}
-                 <div className={themeAssets.printBorder} style={{ width: '50%', height: '100%', padding: '15mm', display: 'flex', flexDirection: 'column', borderLeft: 'none' }}>
+                 <div className={themeAssets.printBorder} style={{ width: '50%', height: '100%', padding: '40px', display: 'flex', flexDirection: 'column', borderLeft: 'none' }}>
                     {isCrossword ? (
                        <div style={{ flex: 1, display: 'flex', flexDirection: 'column', height: '100%' }}>
                            <h2 style={{ fontSize: '20px', fontWeight: 'bold', textTransform: 'uppercase', borderBottom: '2px solid black', marginBottom: '10px', paddingBottom: '5px', textAlign: 'center', letterSpacing: '2px' }}>Cruciverba</h2>
