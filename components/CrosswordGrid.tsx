@@ -1,7 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { CrosswordData, CellData, Direction, ThemeType } from '../types';
-import { regenerateGreetingOptions } from '../services/geminiService';
-import { Printer, Edit, Eye, EyeOff, BookOpen, FileText, Sparkles, X, MoveDiagonal, Check, Palette, CheckCircle2, Download, Loader2 } from 'lucide-react';
+import { Printer, Edit, Eye, EyeOff, BookOpen, FileText, CheckCircle2, Palette, Download, Loader2 } from 'lucide-react';
 import html2canvas from 'html2canvas';
 import { jsPDF } from 'jspdf';
 
@@ -54,9 +53,8 @@ const CrosswordGrid: React.FC<CrosswordGridProps> = ({ data, onComplete, onEdit,
   const [revealAnswers, setRevealAnswers] = useState(false);
   const inputRefs = useRef<(HTMLInputElement | null)[][]>([]);
 
-  // Watermark State for 2 Sheets
+  // Watermark State
   const [isEditingWatermark, setIsEditingWatermark] = useState(false);
-  // Posizioni: Scale, X (px), Y (px)
   const [wmSheet1, setWmSheet1] = useState({ scale: 1.5, x: 0, y: 0 });
   const [wmSheet2, setWmSheet2] = useState({ scale: 1.5, x: 0, y: 0 });
   
@@ -72,7 +70,6 @@ const CrosswordGrid: React.FC<CrosswordGridProps> = ({ data, onComplete, onEdit,
   const photos = data.images?.photos || (data.images?.photo ? [data.images.photo] : []);
   const currentYear = new Date().getFullYear();
 
-  // Sync editableMessage with parent data whenever it changes
   useEffect(() => {
     if (editableMessage !== data.message) {
         onUpdate({ message: editableMessage });
@@ -174,10 +171,8 @@ const CrosswordGrid: React.FC<CrosswordGridProps> = ({ data, onComplete, onEdit,
 
         if (!sheet1 || !sheet2) throw new Error("Elements not found");
 
-        // Wait a tick for images to be potentially ready (though mostly controlled by React)
         await new Promise(resolve => setTimeout(resolve, 500));
 
-        // Use scale 2 for high quality (approx 2246px width)
         const options = {
             scale: 2, 
             useCORS: true,
@@ -197,7 +192,6 @@ const CrosswordGrid: React.FC<CrosswordGridProps> = ({ data, onComplete, onEdit,
             format: 'a4'
         });
 
-        // A4 Dimensions
         const pdfWidth = 297;
         const pdfHeight = 210;
 
@@ -205,11 +199,14 @@ const CrosswordGrid: React.FC<CrosswordGridProps> = ({ data, onComplete, onEdit,
         pdf.addPage();
         pdf.addImage(imgData2, 'JPEG', 0, 0, pdfWidth, pdfHeight);
 
-        pdf.save(`Biglietto_${data.recipientName.replace(/\s+/g, '_')}.pdf`);
+        // APRI IN NUOVA SCHEDA INVECE DI SCARICARE
+        const pdfBlob = pdf.output('blob');
+        const pdfUrl = URL.createObjectURL(pdfBlob);
+        window.open(pdfUrl, '_blank');
 
       } catch (e) {
           console.error("PDF Error", e);
-          alert("Errore durante la creazione del PDF. Riprova.");
+          alert("Errore PDF. Riprova.");
       } finally {
           setIsGeneratingPDF(false);
       }
@@ -248,21 +245,24 @@ const CrosswordGrid: React.FC<CrosswordGridProps> = ({ data, onComplete, onEdit,
           
           if (!cell.char) return <div key={`${x}-${y}`} className={`${isPrint ? 'bg-gray-50 border border-gray-200' : 'bg-black/5 rounded-sm'}`} />;
           
-          let bgClass = 'bg-white';
-          if (isSelected && !isPrint) bgClass = 'bg-blue-100'; 
-          else if (cell.isSolutionCell) bgClass = 'bg-yellow-100'; 
+          // FORZATURA COLORI: Usa style inline per priorità assoluta o classi specifiche non condizionate
+          const isSolution = cell.isSolutionCell;
           
           return (
             <div 
                 key={`${x}-${y}`} 
                 onClick={() => !isPrint && handleCellClick(x, y)} 
-                className={`relative flex items-center justify-center ${isPrint ? 'border-r border-b border-black text-black' : `w-full h-full text-xl font-bold cursor-pointer ${bgClass}`}`} 
-                style={isPrint ? { width: '100%', height: '100%' } : {}}
+                className={`relative flex items-center justify-center ${isPrint ? 'border-r border-b border-black text-black' : `w-full h-full text-xl font-bold cursor-pointer`}`} 
+                style={{
+                    backgroundColor: isSolution ? '#FEF08A' : (isSelected && !isPrint ? '#DBEAFE' : '#FFFFFF'), // yellow-200 or blue-100 or white
+                    width: isPrint ? '100%' : undefined,
+                    height: isPrint ? '100%' : undefined
+                }}
             >
               {cell.number && <span className={`absolute top-0 left-0 leading-none ${isPrint ? 'text-[6px] p-[1px]' : 'text-[9px] p-0.5 text-gray-500'}`}>{cell.number}</span>}
               
-              {cell.isSolutionCell && cell.solutionIndex && (
-                  <div className={`absolute bottom-0 right-0 leading-none font-bold text-gray-500 bg-white/50 rounded-tl ${isPrint ? 'text-[6px] p-[1px]' : 'text-[8px] p-0.5'}`}>
+              {cell.isSolutionCell && cell.solutionIndex !== undefined && (
+                  <div className={`absolute bottom-0 right-0 leading-none font-bold text-gray-600 bg-white/60 rounded-tl-sm z-10 ${isPrint ? 'text-[7px] p-[1px]' : 'text-[9px] p-0.5'}`}>
                       {cell.solutionIndex}
                   </div>
               )}
@@ -303,8 +303,8 @@ const CrosswordGrid: React.FC<CrosswordGridProps> = ({ data, onComplete, onEdit,
                 disabled={isGeneratingPDF}
                 className={`text-white px-6 py-2 rounded-full shadow text-sm flex items-center gap-2 font-bold transition-colors ${isGeneratingPDF ? 'bg-gray-400 cursor-wait' : 'bg-green-600 hover:bg-green-700'}`}
             >
-                {isGeneratingPDF ? <Loader2 size={16} className="animate-spin"/> : <Download size={16} />} 
-                {isGeneratingPDF ? 'Creo PDF...' : 'SCARICA PDF'}
+                {isGeneratingPDF ? <Loader2 size={16} className="animate-spin"/> : <Printer size={16} />} 
+                {isGeneratingPDF ? 'Elaboro...' : 'ANTEPRIMA STAMPA'}
             </button>
        </div>
        
@@ -318,26 +318,19 @@ const CrosswordGrid: React.FC<CrosswordGridProps> = ({ data, onComplete, onEdit,
             
             <div className="bg-white w-full aspect-[297/210] shadow-2xl flex relative overflow-hidden rounded-sm select-none">
                  {/* Watermark Editor */}
-                 <div className={`absolute inset-0 flex items-center justify-center overflow-hidden ${isEditingWatermark ? 'z-50 pointer-events-auto bg-black/5' : 'z-0 pointer-events-none'}`}>
+                 <div className={`absolute inset-0 flex items-center justify-center overflow-hidden pointer-events-none`}>
                     <div 
-                        onMouseDown={(e) => startDrag(e, 1)}
-                        className={`relative group ${isEditingWatermark ? 'cursor-move' : ''}`}
-                        style={{ transform: `translate(${wmSheet1.x}px, ${wmSheet1.y}px) scale(${wmSheet1.scale}) rotate(12deg)` }}
+                        className="relative"
+                        style={{ 
+                            transform: `translate(${wmSheet1.x}px, ${wmSheet1.y}px) scale(${wmSheet1.scale}) rotate(12deg)`,
+                            pointerEvents: isEditingWatermark ? 'auto' : 'none'
+                        }}
+                        onMouseDown={isEditingWatermark ? (e) => startDrag(e, 1) : undefined}
                     >
-                        <span className={`text-[100px] text-black transition-opacity ${isEditingWatermark ? 'opacity-30' : 'opacity-[0.06]'}`}>
+                        {/* INCREASED OPACITY: from 0.06 to 0.15 for visibility */}
+                        <span className={`text-[100px] text-black transition-opacity ${isEditingWatermark ? 'opacity-30 cursor-move' : 'opacity-10'}`}>
                             {themeAssets.watermark}
                         </span>
-                        {isEditingWatermark && (
-                            <>
-                                <div className="absolute inset-[-10px] border-4 border-dashed border-blue-400 rounded-xl opacity-50 animate-pulse pointer-events-none"></div>
-                                <div 
-                                    onMouseDown={(e) => { e.stopPropagation(); setActiveResize(1); }}
-                                    className="absolute bottom-[-20px] right-[-20px] w-12 h-12 bg-blue-600 border-4 border-white rounded-full cursor-se-resize flex items-center justify-center shadow-xl z-50 hover:scale-110 transition-transform"
-                                >
-                                    <MoveDiagonal size={20} className="text-white"/>
-                                </div>
-                            </>
-                        )}
                     </div>
                  </div>
                  <div className="absolute inset-y-0 left-1/2 w-px bg-gray-300 border-l border-dashed border-gray-400 opacity-50 z-10"></div>
@@ -375,26 +368,19 @@ const CrosswordGrid: React.FC<CrosswordGridProps> = ({ data, onComplete, onEdit,
            </h3>
            <div className="bg-white w-full aspect-[297/210] shadow-2xl flex relative overflow-hidden rounded-sm select-none">
                 {/* Watermark Editor */}
-                <div className={`absolute inset-0 flex items-center justify-center overflow-hidden ${isEditingWatermark ? 'z-50 pointer-events-auto bg-black/5' : 'z-0 pointer-events-none'}`}>
+                <div className={`absolute inset-0 flex items-center justify-center overflow-hidden pointer-events-none`}>
                     <div 
-                        onMouseDown={(e) => startDrag(e, 2)}
-                        className={`relative group ${isEditingWatermark ? 'cursor-move' : ''}`}
-                        style={{ transform: `translate(${wmSheet2.x}px, ${wmSheet2.y}px) scale(${wmSheet2.scale}) rotate(12deg)` }}
+                        className="relative"
+                        style={{ 
+                            transform: `translate(${wmSheet2.x}px, ${wmSheet2.y}px) scale(${wmSheet2.scale}) rotate(12deg)`,
+                            pointerEvents: isEditingWatermark ? 'auto' : 'none'
+                        }}
+                        onMouseDown={isEditingWatermark ? (e) => startDrag(e, 2) : undefined}
                     >
-                        <span className={`text-[100px] text-black transition-opacity ${isEditingWatermark ? 'opacity-30' : 'opacity-[0.06]'}`}>
+                         {/* INCREASED OPACITY */}
+                        <span className={`text-[100px] text-black transition-opacity ${isEditingWatermark ? 'opacity-30 cursor-move' : 'opacity-10'}`}>
                             {themeAssets.watermark}
                         </span>
-                        {isEditingWatermark && (
-                            <>
-                                <div className="absolute inset-[-10px] border-4 border-dashed border-blue-400 rounded-xl opacity-50 animate-pulse pointer-events-none"></div>
-                                <div 
-                                    onMouseDown={(e) => { e.stopPropagation(); setActiveResize(2); }}
-                                    className="absolute bottom-[-20px] right-[-20px] w-12 h-12 bg-blue-600 border-4 border-white rounded-full cursor-se-resize flex items-center justify-center shadow-xl z-50 hover:scale-110 transition-transform"
-                                >
-                                    <MoveDiagonal size={20} className="text-white"/>
-                                </div>
-                            </>
-                        )}
                     </div>
                 </div>
                 <div className="absolute inset-y-0 left-1/2 w-px bg-gray-300 border-l border-dashed border-gray-400 opacity-50 z-10"></div>
