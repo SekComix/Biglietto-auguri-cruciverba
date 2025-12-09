@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { generateCrossword, regenerateGreetingOptions } from '../services/geminiService';
 import { CrosswordData, ManualInput, ThemeType, ToneType, Direction } from '../types';
-import { Loader2, Wand2, Plus, Trash2, Gift, PartyPopper, CalendarHeart, Crown, KeyRound, Image as ImageIcon, Upload, Calendar, AlertCircle, Grid3X3, MailOpen, Images, Ghost, GraduationCap, ScrollText, HeartHandshake, BookOpen, Search, X, Smile, Heart, Music, Sparkles, Edit, PenTool, LayoutGrid, Zap, Check, MessageSquareDashed, Info, HelpCircle } from 'lucide-react';
+import { Loader2, Wand2, Plus, Trash2, Gift, PartyPopper, CalendarHeart, Crown, KeyRound, Image as ImageIcon, Upload, Calendar, AlertCircle, Grid3X3, MailOpen, Images, Ghost, GraduationCap, ScrollText, HeartHandshake, BookOpen, Search, X, Smile, Heart, Music, Sparkles, Edit, PenTool, LayoutGrid, Zap, Check, MessageSquareDashed, Info, HelpCircle, Bot } from 'lucide-react';
 
 interface CreatorProps {
   onCreated: (data: CrosswordData) => void;
@@ -233,6 +233,9 @@ export const Creator: React.FC<CreatorProps> = ({ onCreated, initialData }) => {
 
       const cleanSolution = hiddenSolution.trim().toUpperCase();
       
+      // Default Date Fallback logic moved to service or handled here
+      const finalDate = eventDate.trim() || DEFAULT_DATES[theme] || 'Oggi';
+
       const data = await generateCrossword(
         mode, 
         theme, 
@@ -240,7 +243,7 @@ export const Creator: React.FC<CreatorProps> = ({ onCreated, initialData }) => {
         cleanSolution || undefined,
         {
           recipientName,
-          eventDate,
+          eventDate: finalDate, // Use the fallback date
           images: { extraImage, photos },
           stickers: selectedStickers,
           contentType,
@@ -409,7 +412,7 @@ export const Creator: React.FC<CreatorProps> = ({ onCreated, initialData }) => {
                                 { id: 'funny', label: 'Simpatico', icon: Smile },
                                 { id: 'heartfelt', label: 'Dolce', icon: Heart },
                                 { id: 'rhyme', label: 'Rima', icon: Music },
-                                { id: 'custom', label: 'Su Misura', icon: PenTool },
+                                { id: 'custom', label: 'Istruzioni AI', icon: Bot }, // Changed Label and Icon
                             ].map((t) => (
                                 <button
                                     key={t.id}
@@ -424,14 +427,18 @@ export const Creator: React.FC<CreatorProps> = ({ onCreated, initialData }) => {
                         
                         {tone === 'custom' && (
                             <div className="mb-3 animate-in slide-in-from-top-2">
-                                <label className="flex items-center gap-1 text-[10px] font-bold text-blue-600 mb-1"><MessageSquareDashed size={10}/> Istruzioni per l'IA:</label>
+                                <label className="flex items-center gap-1 text-[10px] font-bold text-blue-600 mb-1"><MessageSquareDashed size={10}/> Istruzioni Stile (Come deve parlare?):</label>
                                 <input 
                                     type="text"
                                     className="w-full p-3 text-sm border-2 border-blue-200 bg-blue-50 rounded-xl focus:ring-2 focus:ring-blue-400 outline-none text-blue-800 placeholder-blue-300 font-medium"
-                                    placeholder="Es: 'Usa un tono sarcastico', 'Parla come un pirata', 'Fai una citazione colta'..."
+                                    placeholder="Es: 'Come un pirata', 'Sarcasmo gentile', 'Usa metafore calcistiche'..."
                                     value={customTone}
                                     onChange={(e) => setCustomTone(e.target.value)}
                                 />
+                                <div className="mt-1 flex gap-1 items-start text-blue-400">
+                                    <Info size={12} className="shrink-0 mt-0.5" />
+                                    <p className="text-[10px] leading-tight">Qui definisci lo <b>STILE</b> (il tono di voce). Sotto scrivi l'<b>ARGOMENTO</b> (il contenuto).</p>
+                                </div>
                             </div>
                         )}
                     </div>
@@ -446,7 +453,7 @@ export const Creator: React.FC<CreatorProps> = ({ onCreated, initialData }) => {
                                 placeholder={
                                     contentType === 'simple' && mode === 'manual' 
                                     ? "Scrivi qui il tuo messaggio di auguri..." 
-                                    : "Argomento (es: Zio Carlo, ama la pesca...) o scrivi qui gli auguri."
+                                    : "Argomento (es: Zio Carlo, ama la pesca e il vino rosso...)"
                                 }
                                 value={topic}
                                 onChange={(e) => setTopic(e.target.value)}
