@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { generateCrossword, regenerateGreetingOptions } from '../services/geminiService';
 import { CrosswordData, ManualInput, ThemeType, ToneType, Direction } from '../types';
-import { Loader2, Wand2, Plus, Trash2, Gift, PartyPopper, CalendarHeart, Crown, KeyRound, Image as ImageIcon, Upload, Calendar, AlertCircle, Grid3X3, MailOpen, Images, Ghost, GraduationCap, ScrollText, HeartHandshake, BookOpen, Search, X, Smile, Heart, Music, Sparkles, Edit, PenTool, LayoutGrid, Zap, Check } from 'lucide-react';
+import { Loader2, Wand2, Plus, Trash2, Gift, PartyPopper, CalendarHeart, Crown, KeyRound, Image as ImageIcon, Upload, Calendar, AlertCircle, Grid3X3, MailOpen, Images, Ghost, GraduationCap, ScrollText, HeartHandshake, BookOpen, Search, X, Smile, Heart, Music, Sparkles, Edit, PenTool, LayoutGrid, Zap, Check, MessageSquareDashed } from 'lucide-react';
 
 interface CreatorProps {
   onCreated: (data: CrosswordData) => void;
@@ -196,7 +196,11 @@ export const Creator: React.FC<CreatorProps> = ({ onCreated, initialData }) => {
       setIsGeneratingSuggestions(true);
       setSuggestedPhrases([]);
       try {
-          const phrases = await regenerateGreetingOptions("placeholder", theme, recipientName, tone, customTone);
+          // IMPORTANT: Pass customTone if active
+          const toneToUse = tone;
+          const promptToUse = tone === 'custom' ? customTone : undefined;
+          
+          const phrases = await regenerateGreetingOptions("placeholder", theme, recipientName, toneToUse, promptToUse);
           setSuggestedPhrases(phrases);
       } catch (e) {
           setError("Impossibile generare idee.");
@@ -221,10 +225,6 @@ export const Creator: React.FC<CreatorProps> = ({ onCreated, initialData }) => {
             if (validWords.length < 2) throw new Error("Inserisci almeno 2 parole complete.");
             inputData = validWords;
           } else {
-            // In Crossword mode, topic is the "theme description", message is separate? 
-            // The prompt logic in service uses inputData as topic for crossword words AND as message description if mode is AI.
-            // But user wants to pick phrase first. 
-            // If topic is already a full sentence picked from suggestions, we use it as is.
             if (!topic.trim()) throw new Error("Inserisci un argomento o scegli una frase.");
           }
       } else {
@@ -373,15 +373,34 @@ export const Creator: React.FC<CreatorProps> = ({ onCreated, initialData }) => {
             </div>
           </div>
 
-          <div className="mb-6 bg-gray-50 p-4 rounded-xl border border-gray-100 animate-fade-in">
-                <div className="flex bg-white rounded-lg p-1 mb-4 border border-gray-200 shadow-sm">
-                    <button type="button" onClick={() => setMode('ai')} className={`flex-1 py-2 rounded-md font-bold text-sm transition-all flex items-center justify-center gap-2 ${mode === 'ai' ? 'bg-blue-100 text-blue-700 shadow-sm' : 'text-gray-400 hover:text-gray-600'}`}><Wand2 size={16}/> AI Magic</button>
-                    <button type="button" onClick={() => setMode('manual')} className={`flex-1 py-2 rounded-md font-bold text-sm transition-all flex items-center justify-center gap-2 ${mode === 'manual' ? 'bg-blue-100 text-blue-700 shadow-sm' : 'text-gray-400 hover:text-gray-600'}`}><Edit size={16}/> Manuale</button>
+          {/* MODE TABS - CHANGED UI TO LOOK LIKE TABS */}
+          <div className="mb-6 bg-gray-50 rounded-xl border border-gray-100 animate-fade-in overflow-hidden">
+                <div className="flex border-b border-gray-200">
+                    <button 
+                        type="button" 
+                        onClick={() => setMode('ai')} 
+                        className={`flex-1 py-3 text-sm font-bold flex items-center justify-center gap-2 transition-colors relative ${mode === 'ai' ? 'bg-white text-blue-600' : 'bg-gray-50 text-gray-400 hover:text-gray-600'}`}
+                    >
+                        <Wand2 size={16}/> 
+                        Generazione Automatica (AI)
+                        {mode === 'ai' && <div className="absolute bottom-0 left-0 w-full h-0.5 bg-blue-600"></div>}
+                    </button>
+                    <button 
+                        type="button" 
+                        onClick={() => setMode('manual')} 
+                        className={`flex-1 py-3 text-sm font-bold flex items-center justify-center gap-2 transition-colors relative ${mode === 'manual' ? 'bg-white text-blue-600' : 'bg-gray-50 text-gray-400 hover:text-gray-600'}`}
+                    >
+                        <Edit size={16}/> 
+                        Inserimento Manuale
+                        {mode === 'manual' && <div className="absolute bottom-0 left-0 w-full h-0.5 bg-blue-600"></div>}
+                    </button>
                 </div>
 
+                <div className="p-4">
                 {mode === 'ai' && (
-                    <div className="mb-4">
-                        <div className="flex gap-2 overflow-x-auto pb-1 mb-2 custom-scrollbar">
+                    <div className="animate-in fade-in">
+                        <label className="block text-xs font-bold text-gray-400 mb-2 uppercase">Stile del messaggio:</label>
+                        <div className="flex gap-2 overflow-x-auto pb-2 mb-2 custom-scrollbar">
                             {[
                                 { id: 'surprise', label: 'Sorpresa', icon: Sparkles },
                                 { id: 'funny', label: 'Simpatico', icon: Smile },
@@ -399,14 +418,19 @@ export const Creator: React.FC<CreatorProps> = ({ onCreated, initialData }) => {
                                 </button>
                             ))}
                         </div>
+                        
+                        {/* CUSTOM TONE INPUT - Only visible when Custom is selected */}
                         {tone === 'custom' && (
-                            <input 
-                                type="text"
-                                className="w-full p-2 text-xs border border-blue-200 bg-blue-50 rounded-lg mb-2 focus:ring-1 focus:ring-blue-400 outline-none"
-                                placeholder="Descrivi lo stile (es: Come Dante Alighieri, In dialetto veneto...)"
-                                value={customTone}
-                                onChange={(e) => setCustomTone(e.target.value)}
-                            />
+                            <div className="mb-3 animate-in slide-in-from-top-2">
+                                <label className="flex items-center gap-1 text-[10px] font-bold text-blue-600 mb-1"><MessageSquareDashed size={10}/> Istruzioni per l'IA:</label>
+                                <input 
+                                    type="text"
+                                    className="w-full p-3 text-sm border-2 border-blue-200 bg-blue-50 rounded-xl focus:ring-2 focus:ring-blue-400 outline-none text-blue-800 placeholder-blue-300 font-medium"
+                                    placeholder="Es: 'Usa un tono sarcastico', 'Parla come un pirata', 'Fai una citazione colta'..."
+                                    value={customTone}
+                                    onChange={(e) => setCustomTone(e.target.value)}
+                                />
+                            </div>
                         )}
                     </div>
                 )}
@@ -420,26 +444,30 @@ export const Creator: React.FC<CreatorProps> = ({ onCreated, initialData }) => {
                                 placeholder={
                                     contentType === 'simple' && mode === 'manual' 
                                     ? "Scrivi qui il tuo messaggio di auguri..." 
-                                    : "Argomento Cruciverba (es: Zio Carlo, ama la pesca...) o scrivi qui gli auguri."
+                                    : "Argomento (es: Zio Carlo, ama la pesca...) o scrivi qui gli auguri."
                                 }
                                 value={topic}
                                 onChange={(e) => setTopic(e.target.value)}
                             />
-                            <button 
-                                type="button" 
-                                onClick={handleGenerateSuggestions}
-                                disabled={isGeneratingSuggestions || !recipientName}
-                                className={`absolute right-2 bottom-2 text-xs bg-blue-600 text-white px-3 py-1.5 rounded-full font-bold flex items-center gap-1 hover:bg-blue-700 transition-all ${isGeneratingSuggestions ? 'opacity-70 cursor-wait' : ''}`}
-                            >
-                                {isGeneratingSuggestions ? <Loader2 size={12} className="animate-spin"/> : <Sparkles size={12}/>} 
-                                Suggeriscimi Frasi
-                            </button>
+                            {/* SUGGEST BUTTON */}
+                            {mode === 'ai' && (
+                                <button 
+                                    type="button" 
+                                    onClick={handleGenerateSuggestions}
+                                    disabled={isGeneratingSuggestions || !recipientName}
+                                    className={`absolute right-2 bottom-2 text-xs bg-blue-600 text-white px-3 py-1.5 rounded-full font-bold flex items-center gap-1 hover:bg-blue-700 transition-all shadow-md ${isGeneratingSuggestions ? 'opacity-70 cursor-wait' : ''}`}
+                                    title="Genera idee basate sullo stile scelto"
+                                >
+                                    {isGeneratingSuggestions ? <Loader2 size={12} className="animate-spin"/> : <Sparkles size={12}/>} 
+                                    Suggeriscimi Frasi
+                                </button>
+                            )}
                          </div>
 
                          {/* SUGGESTED PHRASES LIST */}
                          {suggestedPhrases.length > 0 && (
                              <div className="mt-3 grid gap-2 animate-in slide-in-from-top-2">
-                                 <p className="text-xs font-bold text-gray-400 uppercase">Scegli una frase:</p>
+                                 <p className="text-xs font-bold text-gray-400 uppercase">Idee per te (Clicca per usare):</p>
                                  {suggestedPhrases.map((phrase, i) => (
                                      <button 
                                         key={i}
@@ -468,6 +496,7 @@ export const Creator: React.FC<CreatorProps> = ({ onCreated, initialData }) => {
                         <button type="button" onClick={addRow} className="text-blue-500 text-sm font-bold flex items-center gap-1 mt-2 hover:bg-blue-50 p-2 rounded-lg transition-colors"><Plus size={16}/> Aggiungi riga</button>
                     </div>
                 )}
+                </div>
           </div>
 
           {contentType === 'crossword' && (
