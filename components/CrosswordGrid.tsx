@@ -51,18 +51,19 @@ const CrosswordGrid: React.FC<CrosswordGridProps> = ({ data, onComplete, onEdit,
   const [isEditingMsg, setIsEditingMsg] = useState(false);
   const [isRegeneratingMsg, setIsRegeneratingMsg] = useState(false);
   const [generatedOptions, setGeneratedOptions] = useState<string[]>([]);
-  const [customPromptMode, setCustomPromptMode] = useState(false);
-  const [customPromptText, setCustomPromptText] = useState("");
   
   const [showPrintGuide, setShowPrintGuide] = useState(false);
   const [revealAnswers, setRevealAnswers] = useState(false);
   const inputRefs = useRef<(HTMLInputElement | null)[][]>([]);
 
-  // Watermark resizing state
-  const [watermarkScale, setWatermarkScale] = useState(1.5);
+  // Watermark State for 2 Sheets
   const [isEditingWatermark, setIsEditingWatermark] = useState(false);
-  const [isResizingWatermark, setIsResizingWatermark] = useState(false);
-  const watermarkRef = useRef<HTMLDivElement>(null);
+  // Posizioni: Scale, X (px), Y (px)
+  const [wmSheet1, setWmSheet1] = useState({ scale: 1.5, x: 0, y: 0 });
+  const [wmSheet2, setWmSheet2] = useState({ scale: 1.5, x: 0, y: 0 });
+  
+  const [activeDrag, setActiveDrag] = useState<{sheet: 1 | 2, startX: number, startY: number, startWmX: number, startWmY: number} | null>(null);
+  const [activeResize, setActiveResize] = useState<1 | 2 | null>(null);
 
   const themeAssets = THEME_ASSETS[data.theme] || THEME_ASSETS.generic;
   const isCrossword = data.type === 'crossword';
@@ -111,22 +112,33 @@ const CrosswordGrid: React.FC<CrosswordGridProps> = ({ data, onComplete, onEdit,
     setGrid(newGrid);
     setEditableMessage(data.message);
   }, [data.words, data.solution, data.height, data.width, data.type]); 
-  // removed `data` from deps to avoid loop, specifically check content.
 
-  // Handle Watermark Resizing
+  // --- DRAG AND RESIZE LOGIC ---
   useEffect(() => {
     const handleMouseMove = (e: MouseEvent) => {
-        if (!isResizingWatermark) return;
-        setWatermarkScale(prev => {
-            const newScale = prev + e.movementY * 0.01;
-            return Math.max(0.5, Math.min(newScale, 5.0)); // Min 0.5x, Max 5x
-        });
+        if (activeResize) {
+            const deltaY = e.movementY * 0.01;
+            if (activeResize === 1) {
+                setWmSheet1(p => ({ ...p, scale: Math.max(0.5, Math.min(p.scale + deltaY, 5.0)) }));
+            } else {
+                setWmSheet2(p => ({ ...p, scale: Math.max(0.5, Math.min(p.scale + deltaY, 5.0)) }));
+            }
+        } else if (activeDrag) {
+            const dx = e.clientX - activeDrag.startX;
+            const dy = e.clientY - activeDrag.startY;
+            if (activeDrag.sheet === 1) {
+                setWmSheet1(p => ({ ...p, x: activeDrag.startWmX + dx, y: activeDrag.startWmY + dy }));
+            } else {
+                setWmSheet2(p => ({ ...p, x: activeDrag.startWmX + dx, y: activeDrag.startWmY + dy }));
+            }
+        }
     };
     const handleMouseUp = () => {
-        setIsResizingWatermark(false);
+        setActiveResize(null);
+        setActiveDrag(null);
     };
 
-    if (isResizingWatermark) {
+    if (activeResize || activeDrag) {
         window.addEventListener('mousemove', handleMouseMove);
         window.addEventListener('mouseup', handleMouseUp);
     }
@@ -134,9 +146,22 @@ const CrosswordGrid: React.FC<CrosswordGridProps> = ({ data, onComplete, onEdit,
         window.removeEventListener('mousemove', handleMouseMove);
         window.removeEventListener('mouseup', handleMouseUp);
     };
-  }, [isResizingWatermark]);
+  }, [activeResize, activeDrag]);
 
+  const startDrag = (e: React.MouseEvent, sheet: 1 | 2) => {
+      if (!isEditingWatermark) return;
+      e.stopPropagation();
+      const current = sheet === 1 ? wmSheet1 : wmSheet2;
+      setActiveDrag({
+          sheet,
+          startX: e.clientX,
+          startY: e.clientY,
+          startWmX: current.x,
+          startWmY: current.y
+      });
+  };
 
+  // --- CELL INTERACTION ---
   const handleCellClick = (x: number, y: number) => {
     if (!grid[y][x].char) return;
     if (selectedCell?.x === x && selectedCell?.y === y) setCurrentDirection(prev => prev === Direction.ACROSS ? Direction.DOWN : Direction.ACROSS);
@@ -157,23 +182,6 @@ const CrosswordGrid: React.FC<CrosswordGridProps> = ({ data, onComplete, onEdit,
           inputRefs.current[nextY][nextX]?.focus();
       }
     }
-  };
-
-  const handleRegenerateMessage = async (tone: 'funny' | 'heartfelt' | 'rhyme' | 'custom') => {
-      if (isRegeneratingMsg) return;
-      setIsRegeneratingMsg(true);
-      setGeneratedOptions([]); 
-      try {
-          const options = await regenerateGreetingOptions(editableMessage, data.theme, data.recipientName, tone, tone === 'custom' ? customPromptText : undefined);
-          setGeneratedOptions(options);
-          if (tone === 'custom') setCustomPromptMode(false);
-          setCustomPromptText("");
-      } catch (e) { console.error(e); } finally { setIsRegeneratingMsg(false); }
-  };
-
-  const selectGeneratedOption = (option: string) => {
-      setEditableMessage(option);
-      setGeneratedOptions([]);
   };
 
   // --- RENDER HELPERS ---
@@ -228,35 +236,6 @@ const CrosswordGrid: React.FC<CrosswordGridProps> = ({ data, onComplete, onEdit,
   return (
     <div className="flex flex-col items-center gap-8 w-full pb-20">
        
-       {/* SELECTION MODAL */}
-       {generatedOptions.length > 0 && (
-            <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm" onClick={() => setGeneratedOptions([])}>
-                <div className="bg-white rounded-2xl shadow-2xl w-full max-w-md overflow-hidden animate-in zoom-in-95 duration-200" onClick={e => e.stopPropagation()}>
-                    <div className="bg-blue-600 p-4 flex justify-between items-center text-white">
-                        <div className="flex items-center gap-2 font-bold">
-                            <Sparkles size={20} className="text-yellow-300"/>
-                            <span>Scegli una frase</span>
-                        </div>
-                        <button onClick={() => setGeneratedOptions([])} className="hover:bg-blue-700 p-1 rounded-full"><X size={20}/></button>
-                    </div>
-                    <div className="p-4 flex flex-col gap-3 bg-gray-50">
-                        {generatedOptions.map((opt, idx) => (
-                            <button 
-                                key={idx} 
-                                onClick={(e) => { e.stopPropagation(); selectGeneratedOption(opt); }} 
-                                className="text-left p-4 bg-white hover:bg-blue-50 border-2 border-gray-100 hover:border-blue-300 rounded-xl transition-all shadow-sm group relative"
-                            >
-                                <p className="text-gray-800 text-sm md:text-base pr-6 font-medium leading-relaxed">"{opt}"</p>
-                                <span className="absolute right-4 top-1/2 -translate-y-1/2 opacity-0 group-hover:opacity-100 text-blue-500 bg-blue-100 p-1 rounded-full">
-                                    <Check size={16}/>
-                                </span>
-                            </button>
-                        ))}
-                    </div>
-                </div>
-            </div>
-       )}
-
        {/* TOOLBAR */}
        <div className="flex flex-wrap gap-2 justify-center z-20 sticky top-2 p-2 bg-black/5 rounded-full backdrop-blur-sm">
             <button onClick={onEdit} className="bg-white px-4 py-2 rounded-full shadow border text-sm flex items-center gap-2 font-bold hover:bg-gray-50 text-gray-700"><Edit size={16} /> Modifica</button>
@@ -290,33 +269,64 @@ const CrosswordGrid: React.FC<CrosswordGridProps> = ({ data, onComplete, onEdit,
             </h3>
             
             {/* SHEET CONTAINER */}
-            <div className="bg-white w-full aspect-[297/210] shadow-2xl flex relative overflow-hidden rounded-sm">
-                 <div className="absolute inset-y-0 left-1/2 w-px bg-gray-300 border-l border-dashed border-gray-400 opacity-50 z-10"></div>
+            <div className="bg-white w-full aspect-[297/210] shadow-2xl flex relative overflow-hidden rounded-sm select-none">
                  
-                 {/* LEFT HALF: RETRO (Back Cover) */}
-                 <div className="w-1/2 h-full p-8 flex flex-col items-center justify-center text-center border-r border-gray-100 bg-gray-50/30">
-                     <span className="absolute top-2 left-2 text-[10px] uppercase text-gray-300 font-bold">Retro Biglietto</span>
-                     <div className="text-6xl opacity-20 mb-4">{themeAssets.decoration}</div>
-                     <div className="text-xs text-gray-400 uppercase tracking-widest mb-2 font-bold">Enigmistica Auguri</div>
-                     <p className="text-[10px] text-gray-400">Un regalo speciale per te</p>
-                     <div className="mt-8 opacity-40"><Printer size={24}/></div>
+                 {/* WATERMARK SHEET 1 */}
+                 <div 
+                    className={`absolute inset-0 flex items-center justify-center overflow-hidden
+                    ${isEditingWatermark ? 'z-50 pointer-events-auto bg-black/5' : 'z-0 pointer-events-none'}`}
+                 >
+                    <div 
+                        onMouseDown={(e) => startDrag(e, 1)}
+                        className={`relative group ${isEditingWatermark ? 'cursor-move' : ''}`}
+                        style={{ transform: `translate(${wmSheet1.x}px, ${wmSheet1.y}px) scale(${wmSheet1.scale}) rotate(12deg)` }}
+                    >
+                        <span className={`text-[100px] text-black transition-opacity ${isEditingWatermark ? 'opacity-30' : 'opacity-[0.06]'}`}>
+                            {themeAssets.watermark}
+                        </span>
+                        {isEditingWatermark && (
+                            <>
+                                <div className="absolute inset-[-10px] border-4 border-dashed border-blue-400 rounded-xl opacity-50 animate-pulse pointer-events-none"></div>
+                                <div 
+                                    onMouseDown={(e) => { e.stopPropagation(); setActiveResize(1); }}
+                                    className="absolute bottom-[-20px] right-[-20px] w-12 h-12 bg-blue-600 border-4 border-white rounded-full cursor-se-resize flex items-center justify-center shadow-xl z-50 hover:scale-110 transition-transform"
+                                >
+                                    <MoveDiagonal size={20} className="text-white"/>
+                                </div>
+                            </>
+                        )}
+                    </div>
                  </div>
 
-                 {/* RIGHT HALF: FRONTE (Front Cover) */}
-                 <div className={`w-1/2 h-full p-8 flex flex-col items-center justify-center text-center ${themeAssets.printBorder} border-l-0 relative`}>
-                     <span className="absolute top-2 right-2 text-[10px] uppercase text-gray-300 font-bold">Copertina</span>
-                     <h1 className={`text-4xl md:text-5xl ${themeAssets.fontTitle} mb-4 text-gray-900 leading-tight`}>{data.title}</h1>
-                     <div className="w-16 h-1 bg-gray-800 mb-4 opacity-50"></div>
-                     <p className="text-sm md:text-base uppercase text-gray-500 mb-8 font-bold tracking-widest">
-                         {data.eventDate} <span className="text-black/30 mx-1">•</span> {currentYear}
-                     </p>
-                     {data.images?.extraImage ? (
-                        <img src={data.images.extraImage} className="h-32 md:h-48 object-contain mb-4 grayscale hover:grayscale-0 transition-all" />
-                     ) : (
-                        <div className="text-8xl opacity-80 animate-pulse">{themeAssets.decoration}</div>
-                     )}
-                     <div className="mt-auto">
-                        <p className="text-xs italic text-gray-400">"Apri per scoprire..."</p>
+                 <div className="absolute inset-y-0 left-1/2 w-px bg-gray-300 border-l border-dashed border-gray-400 opacity-50 z-10"></div>
+                 
+                 {/* CONTENT LAYERS SHEET 1 */}
+                 <div className={`absolute inset-0 flex z-10 transition-opacity duration-300 ${isEditingWatermark ? 'opacity-20 pointer-events-none blur-[1px]' : 'opacity-100'}`}>
+                     {/* LEFT HALF: RETRO (Back Cover) */}
+                     <div className="w-1/2 h-full p-8 flex flex-col items-center justify-center text-center border-r border-gray-100 bg-white/90">
+                         <span className="absolute top-2 left-2 text-[10px] uppercase text-gray-300 font-bold">Retro Biglietto</span>
+                         <div className="text-6xl opacity-20 mb-4">{themeAssets.decoration}</div>
+                         <div className="text-xs text-gray-400 uppercase tracking-widest mb-2 font-bold">Enigmistica Auguri</div>
+                         <p className="text-[10px] text-gray-400">Un regalo speciale per te</p>
+                         <div className="mt-8 opacity-40"><Printer size={24}/></div>
+                     </div>
+
+                     {/* RIGHT HALF: FRONTE (Front Cover) */}
+                     <div className={`w-1/2 h-full p-8 flex flex-col items-center justify-center text-center ${themeAssets.printBorder} border-l-0 relative bg-white/90`}>
+                         <span className="absolute top-2 right-2 text-[10px] uppercase text-gray-300 font-bold">Copertina</span>
+                         <h1 className={`text-4xl md:text-5xl ${themeAssets.fontTitle} mb-4 text-gray-900 leading-tight`}>{data.title}</h1>
+                         <div className="w-16 h-1 bg-gray-800 mb-4 opacity-50"></div>
+                         <p className="text-sm md:text-base uppercase text-gray-500 mb-8 font-bold tracking-widest">
+                             {data.eventDate} <span className="text-black/30 mx-1">•</span> {currentYear}
+                         </p>
+                         {data.images?.extraImage ? (
+                            <img src={data.images.extraImage} className="h-32 md:h-48 object-contain mb-4 grayscale hover:grayscale-0 transition-all" />
+                         ) : (
+                            <div className="text-8xl opacity-80 animate-pulse">{themeAssets.decoration}</div>
+                         )}
+                         <div className="mt-auto">
+                            <p className="text-xs italic text-gray-400">"Apri per scoprire..."</p>
+                         </div>
                      </div>
                  </div>
             </div>
@@ -331,29 +341,25 @@ const CrosswordGrid: React.FC<CrosswordGridProps> = ({ data, onComplete, onEdit,
            {/* SHEET CONTAINER */}
            <div className="bg-white w-full aspect-[297/210] shadow-2xl flex relative overflow-hidden rounded-sm select-none">
                 
-                {/* WATERMARK BACKGROUND (RESIZABLE) - VISUALIZZA SOPRA SE IN EDIT MODE */}
+                {/* WATERMARK SHEET 2 */}
                 <div 
-                    className={`absolute inset-0 flex items-center justify-center overflow-hidden transition-all duration-300
+                    className={`absolute inset-0 flex items-center justify-center overflow-hidden
                     ${isEditingWatermark ? 'z-50 pointer-events-auto bg-black/5' : 'z-0 pointer-events-none'}`}
                 >
                     <div 
-                        ref={watermarkRef}
+                        onMouseDown={(e) => startDrag(e, 2)}
                         className={`relative group ${isEditingWatermark ? 'cursor-move' : ''}`}
-                        style={{ transform: `scale(${watermarkScale}) rotate(12deg)` }}
+                        style={{ transform: `translate(${wmSheet2.x}px, ${wmSheet2.y}px) scale(${wmSheet2.scale}) rotate(12deg)` }}
                     >
-                        {/* Filigrana effettiva */}
-                        <span className={`text-[100px] text-black transition-opacity ${isEditingWatermark ? 'opacity-20' : 'opacity-[0.05]'}`}>
+                        <span className={`text-[100px] text-black transition-opacity ${isEditingWatermark ? 'opacity-30' : 'opacity-[0.06]'}`}>
                             {themeAssets.watermark}
                         </span>
-
-                        {/* MANIGLIA DI RIDIMENSIONAMENTO - SEMPRE VISIBILE IN EDIT MODE */}
                         {isEditingWatermark && (
                             <>
                                 <div className="absolute inset-[-10px] border-4 border-dashed border-blue-400 rounded-xl opacity-50 animate-pulse pointer-events-none"></div>
                                 <div 
-                                    onMouseDown={(e) => { e.stopPropagation(); setIsResizingWatermark(true); }}
+                                    onMouseDown={(e) => { e.stopPropagation(); setActiveResize(2); }}
                                     className="absolute bottom-[-20px] right-[-20px] w-12 h-12 bg-blue-600 border-4 border-white rounded-full cursor-se-resize flex items-center justify-center shadow-xl z-50 hover:scale-110 transition-transform"
-                                    title="Trascina per ridimensionare"
                                 >
                                     <MoveDiagonal size={20} className="text-white"/>
                                 </div>
@@ -395,13 +401,6 @@ const CrosswordGrid: React.FC<CrosswordGridProps> = ({ data, onComplete, onEdit,
                                         <span className="absolute -top-2 -right-2 opacity-0 group-hover:opacity-100 text-gray-400 bg-white rounded-full p-1 shadow-md pointer-events-none"><Edit size={12}/></span>
                                     </div>
                                 )}
-                            </div>
-
-                            {/* AI Tools for Message */}
-                            <div className="mt-2 flex gap-1 justify-center opacity-0 group-hover:opacity-100 transition-opacity pointer-events-auto">
-                                <button onClick={() => handleRegenerateMessage('funny')} className="text-[10px] bg-gray-100 px-2 py-1 rounded hover:bg-blue-100" title="Genera Frase Simpatica">😂</button>
-                                <button onClick={() => handleRegenerateMessage('heartfelt')} className="text-[10px] bg-gray-100 px-2 py-1 rounded hover:bg-blue-100" title="Genera Frase Dolce">❤️</button>
-                                <button onClick={() => handleRegenerateMessage('rhyme')} className="text-[10px] bg-gray-100 px-2 py-1 rounded hover:bg-blue-100" title="Genera Frase in Rima">🎵</button>
                             </div>
                         </div>
 
@@ -464,8 +463,8 @@ const CrosswordGrid: React.FC<CrosswordGridProps> = ({ data, onComplete, onEdit,
        <div className="hidden print:block">
            {/* SHEET 1: ESTERNO */}
            <div className="print-sheet flex flex-row">
-               {/* WATERMARK PRINT (STATIC) */}
-               <div className="watermark" style={{ transform: `translate(-50%, -50%) scale(${watermarkScale}) rotate(12deg)` }}>{themeAssets.watermark}</div>
+               {/* WATERMARK PRINT (STATIC - uses edited position) */}
+               <div className="watermark" style={{ transform: `translate(-50%, -50%) translate(${wmSheet1.x}px, ${wmSheet1.y}px) scale(${wmSheet1.scale}) rotate(12deg)` }}>{themeAssets.watermark}</div>
                
                {/* Retro */}
                <div className="print-half border-r border-gray-200 flex flex-col items-center justify-center text-center">
@@ -491,7 +490,7 @@ const CrosswordGrid: React.FC<CrosswordGridProps> = ({ data, onComplete, onEdit,
 
            {/* SHEET 2: INTERNO */}
            <div className="print-sheet flex flex-row">
-               <div className="watermark" style={{ transform: `translate(-50%, -50%) scale(${watermarkScale}) rotate(12deg)` }}>{themeAssets.watermark}</div>
+               <div className="watermark" style={{ transform: `translate(-50%, -50%) translate(${wmSheet2.x}px, ${wmSheet2.y}px) scale(${wmSheet2.scale}) rotate(12deg)` }}>{themeAssets.watermark}</div>
                {/* Dedica */}
                <div className={`print-half ${themeAssets.printBorder} border-r-0 flex flex-col items-center text-center p-8`}>
                    <div className="flex-1 flex flex-col items-center justify-center w-full gap-6">
