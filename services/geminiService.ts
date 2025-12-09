@@ -242,6 +242,26 @@ const findSolutionInGrid = (words: any[], hiddenWord: string): any => {
     return null;
 };
 
+// --- LOGICA DI INTEGRAZIONE LETTERE MANCANTI ---
+const getMissingLetters = (existingWords: string[], targetWord: string): string[] => {
+    const pool = existingWords.join('').toUpperCase().split('');
+    const target = targetWord.toUpperCase().replace(/[^A-Z]/g, '').split('');
+    const missing: string[] = [];
+    
+    // Simple greedy check
+    const poolMap = new Map<string, number>();
+    pool.forEach(c => poolMap.set(c, (poolMap.get(c) || 0) + 1));
+    
+    target.forEach(c => {
+        if (poolMap.get(c) && poolMap.get(c)! > 0) {
+            poolMap.set(c, poolMap.get(c)! - 1);
+        } else {
+            missing.push(c);
+        }
+    });
+    return missing;
+};
+
 // --- MAIN FUNCTION ---
 export const generateCrossword = async (
   mode: 'ai' | 'manual',
@@ -273,15 +293,49 @@ export const generateCrossword = async (
   if (extraData.contentType === 'crossword') {
       if (mode === 'manual') {
           const inputs = inputData as ManualInput[];
+          // 1. Prendi parole manuali
           generatedWords = inputs
             .filter(i => i.word.trim() && i.clue.trim())
             .map(i => ({ word: i.word.toUpperCase().trim(), clue: i.clue }));
+          
+          // 2. Controllo Soluzione e Integrazione AI
+          if (hiddenSolutionWord) {
+             const cleanSol = hiddenSolutionWord.replace(/[^A-Z]/g, '').toUpperCase();
+             const missingLetters = getMissingLetters(generatedWords.map(w => w.word), cleanSol);
+             
+             if (missingLetters.length > 0) {
+                 if (onStatusUpdate) onStatusUpdate(`Integro lettere mancanti: ${missingLetters.join(', ')}...`);
+                 try {
+                     const prompt = `Devo completare un cruciverba con soluzione nascosta "${cleanSol}". 
+                     Ho già queste parole: ${generatedWords.map(w => w.word).join(', ')}.
+                     Mancano le lettere: ${missingLetters.join(', ')}.
+                     Genera 4 parole AGGIUNTIVE che contengano queste lettere mancanti.
+                     Tema: ${theme}. Output JSON array di oggetti {word, clue}.`;
+                     
+                     const response = await ai.models.generateContent({
+                        model: 'gemini-2.5-flash',
+                        contents: prompt,
+                        config: { responseMimeType: "application/json", responseSchema: wordListSchema, temperature: 0.7 },
+                     });
+                     
+                     const json = JSON.parse(response.text || "{}");
+                     if (json.words && Array.isArray(json.words)) {
+                         generatedWords = [...generatedWords, ...json.words];
+                     }
+                 } catch (e) {
+                     console.warn("Fallita integrazione AI parole mancanti", e);
+                     // Procediamo comunque, magari l'utente è fortunato o l'algoritmo incastra bene
+                 }
+             }
+          }
+
       } else {
+          // MODALITA' AI PURA
           const topic = inputData as string;
           const solutionChars = hiddenSolutionWord ? hiddenSolutionWord.toUpperCase().replace(/[^A-Z]/g, '').split('').join(', ') : '';
           const lettersInstruction = solutionChars ? `IMPORTANTE: Devi generare parole che contengano le seguenti lettere sparse: ${solutionChars}.` : '';
           
-          const prompt = `Genera una lista di 6-8 parole e definizioni per un cruciverba sul tema: "${topic}". ${lettersInstruction} Output JSON array di oggetti {word, clue}.`;
+          const prompt = `Genera una lista di 8-10 parole e definizioni per un cruciverba sul tema: "${topic}". ${lettersInstruction} Output JSON array di oggetti {word, clue}.`;
           
           try {
             if (onStatusUpdate) onStatusUpdate("L'IA inventa le parole...");
@@ -314,8 +368,6 @@ export const generateCrossword = async (
   }
 
   // --- LOGICA MESSAGGIO AUGURI ---
-  // Se l'input è una stringa (Topic/Message) la usiamo direttamente come messaggio
-  // Se l'utente ha scelto di generare opzioni nel Creator, il "topic" è già la frase scelta.
   if (typeof inputData === 'string' && inputData.trim().length > 0) {
       message = inputData;
   } else {
