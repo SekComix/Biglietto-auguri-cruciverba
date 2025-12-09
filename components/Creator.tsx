@@ -233,7 +233,7 @@ export const Creator: React.FC<CreatorProps> = ({ onCreated, initialData }) => {
 
       const cleanSolution = hiddenSolution.trim().toUpperCase();
       
-      // Default Date Fallback logic moved to service or handled here
+      // Default Date Fallback logic
       const finalDate = eventDate.trim() || DEFAULT_DATES[theme] || 'Oggi';
 
       const data = await generateCrossword(
