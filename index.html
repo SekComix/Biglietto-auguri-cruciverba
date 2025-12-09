@@ -69,41 +69,47 @@
           margin: 0; /* CRITICAL: Remove browser default margins */
         }
         
-        body { 
-          background: white !important; 
-          margin: 0;
-          padding: 0;
+        body, html { 
+          width: 297mm;
+          height: 210mm; 
+          margin: 0 !important;
+          padding: 0 !important;
+          background: white !important;
           -webkit-print-color-adjust: exact !important; 
           print-color-adjust: exact !important;
-          width: 297mm;
-          height: 210mm;
-          overflow: hidden;
+          overflow: visible !important;
         }
 
         /* Hide UI */
-        header, footer, button, .no-print, form, .print-guide { display: none !important; }
+        header, footer, button, .no-print, form, .print-guide, .watermark-controls, .print-hidden { display: none !important; }
         
         /* The Sheet Container */
         .print-sheet {
-          width: 297mm;
-          height: 209mm; /* Slightly less than 210 to avoid spilling to next page */
+          width: 296mm; /* Slightly less to prevent overflow */
+          height: 209mm; 
           display: flex !important;
+          flex-direction: row !important;
           page-break-after: always;
           break-after: page;
-          overflow: hidden;
+          page-break-inside: avoid;
+          break-inside: avoid;
           position: relative;
           background-color: white !important;
+          margin: 0 auto !important;
+          left: 0;
+          top: 0;
         }
 
         /* The Half Page (A5) */
         .print-half {
-          width: 148.5mm; /* Exact half of A4 landscape */
-          height: 100%;
+          width: 50% !important;
+          height: 100% !important;
           padding: 10mm; /* Safe print margin */
           box-sizing: border-box;
           display: flex;
           flex-direction: column;
           position: relative;
+          border-color: #e5e7eb !important; /* Gray-200 force */
         }
 
         /* Watermark styling - WOW EFFECT */
@@ -112,7 +118,7 @@
             top: 50%;
             left: 50%;
             transform: translate(-50%, -50%);
-            opacity: 0.12 !important; /* Increased opacity for better visibility */
+            opacity: 0.1 !important; /* Increased opacity for better visibility */
             font-size: 350px; /* HUGE */
             pointer-events: none;
             z-index: 0;
@@ -122,11 +128,11 @@
         }
 
         /* Reset Tailwind constraints */
-        #root, main, .container { width: 100%; max-width: none; margin: 0; padding: 0; }
+        #root, main, .container { width: 100%; max-width: none; margin: 0; padding: 0; display: block; }
         .min-h-screen { min-height: 0 !important; background: none !important; }
         
         /* Typography fix for print */
-        p, h1, h2, h3, li { color: black !important; text-shadow: none !important; }
+        p, h1, h2, h3, li, span { color: black !important; text-shadow: none !important; }
         input, textarea { border: none !important; background: transparent !important; resize: none; overflow: hidden; }
       }
     </style>
