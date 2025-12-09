@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { generateCrossword, regenerateGreetingOptions } from '../services/geminiService';
 import { CrosswordData, ManualInput, ThemeType, ToneType, Direction } from '../types';
-import { Loader2, Wand2, Plus, Trash2, Gift, PartyPopper, CalendarHeart, Crown, KeyRound, Image as ImageIcon, Upload, Calendar, AlertCircle, Grid3X3, MailOpen, Images, Ghost, GraduationCap, ScrollText, HeartHandshake, BookOpen, Search, X, Smile, Heart, Music, Sparkles, Edit, PenTool, LayoutGrid, Zap, Check, MessageSquareDashed, Info } from 'lucide-react';
+import { Loader2, Wand2, Plus, Trash2, Gift, PartyPopper, CalendarHeart, Crown, KeyRound, Image as ImageIcon, Upload, Calendar, AlertCircle, Grid3X3, MailOpen, Images, Ghost, GraduationCap, ScrollText, HeartHandshake, BookOpen, Search, X, Smile, Heart, Music, Sparkles, Edit, PenTool, LayoutGrid, Zap, Check, MessageSquareDashed, Info, HelpCircle } from 'lucide-react';
 
 interface CreatorProps {
   onCreated: (data: CrosswordData) => void;
@@ -384,11 +384,18 @@ export const Creator: React.FC<CreatorProps> = ({ onCreated, initialData }) => {
                     <button 
                         type="button" 
                         onClick={() => setMode('manual')} 
-                        className={`flex-1 py-3 text-sm font-bold flex items-center justify-center gap-2 transition-colors relative ${mode === 'manual' ? 'bg-white text-blue-600' : 'bg-gray-50 text-gray-400 hover:text-gray-600'}`}
+                        title="Tu scrivi le parole, noi creiamo l'incrocio"
+                        className={`flex-1 py-3 text-sm font-bold flex items-center justify-center gap-2 transition-colors relative group ${mode === 'manual' ? 'bg-white text-blue-600' : 'bg-gray-50 text-gray-400 hover:text-gray-600'}`}
                     >
                         <Edit size={16}/> 
                         Inserimento Manuale
                         {mode === 'manual' && <div className="absolute bottom-0 left-0 w-full h-0.5 bg-blue-600"></div>}
+                        
+                        {/* Tooltip Hover */}
+                        <div className="absolute bottom-full mb-2 left-1/2 -translate-x-1/2 w-48 bg-black text-white text-xs rounded py-1 px-2 opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none z-10 text-center shadow-lg">
+                            Scegli tu le parole, noi creiamo lo schema!
+                            <div className="absolute top-full left-1/2 -translate-x-1/2 border-4 border-transparent border-t-black"></div>
+                        </div>
                     </button>
                 </div>
 
@@ -477,18 +484,24 @@ export const Creator: React.FC<CreatorProps> = ({ onCreated, initialData }) => {
                      </div>
                 ) : (
                     <div className="space-y-2 animate-in fade-in">
-                        <div className="bg-blue-50 border border-blue-200 p-2 rounded-lg mb-3 flex gap-2 items-start">
-                             <Info size={16} className="text-blue-500 shrink-0 mt-0.5" />
-                             <p className="text-xs text-blue-800 leading-tight">
-                                 Inserisci tu le parole e gli indizi. Quando clicchi "Genera", il sistema calcolerà automaticamente la griglia migliore per incastrarle.
-                             </p>
+                        {/* Box Info Chiaro e Parlante */}
+                        <div className="bg-blue-50 border border-blue-200 p-3 rounded-xl mb-4 flex gap-3 items-start shadow-sm">
+                             <div className="bg-blue-100 p-1.5 rounded-full text-blue-600 mt-0.5"><HelpCircle size={18} /></div>
+                             <div>
+                                 <h4 className="text-sm font-bold text-blue-900 mb-1">Come funziona?</h4>
+                                 <p className="text-xs text-blue-800 leading-relaxed">
+                                     Tu scrivi le parole (es. <b>NONNA</b>) e gli indizi (es. <i>"Fa le torte migliori"</i>).<br/>
+                                     Cliccando "Genera", <b>noi calcoleremo l'incastro perfetto</b> per creare il cruciverba.
+                                 </p>
+                             </div>
                         </div>
+
                         {manualWords.map((item, idx) => (
                             <div key={idx} className="flex gap-2 relative">
                                 <div className="relative w-1/3">
                                     <input placeholder="PAROLA" value={item.word} onChange={(e) => handleManualChange(idx, 'word', e.target.value)} className="w-full p-2 border rounded-lg font-bold uppercase focus:border-blue-400 outline-none" />
                                 </div>
-                                <input placeholder="Indizio" value={item.clue} onChange={(e) => handleManualChange(idx, 'clue', e.target.value)} className="flex-1 p-2 border rounded-lg focus:border-blue-400 outline-none" />
+                                <input placeholder="Indizio (es. Il suo piatto preferito)" value={item.clue} onChange={(e) => handleManualChange(idx, 'clue', e.target.value)} className="flex-1 p-2 border rounded-lg focus:border-blue-400 outline-none" />
                                 {manualWords.length > 2 && <button type="button" onClick={() => removeRow(idx)}><Trash2 size={18} className="text-gray-400 hover:text-red-500" /></button>}
                             </div>
                         ))}
