@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { generateCrossword, regenerateGreetingOptions } from '../services/geminiService';
 import { CrosswordData, ManualInput, ThemeType, ToneType, Direction } from '../types';
-import { Loader2, Wand2, Plus, Trash2, Gift, PartyPopper, CalendarHeart, Crown, KeyRound, Image as ImageIcon, Upload, Calendar, AlertCircle, Grid3X3, MailOpen, Images, Ghost, GraduationCap, ScrollText, HeartHandshake, BookOpen, Search, X, Smile, Heart, Music, Sparkles, Edit, PenTool, LayoutGrid, Zap, Check, MessageSquareDashed } from 'lucide-react';
+import { Loader2, Wand2, Plus, Trash2, Gift, PartyPopper, CalendarHeart, Crown, KeyRound, Image as ImageIcon, Upload, Calendar, AlertCircle, Grid3X3, MailOpen, Images, Ghost, GraduationCap, ScrollText, HeartHandshake, BookOpen, Search, X, Smile, Heart, Music, Sparkles, Edit, PenTool, LayoutGrid, Zap, Check, MessageSquareDashed, Info } from 'lucide-react';
 
 interface CreatorProps {
   onCreated: (data: CrosswordData) => void;
@@ -196,10 +196,8 @@ export const Creator: React.FC<CreatorProps> = ({ onCreated, initialData }) => {
       setIsGeneratingSuggestions(true);
       setSuggestedPhrases([]);
       try {
-          // IMPORTANT: Pass customTone if active
           const toneToUse = tone;
           const promptToUse = tone === 'custom' ? customTone : undefined;
-          
           const phrases = await regenerateGreetingOptions("placeholder", theme, recipientName, toneToUse, promptToUse);
           setSuggestedPhrases(phrases);
       } catch (e) {
@@ -228,7 +226,6 @@ export const Creator: React.FC<CreatorProps> = ({ onCreated, initialData }) => {
             if (!topic.trim()) throw new Error("Inserisci un argomento o scegli una frase.");
           }
       } else {
-          // SIMPLE MODE
           if (!topic.trim()) throw new Error("Scrivi un messaggio o scegline uno.");
       }
 
@@ -373,7 +370,6 @@ export const Creator: React.FC<CreatorProps> = ({ onCreated, initialData }) => {
             </div>
           </div>
 
-          {/* MODE TABS - CHANGED UI TO LOOK LIKE TABS */}
           <div className="mb-6 bg-gray-50 rounded-xl border border-gray-100 animate-fade-in overflow-hidden">
                 <div className="flex border-b border-gray-200">
                     <button 
@@ -419,7 +415,6 @@ export const Creator: React.FC<CreatorProps> = ({ onCreated, initialData }) => {
                             ))}
                         </div>
                         
-                        {/* CUSTOM TONE INPUT - Only visible when Custom is selected */}
                         {tone === 'custom' && (
                             <div className="mb-3 animate-in slide-in-from-top-2">
                                 <label className="flex items-center gap-1 text-[10px] font-bold text-blue-600 mb-1"><MessageSquareDashed size={10}/> Istruzioni per l'IA:</label>
@@ -449,7 +444,6 @@ export const Creator: React.FC<CreatorProps> = ({ onCreated, initialData }) => {
                                 value={topic}
                                 onChange={(e) => setTopic(e.target.value)}
                             />
-                            {/* SUGGEST BUTTON */}
                             {mode === 'ai' && (
                                 <button 
                                     type="button" 
@@ -464,7 +458,6 @@ export const Creator: React.FC<CreatorProps> = ({ onCreated, initialData }) => {
                             )}
                          </div>
 
-                         {/* SUGGESTED PHRASES LIST */}
                          {suggestedPhrases.length > 0 && (
                              <div className="mt-3 grid gap-2 animate-in slide-in-from-top-2">
                                  <p className="text-xs font-bold text-gray-400 uppercase">Idee per te (Clicca per usare):</p>
@@ -483,7 +476,13 @@ export const Creator: React.FC<CreatorProps> = ({ onCreated, initialData }) => {
                          )}
                      </div>
                 ) : (
-                    <div className="space-y-2">
+                    <div className="space-y-2 animate-in fade-in">
+                        <div className="bg-blue-50 border border-blue-200 p-2 rounded-lg mb-3 flex gap-2 items-start">
+                             <Info size={16} className="text-blue-500 shrink-0 mt-0.5" />
+                             <p className="text-xs text-blue-800 leading-tight">
+                                 Inserisci tu le parole e gli indizi. Quando clicchi "Genera", il sistema calcolerà automaticamente la griglia migliore per incastrarle.
+                             </p>
+                        </div>
                         {manualWords.map((item, idx) => (
                             <div key={idx} className="flex gap-2 relative">
                                 <div className="relative w-1/3">
