@@ -369,7 +369,27 @@ export const generateCrossword = async (
 
   // --- LOGICA MESSAGGIO AUGURI ---
   if (typeof inputData === 'string' && inputData.trim().length > 0) {
-      message = inputData;
+      if (mode === 'ai') {
+          // SE L'UTENTE HA DATO SOLO L'ARGOMENTO (TOPIC), GENERIAMO IL MESSAGGIO CON L'IA
+          // Questo serve se l'utente non ha cliccato "Suggeriscimi frasi" ma direttamente "Genera"
+          if (onStatusUpdate) onStatusUpdate("Scrivo la dedica...");
+          try {
+              const generatedMessage = await regenerateGreeting(
+                  inputData, // Topic is the context
+                  theme, 
+                  extraData.recipientName, 
+                  extraData.tone || 'surprise', 
+                  extraData.customTone
+              );
+              message = generatedMessage;
+          } catch (e) {
+              // Fallback se l'IA fallisce, usiamo l'input raw
+              message = inputData;
+          }
+      } else {
+          // Manual mode: quello che scrivi è quello che ottieni
+          message = inputData;
+      }
   } else {
       message = getRandomFallback(theme);
   }
@@ -421,9 +441,10 @@ export const regenerateGreetingOptions = async (
     const apiKey = getApiKey();
     const ai = new GoogleGenAI({ apiKey });
     let instructions = tone === 'custom' && customPrompt ? `Istruzioni specifiche: "${customPrompt}".` : `Stile: ${tone}.`;
-    
+    let context = currentMessage !== 'placeholder' ? `Contesto/Argomento: "${currentMessage}".` : '';
+
     // Request 5 variations (increased from 3)
-    const prompt = `Scrivi 5 diverse opzioni di messaggi di auguri brevi per ${recipient}. Evento: ${theme}. ${instructions} Max 30 parole per opzione. Restituisci JSON: { "options": ["messaggio 1", "messaggio 2", "messaggio 3", "messaggio 4", "messaggio 5"] }`;
+    const prompt = `Scrivi 5 diverse opzioni di messaggi di auguri brevi per ${recipient}. Evento: ${theme}. ${instructions} ${context} Max 30 parole per opzione. Restituisci JSON: { "options": ["messaggio 1", "messaggio 2", "messaggio 3", "messaggio 4", "messaggio 5"] }`;
     
     const schema = {
         type: Type.OBJECT,
@@ -454,7 +475,7 @@ export const regenerateGreeting = async (
     tone: ToneType,
     customPrompt?: string
 ): Promise<string> => {
-     // Legacy wrapper
+     // Wrapper that returns just one best option
      const options = await regenerateGreetingOptions(currentMessage, theme, recipient, tone, customPrompt);
      return options[0];
 }
