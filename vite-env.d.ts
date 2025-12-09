@@ -3,3 +3,6 @@ declare namespace NodeJS {
     readonly API_KEY: string;
   }
 }
+
+declare module 'html2canvas';
+declare module 'jspdf';
