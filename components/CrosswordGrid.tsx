@@ -186,23 +186,58 @@ const CrosswordGrid: React.FC<CrosswordGridProps> = ({ data, onComplete, onEdit,
         const imgData1 = canvas1.toDataURL('image/jpeg', 0.95);
         const imgData2 = canvas2.toDataURL('image/jpeg', 0.95);
 
-        const pdf = new jsPDF({
-            orientation: 'landscape',
-            unit: 'mm',
-            format: 'a4'
-        });
+        // CREATE A NEW WINDOW FOR PREVIEW WITH EXPLICIT PRINT BUTTON
+        const win = window.open('', '_blank');
+        if (!win) {
+            alert("Il browser ha bloccato l'apertura della nuova finestra. Abilita i popup.");
+            return;
+        }
 
-        const pdfWidth = 297;
-        const pdfHeight = 210;
-
-        pdf.addImage(imgData1, 'JPEG', 0, 0, pdfWidth, pdfHeight);
-        pdf.addPage();
-        pdf.addImage(imgData2, 'JPEG', 0, 0, pdfWidth, pdfHeight);
-
-        // APRI IN NUOVA SCHEDA INVECE DI SCARICARE
-        const pdfBlob = pdf.output('blob');
-        const pdfUrl = URL.createObjectURL(pdfBlob);
-        window.open(pdfUrl, '_blank');
+        win.document.write(`
+            <html>
+                <head>
+                    <title>Anteprima Biglietto - ${data.recipientName}</title>
+                    <style>
+                        body { font-family: sans-serif; background-color: #f3f4f6; margin: 0; padding: 0; display: flex; flex-direction: column; alignItems: center; }
+                        .toolbar { 
+                            position: fixed; top: 0; left: 0; right: 0; 
+                            background: white; padding: 15px; 
+                            box-shadow: 0 2px 10px rgba(0,0,0,0.1); 
+                            text-align: center; z-index: 1000;
+                            display: flex; justify-content: center; gap: 20px;
+                        }
+                        .print-btn { 
+                            background-color: #2563eb; color: white; border: none; 
+                            padding: 12px 24px; border-radius: 50px; 
+                            font-size: 16px; font-weight: bold; cursor: pointer; 
+                            box-shadow: 0 4px 6px rgba(37, 99, 235, 0.3);
+                            display: flex; align-items: center; gap: 8px;
+                        }
+                        .print-btn:hover { background-color: #1d4ed8; }
+                        .content { margin-top: 100px; padding-bottom: 50px; display: flex; flex-direction: column; align-items: center; gap: 20px; width: 100%; }
+                        img { max-width: 95%; height: auto; box-shadow: 0 4px 6px rgba(0,0,0,0.1); border: 1px solid #ddd; }
+                        .instruction { color: #666; margin-bottom: 10px; font-size: 14px; }
+                        @media print {
+                            .toolbar { display: none; }
+                            .content { margin-top: 0; }
+                            img { page-break-after: always; max-width: 100%; box-shadow: none; border: none; }
+                        }
+                    </style>
+                </head>
+                <body>
+                    <div class="toolbar">
+                        <button class="print-btn" onclick="window.print()">🖨️ STAMPA / SALVA PDF</button>
+                    </div>
+                    <div class="content">
+                        <p class="instruction">FOGLIO 1 (Fronte/Retro)</p>
+                        <img src="${imgData1}" />
+                        <p class="instruction">FOGLIO 2 (Interno)</p>
+                        <img src="${imgData2}" />
+                    </div>
+                </body>
+            </html>
+        `);
+        win.document.close();
 
       } catch (e) {
           console.error("PDF Error", e);
@@ -348,7 +383,8 @@ const CrosswordGrid: React.FC<CrosswordGridProps> = ({ data, onComplete, onEdit,
                          <h1 className={`text-4xl md:text-5xl ${themeAssets.fontTitle} mb-4 text-gray-900 leading-tight`}>{data.title}</h1>
                          <div className="w-16 h-1 bg-gray-800 mb-4 opacity-50"></div>
                          <p className="text-sm md:text-base uppercase text-gray-500 mb-8 font-bold tracking-widest">
-                             {data.eventDate} <span className="text-black/30 mx-1">•</span> {currentYear}
+                             {/* FALLBACK DATA */}
+                             {data.eventDate || "Data Speciale"} <span className="text-black/30 mx-1">•</span> {currentYear}
                          </p>
                          {data.images?.extraImage ? (
                             <img src={data.images.extraImage} className="h-32 md:h-48 object-contain mb-4" />
@@ -454,7 +490,9 @@ const CrosswordGrid: React.FC<CrosswordGridProps> = ({ data, onComplete, onEdit,
                  <div className={themeAssets.printBorder} style={{ width: '50%', height: '100%', padding: '60px', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', textAlign: 'center', borderLeft: 'none', position: 'relative' }}>
                      <h1 className={themeAssets.fontTitle} style={{ fontSize: '50px', marginBottom: '10px', lineHeight: 1.2 }}>{data.title}</h1>
                      <div style={{ width: '80px', height: '3px', background: '#333', marginBottom: '20px' }}></div>
-                     <p style={{ fontSize: '18px', textTransform: 'uppercase', color: '#666', letterSpacing: '2px', marginBottom: '40px' }}>{data.eventDate} • {currentYear}</p>
+                     <p style={{ fontSize: '18px', textTransform: 'uppercase', color: '#666', letterSpacing: '2px', marginBottom: '40px' }}>
+                        {data.eventDate || "Data Speciale"} • {currentYear}
+                     </p>
                      {data.images?.extraImage ? (
                        <img src={data.images.extraImage} style={{ maxHeight: '250px', objectFit: 'contain' }} />
                      ) : (
