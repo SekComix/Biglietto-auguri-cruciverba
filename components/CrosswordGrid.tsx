@@ -1,7 +1,9 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { CrosswordData, CellData, Direction, ThemeType } from '../types';
 import { regenerateGreetingOptions } from '../services/geminiService';
-import { Printer, Edit, Eye, EyeOff, BookOpen, FileText, Sparkles, X, MoveDiagonal, Check, Palette, CheckCircle2 } from 'lucide-react';
+import { Printer, Edit, Eye, EyeOff, BookOpen, FileText, Sparkles, X, MoveDiagonal, Check, Palette, CheckCircle2, Download, Loader2 } from 'lucide-react';
+import html2canvas from 'html2canvas';
+import { jsPDF } from 'jspdf';
 
 interface CrosswordGridProps {
   data: CrosswordData;
@@ -49,10 +51,6 @@ const CrosswordGrid: React.FC<CrosswordGridProps> = ({ data, onComplete, onEdit,
   const [editableMessage, setEditableMessage] = useState(data.message);
   
   const [isEditingMsg, setIsEditingMsg] = useState(false);
-  const [isRegeneratingMsg, setIsRegeneratingMsg] = useState(false);
-  const [generatedOptions, setGeneratedOptions] = useState<string[]>([]);
-  
-  const [showPrintGuide, setShowPrintGuide] = useState(false);
   const [revealAnswers, setRevealAnswers] = useState(false);
   const inputRefs = useRef<(HTMLInputElement | null)[][]>([]);
 
@@ -64,6 +62,10 @@ const CrosswordGrid: React.FC<CrosswordGridProps> = ({ data, onComplete, onEdit,
   
   const [activeDrag, setActiveDrag] = useState<{sheet: 1 | 2, startX: number, startY: number, startWmX: number, startWmY: number} | null>(null);
   const [activeResize, setActiveResize] = useState<1 | 2 | null>(null);
+
+  // PDF Generation State
+  const [isGeneratingPDF, setIsGeneratingPDF] = useState(false);
+  const exportRef = useRef<HTMLDivElement>(null);
 
   const themeAssets = THEME_ASSETS[data.theme] || THEME_ASSETS.generic;
   const isCrossword = data.type === 'crossword';
@@ -161,6 +163,55 @@ const CrosswordGrid: React.FC<CrosswordGridProps> = ({ data, onComplete, onEdit,
       });
   };
 
+  // --- PDF GENERATION ---
+  const handleDownloadPDF = async () => {
+      if (!exportRef.current) return;
+      setIsGeneratingPDF(true);
+      
+      try {
+        const sheet1 = exportRef.current.querySelector('#pdf-sheet-1') as HTMLElement;
+        const sheet2 = exportRef.current.querySelector('#pdf-sheet-2') as HTMLElement;
+
+        if (!sheet1 || !sheet2) throw new Error("Elements not found");
+
+        // Options for html2canvas
+        const options = {
+            scale: 2, // 2x resolution for better quality
+            useCORS: true,
+            logging: false,
+            backgroundColor: '#ffffff'
+        };
+
+        const canvas1 = await html2canvas(sheet1, options);
+        const canvas2 = await html2canvas(sheet2, options);
+
+        const imgData1 = canvas1.toDataURL('image/jpeg', 0.9);
+        const imgData2 = canvas2.toDataURL('image/jpeg', 0.9);
+
+        const pdf = new jsPDF({
+            orientation: 'landscape',
+            unit: 'mm',
+            format: 'a4'
+        });
+
+        const pdfWidth = 297;
+        const pdfHeight = 210;
+
+        pdf.addImage(imgData1, 'JPEG', 0, 0, pdfWidth, pdfHeight);
+        pdf.addPage();
+        pdf.addImage(imgData2, 'JPEG', 0, 0, pdfWidth, pdfHeight);
+
+        pdf.save(`Biglietto_${data.recipientName.replace(/\s+/g, '_')}.pdf`);
+
+      } catch (e) {
+          console.error("PDF Error", e);
+          alert("Errore durante la creazione del PDF. Riprova.");
+      } finally {
+          setIsGeneratingPDF(false);
+      }
+  };
+
+
   // --- CELL INTERACTION ---
   const handleCellClick = (x: number, y: number) => {
     if (!grid[y][x].char) return;
@@ -243,39 +294,27 @@ const CrosswordGrid: React.FC<CrosswordGridProps> = ({ data, onComplete, onEdit,
                 {isEditingWatermark ? <CheckCircle2 size={16}/> : <Palette size={16}/>} {isEditingWatermark ? 'Fatto' : 'Sfondo'}
             </button>
             <button onClick={() => setRevealAnswers(!revealAnswers)} className={`px-4 py-2 rounded-full shadow border text-sm flex items-center gap-2 font-bold transition-colors ${revealAnswers ? 'bg-yellow-100 text-yellow-800 border-yellow-300' : 'bg-white text-gray-700'}`}>{revealAnswers ? <EyeOff size={16}/> : <Eye size={16}/>} {revealAnswers ? 'Nascondi' : 'Soluzione'}</button>
-            <button onClick={() => setShowPrintGuide(true)} className="bg-blue-600 text-white px-6 py-2 rounded-full shadow text-sm flex items-center gap-2 font-bold hover:bg-blue-700"><Printer size={16} /> STAMPA</button>
+            <button 
+                onClick={handleDownloadPDF} 
+                disabled={isGeneratingPDF}
+                className={`text-white px-6 py-2 rounded-full shadow text-sm flex items-center gap-2 font-bold transition-colors ${isGeneratingPDF ? 'bg-gray-400 cursor-wait' : 'bg-green-600 hover:bg-green-700'}`}
+            >
+                {isGeneratingPDF ? <Loader2 size={16} className="animate-spin"/> : <Download size={16} />} 
+                {isGeneratingPDF ? 'Creo PDF...' : 'SCARICA PDF'}
+            </button>
        </div>
        
-       {/* PRINT GUIDE MODAL */}
-       {showPrintGuide && (
-           <div className="fixed inset-0 bg-black/80 z-50 flex items-center justify-center p-4 animate-in fade-in" onClick={() => setShowPrintGuide(false)}>
-               <div className="bg-white rounded-2xl p-8 text-center shadow-2xl max-w-md border-4 border-blue-100" onClick={e => e.stopPropagation()}>
-                   <div className="bg-blue-100 w-16 h-16 rounded-full flex items-center justify-center mx-auto mb-4 text-blue-600"><Printer size={32}/></div>
-                   <h3 className="text-2xl font-bold mb-2 text-gray-800">Stampa Libretto</h3>
-                   <div className="text-left text-sm text-gray-600 mb-6 space-y-3 bg-gray-50 p-4 rounded-xl">
-                       <p className="flex items-start gap-2"><span className="bg-blue-600 text-white rounded-full w-5 h-5 flex items-center justify-center text-xs shrink-0 mt-0.5">1</span> Usa foglio <b>A4</b>.</p>
-                       <p className="flex items-start gap-2"><span className="bg-blue-600 text-white rounded-full w-5 h-5 flex items-center justify-center text-xs shrink-0 mt-0.5">2</span> Stampa su <b>Entrambi i lati</b>.</p>
-                       <p className="flex items-start gap-2"><span className="bg-blue-600 text-white rounded-full w-5 h-5 flex items-center justify-center text-xs shrink-0 mt-0.5">3</span> Capovolgi sul <b>Lato Corto</b>.</p>
-                   </div>
-                   <button onClick={() => {window.print(); setShowPrintGuide(false);}} className="bg-blue-600 text-white w-full py-3 rounded-xl font-bold text-lg hover:bg-blue-700 transition-colors">🖨️ Stampa Ora</button>
-               </div>
-           </div>
-       )}
+       {/* --- ON SCREEN PREVIEW (INTERACTIVE) --- */}
 
-       {/* --- FOGLIO 1: ESTERNO (Fronte/Retro) --- */}
+       {/* FOGLIO 1: ESTERNO */}
        <div className="w-full max-w-5xl px-4 md:px-0">
             <h3 className="text-center text-white font-bold uppercase tracking-widest mb-4 flex items-center justify-center gap-2 drop-shadow-md">
                 <FileText size={20}/> FOGLIO 1 (Esterno)
             </h3>
             
-            {/* SHEET CONTAINER */}
             <div className="bg-white w-full aspect-[297/210] shadow-2xl flex relative overflow-hidden rounded-sm select-none">
-                 
-                 {/* WATERMARK SHEET 1 */}
-                 <div 
-                    className={`absolute inset-0 flex items-center justify-center overflow-hidden
-                    ${isEditingWatermark ? 'z-50 pointer-events-auto bg-black/5' : 'z-0 pointer-events-none'}`}
-                 >
+                 {/* Watermark Editor */}
+                 <div className={`absolute inset-0 flex items-center justify-center overflow-hidden ${isEditingWatermark ? 'z-50 pointer-events-auto bg-black/5' : 'z-0 pointer-events-none'}`}>
                     <div 
                         onMouseDown={(e) => startDrag(e, 1)}
                         className={`relative group ${isEditingWatermark ? 'cursor-move' : ''}`}
@@ -297,21 +336,16 @@ const CrosswordGrid: React.FC<CrosswordGridProps> = ({ data, onComplete, onEdit,
                         )}
                     </div>
                  </div>
-
                  <div className="absolute inset-y-0 left-1/2 w-px bg-gray-300 border-l border-dashed border-gray-400 opacity-50 z-10"></div>
-                 
-                 {/* CONTENT LAYERS SHEET 1 */}
                  <div className={`absolute inset-0 flex z-10 transition-opacity duration-300 ${isEditingWatermark ? 'opacity-20 pointer-events-none blur-[1px]' : 'opacity-100'}`}>
-                     {/* LEFT HALF: RETRO (Back Cover) */}
+                     {/* RETRO */}
                      <div className="w-1/2 h-full p-8 flex flex-col items-center justify-center text-center border-r border-gray-100 bg-white/90">
                          <span className="absolute top-2 left-2 text-[10px] uppercase text-gray-300 font-bold">Retro Biglietto</span>
                          <div className="text-6xl opacity-20 mb-4">{themeAssets.decoration}</div>
                          <div className="text-xs text-gray-400 uppercase tracking-widest mb-2 font-bold">Enigmistica Auguri</div>
                          <p className="text-[10px] text-gray-400">Un regalo speciale per te</p>
-                         <div className="mt-8 opacity-40"><Printer size={24}/></div>
                      </div>
-
-                     {/* RIGHT HALF: FRONTE (Front Cover) */}
+                     {/* FRONTE */}
                      <div className={`w-1/2 h-full p-8 flex flex-col items-center justify-center text-center ${themeAssets.printBorder} border-l-0 relative bg-white/90`}>
                          <span className="absolute top-2 right-2 text-[10px] uppercase text-gray-300 font-bold">Copertina</span>
                          <h1 className={`text-4xl md:text-5xl ${themeAssets.fontTitle} mb-4 text-gray-900 leading-tight`}>{data.title}</h1>
@@ -320,32 +354,24 @@ const CrosswordGrid: React.FC<CrosswordGridProps> = ({ data, onComplete, onEdit,
                              {data.eventDate} <span className="text-black/30 mx-1">•</span> {currentYear}
                          </p>
                          {data.images?.extraImage ? (
-                            <img src={data.images.extraImage} className="h-32 md:h-48 object-contain mb-4 grayscale hover:grayscale-0 transition-all" />
+                            <img src={data.images.extraImage} className="h-32 md:h-48 object-contain mb-4" />
                          ) : (
-                            <div className="text-8xl opacity-80 animate-pulse">{themeAssets.decoration}</div>
+                            <div className="text-8xl opacity-80">{themeAssets.decoration}</div>
                          )}
-                         <div className="mt-auto">
-                            <p className="text-xs italic text-gray-400">"Apri per scoprire..."</p>
-                         </div>
+                         <div className="mt-auto"><p className="text-xs italic text-gray-400">"Apri per scoprire..."</p></div>
                      </div>
                  </div>
             </div>
        </div>
 
-       {/* --- FOGLIO 2: INTERNO (Dedica/Gioco) --- */}
+       {/* FOGLIO 2: INTERNO */}
        <div className="w-full max-w-5xl px-4 md:px-0">
            <h3 className="text-center text-white font-bold uppercase tracking-widest mb-4 flex items-center justify-center gap-2 drop-shadow-md">
                 <BookOpen size={20}/> FOGLIO 2 (Interno)
            </h3>
-
-           {/* SHEET CONTAINER */}
            <div className="bg-white w-full aspect-[297/210] shadow-2xl flex relative overflow-hidden rounded-sm select-none">
-                
-                {/* WATERMARK SHEET 2 */}
-                <div 
-                    className={`absolute inset-0 flex items-center justify-center overflow-hidden
-                    ${isEditingWatermark ? 'z-50 pointer-events-auto bg-black/5' : 'z-0 pointer-events-none'}`}
-                >
+                {/* Watermark Editor */}
+                <div className={`absolute inset-0 flex items-center justify-center overflow-hidden ${isEditingWatermark ? 'z-50 pointer-events-auto bg-black/5' : 'z-0 pointer-events-none'}`}>
                     <div 
                         onMouseDown={(e) => startDrag(e, 2)}
                         className={`relative group ${isEditingWatermark ? 'cursor-move' : ''}`}
@@ -367,16 +393,11 @@ const CrosswordGrid: React.FC<CrosswordGridProps> = ({ data, onComplete, onEdit,
                         )}
                     </div>
                 </div>
-
                 <div className="absolute inset-y-0 left-1/2 w-px bg-gray-300 border-l border-dashed border-gray-400 opacity-50 z-10"></div>
-
-                {/* CONTENT LAYERS - DIMMED IN EDIT MODE */}
                 <div className={`absolute inset-0 flex z-10 transition-opacity duration-300 ${isEditingWatermark ? 'opacity-20 pointer-events-none blur-[1px]' : 'opacity-100'}`}>
-                    {/* LEFT HALF: DEDICA */}
+                    {/* DEDICA */}
                     <div className={`w-1/2 h-full p-6 flex flex-col items-center justify-between text-center ${themeAssets.printBorder} border-r-0 relative bg-white/90`}>
                         <span className="absolute top-2 left-2 text-[10px] uppercase text-gray-300 font-bold">Lato Sinistro</span>
-                        
-                        {/* Photo Area */}
                         <div className="flex-1 w-full flex flex-col items-center justify-center relative">
                             {photos.length > 0 ? (
                                 <div className="w-[70%] aspect-square border-4 border-white shadow-lg overflow-hidden rounded-sm bg-gray-100 rotate-1 mb-4">
@@ -385,15 +406,11 @@ const CrosswordGrid: React.FC<CrosswordGridProps> = ({ data, onComplete, onEdit,
                             ) : data.images?.extraImage ? (
                                 <img src={data.images.extraImage} className="h-32 object-contain mb-4" />
                             ) : null}
-
-                            {/* Editable Message Container */}
                             <div className="w-full relative group">
                                 {isEditingMsg ? (
                                     <div className="w-full animate-in zoom-in-95 bg-white p-2 rounded-xl shadow-lg border border-blue-200 z-20 absolute top-[-50px] left-0 pointer-events-auto">
                                         <textarea className="w-full p-2 bg-gray-50 border border-blue-200 rounded-lg text-center text-sm focus:outline-none focus:border-blue-400 font-hand" rows={4} value={editableMessage} onChange={(e) => setEditableMessage(e.target.value)}/>
-                                        <div className="flex gap-2 mt-2 justify-center">
-                                            <button onClick={() => setIsEditingMsg(false)} className="bg-green-500 text-white text-xs px-3 py-1 rounded-full font-bold">Fatto</button>
-                                        </div>
+                                        <div className="flex gap-2 mt-2 justify-center"><button onClick={() => setIsEditingMsg(false)} className="bg-green-500 text-white text-xs px-3 py-1 rounded-full font-bold">Fatto</button></div>
                                     </div>
                                 ) : (
                                     <div className="relative cursor-pointer hover:bg-yellow-50 rounded-xl p-2 transition-colors border border-transparent hover:border-yellow-200 pointer-events-auto" onClick={() => setIsEditingMsg(true)}>
@@ -403,151 +420,116 @@ const CrosswordGrid: React.FC<CrosswordGridProps> = ({ data, onComplete, onEdit,
                                 )}
                             </div>
                         </div>
-
-                        <div className="flex gap-2 text-2xl mt-2 justify-center">
-                            {data.stickers?.slice(0,5).map((s,i) => <span key={i}>{s}</span>)}
-                        </div>
+                        <div className="flex gap-2 text-2xl mt-2 justify-center">{data.stickers?.slice(0,5).map((s,i) => <span key={i}>{s}</span>)}</div>
                     </div>
-
-                    {/* RIGHT HALF: GIOCO */}
+                    {/* GIOCO */}
                     <div className="w-1/2 h-full p-4 md:p-6 flex flex-col relative z-10 bg-white/90">
                         <span className="absolute top-2 right-2 text-[10px] uppercase text-gray-300 font-bold">Lato Destro</span>
-                        
                         {isCrossword ? (
                             <>
                                 <h2 className="text-lg font-bold uppercase border-b-2 border-black mb-2 pb-1 text-center tracking-widest">Cruciverba</h2>
-                                
-                                {/* Hidden Word Box */}
                                 {data.solution && (
                                     <div className="mb-2 bg-yellow-50 border border-yellow-200 p-1 rounded-lg text-center mx-auto inline-block">
-                                        <div className="flex justify-center gap-0.5">
-                                            {data.solution.word.split('').map((c,i) => (
-                                                <div key={i} className={`w-4 h-4 border rounded text-[10px] flex items-center justify-center font-bold ${revealAnswers ? 'bg-yellow-400 text-white border-yellow-500' : 'bg-white border-yellow-200 text-gray-400'}`}>
-                                                    {revealAnswers ? c : (i+1)}
-                                                </div>
-                                            ))}
-                                        </div>
+                                        <div className="flex justify-center gap-0.5">{data.solution.word.split('').map((c,i) => <div key={i} className={`w-4 h-4 border rounded text-[10px] flex items-center justify-center font-bold ${revealAnswers ? 'bg-yellow-400 text-white border-yellow-500' : 'bg-white border-yellow-200 text-gray-400'}`}>{revealAnswers ? c : (i+1)}</div>)}</div>
                                     </div>
                                 )}
-
-                                {/* GRID */}
                                 <div className="flex-1 flex items-start justify-center overflow-hidden min-h-0 pointer-events-auto">
-                                    <div style={{ width: '90%', maxHeight: '100%', aspectRatio: `${data.width}/${data.height}` }}>
-                                        {renderGridCells(false)}
-                                    </div>
+                                    <div style={{ width: '90%', maxHeight: '100%', aspectRatio: `${data.width}/${data.height}` }}>{renderGridCells(false)}</div>
                                 </div>
-                                
-                                {/* CLUES */}
                                 <div className="mt-2 text-[9px] md:text-[10px] grid grid-cols-2 gap-2 leading-tight w-full border-t border-black pt-2 overflow-y-auto max-h-[35%] custom-scrollbar pointer-events-auto">
-                                    <div className="pr-1">
-                                        <b className="block border-b border-gray-300 mb-1 pb-0.5 font-bold text-xs">Orizzontali</b>
-                                        {data.words.filter(w=>w.direction===Direction.ACROSS).map(w=><div key={w.id} className="mb-0.5"><b className="mr-1">{w.number}.</b>{w.clue}</div>)}
-                                    </div>
-                                    <div className="pl-1 border-l border-gray-100">
-                                        <b className="block border-b border-gray-300 mb-1 pb-0.5 font-bold text-xs">Verticali</b>
-                                        {data.words.filter(w=>w.direction===Direction.DOWN).map(w=><div key={w.id} className="mb-0.5"><b className="mr-1">{w.number}.</b>{w.clue}</div>)}
-                                    </div>
+                                    <div className="pr-1"><b className="block border-b border-gray-300 mb-1 pb-0.5 font-bold text-xs">Orizzontali</b>{data.words.filter(w=>w.direction===Direction.ACROSS).map(w=><div key={w.id} className="mb-0.5"><b className="mr-1">{w.number}.</b>{w.clue}</div>)}</div>
+                                    <div className="pl-1 border-l border-gray-100"><b className="block border-b border-gray-300 mb-1 pb-0.5 font-bold text-xs">Verticali</b>{data.words.filter(w=>w.direction===Direction.DOWN).map(w=><div key={w.id} className="mb-0.5"><b className="mr-1">{w.number}.</b>{w.clue}</div>)}</div>
                                 </div>
                             </>
                         ) : (
-                        <div className="flex-1 flex items-center justify-center opacity-20 border-2 border-dashed border-gray-300 m-8 rounded-xl">
-                            <p className="text-xl font-hand rotate-[-5deg] text-center">Spazio per dedica<br/>scritta a mano...</p>
-                        </div>
+                            <div className="flex-1 flex items-center justify-center opacity-20 border-2 border-dashed border-gray-300 m-8 rounded-xl"><p className="text-xl font-hand rotate-[-5deg] text-center">Spazio per dedica<br/>scritta a mano...</p></div>
                         )}
                     </div>
                 </div>
            </div>
        </div>
 
-       {/* --- PRINT LAYOUT (HIDDEN ON SCREEN) --- */}
-       <div className="hidden print:block">
-           {/* SHEET 1: ESTERNO */}
-           <div className="print-sheet flex flex-row">
-               {/* WATERMARK PRINT (STATIC - uses edited position) */}
-               <div className="watermark" style={{ transform: `translate(-50%, -50%) translate(${wmSheet1.x}px, ${wmSheet1.y}px) scale(${wmSheet1.scale}) rotate(12deg)` }}>{themeAssets.watermark}</div>
-               
-               {/* Retro */}
-               <div className="print-half border-r border-gray-200 flex flex-col items-center justify-center text-center">
-                    <div className="text-4xl opacity-20 mb-4">{themeAssets.decoration}</div>
-                    <div className="text-sm text-gray-400 uppercase tracking-widest mb-8">Enigmistica Auguri</div>
-                    <div className="text-[10px] text-gray-400">Generato con ❤️ e IA</div>
-               </div>
-               {/* Fronte */}
-               <div className={`print-half ${themeAssets.printBorder} border-l-0 flex flex-col items-center justify-center text-center p-10`}>
-                   <h1 className={`text-5xl ${themeAssets.fontTitle} mb-4 text-black`}>{data.title}</h1>
-                   <div className="w-20 h-1 bg-black mb-4"></div>
-                   <p className="text-xl uppercase text-gray-600 mb-10 tracking-widest">{data.eventDate} • {currentYear}</p>
-                   {data.images?.extraImage ? (
-                       <img src={data.images.extraImage} className="max-h-60 object-contain grayscale contrast-125" />
-                   ) : (
-                       <div className="text-9xl opacity-80 text-black">{themeAssets.decoration}</div>
-                   )}
-                   <div className="mt-auto">
-                       <p className="text-sm italic">"Un pensiero speciale per te..."</p>
-                   </div>
-               </div>
-           </div>
+       {/* --- HIDDEN PDF EXPORT STAGE (FIXED LAYOUT) --- */}
+       {/* Questo container è invisibile e contiene il layout esatto per il PDF */}
+       <div ref={exportRef} style={{ position: 'fixed', top: 0, left: '-9999px', width: '297mm', zIndex: -100 }}>
+            {/* SHEET 1 */}
+            <div id="pdf-sheet-1" style={{ width: '297mm', height: '210mm', display: 'flex', position: 'relative', backgroundColor: 'white', overflow: 'hidden' }}>
+                 <div style={{ position: 'absolute', top: '50%', left: '50%', transform: `translate(-50%, -50%) translate(${wmSheet1.x}px, ${wmSheet1.y}px) scale(${wmSheet1.scale}) rotate(12deg)`, fontSize: '300px', opacity: 0.1, zIndex: 0, whiteSpace: 'nowrap' }}>{themeAssets.watermark}</div>
+                 {/* Retro */}
+                 <div style={{ width: '50%', height: '100%', padding: '20mm', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', textAlign: 'center', borderRight: '1px solid #eee' }}>
+                    <div style={{ fontSize: '80px', opacity: 0.2, marginBottom: '20px' }}>{themeAssets.decoration}</div>
+                    <div style={{ fontSize: '14px', textTransform: 'uppercase', color: '#999', letterSpacing: '2px' }}>Enigmistica Auguri</div>
+                 </div>
+                 {/* Fronte */}
+                 <div className={themeAssets.printBorder} style={{ width: '50%', height: '100%', padding: '20mm', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', textAlign: 'center', borderLeft: 'none', position: 'relative' }}>
+                     <h1 className={themeAssets.fontTitle} style={{ fontSize: '50px', marginBottom: '10px', lineHeight: 1.2 }}>{data.title}</h1>
+                     <div style={{ width: '80px', height: '3px', background: '#333', marginBottom: '20px' }}></div>
+                     <p style={{ fontSize: '18px', textTransform: 'uppercase', color: '#666', letterSpacing: '2px', marginBottom: '40px' }}>{data.eventDate} • {currentYear}</p>
+                     {data.images?.extraImage ? (
+                       <img src={data.images.extraImage} style={{ maxHeight: '250px', objectFit: 'contain' }} />
+                     ) : (
+                       <div style={{ fontSize: '120px', opacity: 0.8 }}>{themeAssets.decoration}</div>
+                     )}
+                     <div style={{ marginTop: 'auto', fontSize: '12px', fontStyle: 'italic', color: '#999' }}>"Apri per scoprire..."</div>
+                 </div>
+            </div>
 
-           {/* SHEET 2: INTERNO */}
-           <div className="print-sheet flex flex-row">
-               <div className="watermark" style={{ transform: `translate(-50%, -50%) translate(${wmSheet2.x}px, ${wmSheet2.y}px) scale(${wmSheet2.scale}) rotate(12deg)` }}>{themeAssets.watermark}</div>
-               {/* Dedica */}
-               <div className={`print-half ${themeAssets.printBorder} border-r-0 flex flex-col items-center text-center p-8`}>
-                   <div className="flex-1 flex flex-col items-center justify-center w-full gap-6">
+            {/* SHEET 2 */}
+            <div id="pdf-sheet-2" style={{ width: '297mm', height: '210mm', display: 'flex', position: 'relative', backgroundColor: 'white', overflow: 'hidden' }}>
+                 <div style={{ position: 'absolute', top: '50%', left: '50%', transform: `translate(-50%, -50%) translate(${wmSheet2.x}px, ${wmSheet2.y}px) scale(${wmSheet2.scale}) rotate(12deg)`, fontSize: '300px', opacity: 0.1, zIndex: 0, whiteSpace: 'nowrap' }}>{themeAssets.watermark}</div>
+                 {/* Dedica */}
+                 <div className={themeAssets.printBorder} style={{ width: '50%', height: '100%', padding: '15mm', display: 'flex', flexDirection: 'column', alignItems: 'center', textAlign: 'center', borderRight: 'none' }}>
+                     <div style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', width: '100%' }}>
                         {photos.length > 0 ? (
-                            <div className="w-[80%] aspect-square border-4 border-white shadow-sm overflow-hidden rounded-sm bg-white">
+                            <div style={{ width: '80%', aspectRatio: '1/1', border: '5px solid white', boxShadow: '0 4px 6px rgba(0,0,0,0.1)', overflow: 'hidden', backgroundColor: '#f3f4f6', marginBottom: '20px' }}>
                                 <PhotoCollage photos={photos} />
                             </div>
-                        ) : (
-                             <div className="text-8xl opacity-10">{themeAssets.decoration}</div>
-                        )}
-                        <div className="px-6 py-4">
-                             <p className={`text-2xl leading-relaxed ${themeAssets.fontTitle} text-black`}>"{editableMessage}"</p>
-                        </div>
-                        <div className="flex gap-4 text-4xl mt-2 grayscale opacity-80">
+                        ) : data.images?.extraImage ? (
+                            <img src={data.images.extraImage} style={{ maxHeight: '150px', marginBottom: '20px' }} />
+                        ) : null}
+                        <p className={themeAssets.fontTitle} style={{ fontSize: '24px', lineHeight: 1.5, marginBottom: '20px' }}>"{editableMessage}"</p>
+                        <div style={{ display: 'flex', gap: '10px', fontSize: '30px', opacity: 0.8 }}>
                              {data.stickers?.slice(0,5).map((s,i) => <span key={i}>{s}</span>)}
                         </div>
-                   </div>
-               </div>
-               {/* Gioco */}
-               <div className={`print-half ${themeAssets.printBorder} border-l-0 flex flex-col p-8`}>
-                   {isCrossword ? (
-                       <div className="flex-1 w-full flex flex-col h-full">
-                           <h2 className="text-xl font-bold uppercase border-b-2 border-black mb-4 pb-2 text-center tracking-widest">Cruciverba</h2>
-                           {/* Solution Box Print */}
-                            {data.solution && (
-                                <div className="mb-4 text-center">
-                                    <div className="inline-flex gap-1 border border-black p-1 rounded bg-gray-50">
+                     </div>
+                 </div>
+                 {/* Gioco */}
+                 <div className={themeAssets.printBorder} style={{ width: '50%', height: '100%', padding: '15mm', display: 'flex', flexDirection: 'column', borderLeft: 'none' }}>
+                    {isCrossword ? (
+                       <div style={{ flex: 1, display: 'flex', flexDirection: 'column', height: '100%' }}>
+                           <h2 style={{ fontSize: '20px', fontWeight: 'bold', textTransform: 'uppercase', borderBottom: '2px solid black', marginBottom: '10px', paddingBottom: '5px', textAlign: 'center', letterSpacing: '2px' }}>Cruciverba</h2>
+                           {data.solution && (
+                                <div style={{ marginBottom: '15px', textAlign: 'center' }}>
+                                    <div style={{ display: 'inline-flex', gap: '2px', border: '1px solid black', padding: '4px', borderRadius: '4px', backgroundColor: '#f9fafb' }}>
                                         {data.solution.word.split('').map((c,i) => (
-                                            <div key={i} className={`w-5 h-5 border border-black text-xs flex items-center justify-center font-bold`}>
+                                            <div key={i} style={{ width: '20px', height: '20px', border: '1px solid black', fontSize: '12px', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 'bold' }}>
                                                 {revealAnswers ? c : (i+1)}
                                             </div>
                                         ))}
                                     </div>
                                 </div>
                             )}
-
-                           <div className="flex-1 flex items-center justify-center mb-6 min-h-0">
+                           <div style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', marginBottom: '20px' }}>
                                <div style={{ width: '90%', maxHeight: '100%' }}>{renderGridCells(true)}</div>
                            </div>
-                           <div className="text-[10px] grid grid-cols-2 gap-6 leading-tight w-full border-t-2 border-black pt-4">
+                           <div style={{ fontSize: '10px', display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '20px', lineHeight: 1.2, borderTop: '2px solid black', paddingTop: '15px' }}>
                                 <div>
-                                    <b className="block border-b border-gray-400 mb-2 pb-0.5 uppercase font-bold text-sm">Orizzontali</b>
-                                    {data.words.filter(w=>w.direction===Direction.ACROSS).map(w=><div key={w.id} className="mb-1"><b className="mr-1 text-sm">{w.number}.</b>{w.clue}</div>)}
+                                    <b style={{ display: 'block', borderBottom: '1px solid #ccc', marginBottom: '5px', paddingBottom: '2px', textTransform: 'uppercase', fontWeight: 'bold' }}>Orizzontali</b>
+                                    {data.words.filter(w=>w.direction===Direction.ACROSS).map(w=><div key={w.id} style={{ marginBottom: '2px' }}><b style={{ marginRight: '4px' }}>{w.number}.</b>{w.clue}</div>)}
                                 </div>
                                 <div>
-                                    <b className="block border-b border-gray-400 mb-2 pb-0.5 uppercase font-bold text-sm">Verticali</b>
-                                    {data.words.filter(w=>w.direction===Direction.DOWN).map(w=><div key={w.id} className="mb-1"><b className="mr-1 text-sm">{w.number}.</b>{w.clue}</div>)}
+                                    <b style={{ display: 'block', borderBottom: '1px solid #ccc', marginBottom: '5px', paddingBottom: '2px', textTransform: 'uppercase', fontWeight: 'bold' }}>Verticali</b>
+                                    {data.words.filter(w=>w.direction===Direction.DOWN).map(w=><div key={w.id} style={{ marginBottom: '2px' }}><b style={{ marginRight: '4px' }}>{w.number}.</b>{w.clue}</div>)}
                                 </div>
                            </div>
                        </div>
                    ) : (
-                       <div className="flex-1 flex items-center justify-center opacity-20 border-2 border-dashed border-gray-300 m-8 rounded-xl">
-                           <p className="text-3xl font-hand rotate-[-5deg]">Spazio per la tua dedica scritta a mano...</p>
+                       <div style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', border: '2px dashed #ccc', borderRadius: '10px', opacity: 0.3 }}>
+                           <p className="font-hand" style={{ fontSize: '30px', transform: 'rotate(-5deg)' }}>Spazio per la tua dedica scritta a mano...</p>
                        </div>
                    )}
-               </div>
-           </div>
+                 </div>
+            </div>
        </div>
     </div>
   );
