@@ -267,15 +267,7 @@ export const generateCrossword = async (
   let width = 0;
   let height = 0;
   let calculatedSolution = null;
-  let message = `Tanti auguri! Ecco un pensiero speciale per te.`;
-
-  // Costruisci il prompt del tono
-  let toneInstruction = '';
-  if (extraData.tone === 'custom' && extraData.customTone) {
-    toneInstruction = `Usa questo stile specifico: "${extraData.customTone}".`;
-  } else if (extraData.tone) {
-    toneInstruction = `Tono: ${extraData.tone} (funny=simpatico, heartfelt=dolce, rhyme=rima, surprise=sorpresa).`;
-  }
+  let message = '';
 
   // --- LOGICA CROSSWORD ---
   if (extraData.contentType === 'crossword') {
@@ -289,7 +281,7 @@ export const generateCrossword = async (
           const solutionChars = hiddenSolutionWord ? hiddenSolutionWord.toUpperCase().replace(/[^A-Z]/g, '').split('').join(', ') : '';
           const lettersInstruction = solutionChars ? `IMPORTANTE: Devi generare parole che contengano le seguenti lettere sparse: ${solutionChars}.` : '';
           
-          const prompt = `Genera una lista di 6-8 parole e definizioni per un cruciverba sul tema: "${topic}". ${toneInstruction} ${lettersInstruction} Output JSON array di oggetti {word, clue}.`;
+          const prompt = `Genera una lista di 6-8 parole e definizioni per un cruciverba sul tema: "${topic}". ${lettersInstruction} Output JSON array di oggetti {word, clue}.`;
           
           try {
             if (onStatusUpdate) onStatusUpdate("L'IA inventa le parole...");
@@ -321,25 +313,13 @@ export const generateCrossword = async (
       calculatedSolution = hiddenSolutionWord ? findSolutionInGrid(normalized.words, hiddenSolutionWord) : null;
   }
 
-  // --- LOGICA MESSAGGIO AUGURI (PER TUTTI) ---
-  if (mode === 'manual' && extraData.contentType === 'simple') {
-      message = inputData as string;
+  // --- LOGICA MESSAGGIO AUGURI ---
+  // Se l'input è una stringa (Topic/Message) la usiamo direttamente come messaggio
+  // Se l'utente ha scelto di generare opzioni nel Creator, il "topic" è già la frase scelta.
+  if (typeof inputData === 'string' && inputData.trim().length > 0) {
+      message = inputData;
   } else {
-      // AI Message Generation
-      const topic = (typeof inputData === 'string') ? inputData : 'Auguri Generali';
-      try {
-          if (onStatusUpdate) onStatusUpdate("Scrivo gli auguri...");
-          const prompt = `Scrivi un messaggio di auguri breve per ${extraData.recipientName}. Evento: ${theme}. ${toneInstruction} Dettagli: ${topic}. Max 30 parole.`;
-          const responsePromise = ai.models.generateContent({
-              model: 'gemini-2.5-flash',
-              contents: prompt,
-          });
-          const response = await withTimeout<GenerateContentResponse>(responsePromise, 15000, "Timeout");
-          if (response.text) message = response.text.replace(/"/g, '').trim();
-      } catch(e) {
-          console.error("AI Message Error", e);
-          message = getRandomFallback(theme);
-      }
+      message = getRandomFallback(theme);
   }
 
   // Costruzione Titolo
@@ -383,15 +363,15 @@ export const regenerateGreetingOptions = async (
     currentMessage: string,
     theme: string,
     recipient: string,
-    tone: 'funny' | 'heartfelt' | 'rhyme' | 'custom',
+    tone: ToneType,
     customPrompt?: string
 ): Promise<string[]> => {
     const apiKey = getApiKey();
     const ai = new GoogleGenAI({ apiKey });
     let instructions = tone === 'custom' && customPrompt ? `Istruzioni specifiche: "${customPrompt}".` : `Stile: ${tone}.`;
     
-    // Request 3 variations
-    const prompt = `Scrivi 3 diverse opzioni di messaggi di auguri brevi per ${recipient}. Evento: ${theme}. ${instructions} Max 25 parole per opzione. Restituisci JSON: { "options": ["messaggio 1", "messaggio 2", "messaggio 3"] }`;
+    // Request 5 variations (increased from 3)
+    const prompt = `Scrivi 5 diverse opzioni di messaggi di auguri brevi per ${recipient}. Evento: ${theme}. ${instructions} Max 30 parole per opzione. Restituisci JSON: { "options": ["messaggio 1", "messaggio 2", "messaggio 3", "messaggio 4", "messaggio 5"] }`;
     
     const schema = {
         type: Type.OBJECT,
@@ -419,7 +399,7 @@ export const regenerateGreeting = async (
     currentMessage: string,
     theme: string,
     recipient: string,
-    tone: 'funny' | 'heartfelt' | 'rhyme' | 'custom',
+    tone: ToneType,
     customPrompt?: string
 ): Promise<string> => {
      // Legacy wrapper
