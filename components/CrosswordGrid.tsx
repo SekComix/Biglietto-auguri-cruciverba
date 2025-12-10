@@ -609,7 +609,7 @@ const CrosswordGrid: React.FC<CrosswordGridProps> = ({ data, onComplete, onEdit,
                 {/* 3. Content Layer */}
                 <div className={`absolute inset-0 flex z-10 transition-opacity duration-300 ${isEditingWatermark ? 'opacity-50 pointer-events-none' : 'opacity-100'}`}>
                     {/* DEDICA */}
-                    <div className={`w-1/2 h-full p-6 flex flex-col items-center justify-between text-center ${themeAssets.printBorder} border-r-0 relative pointer-events-auto`}>
+                    <div className={`w-1/2 h-full p-6 flex flex-col items-center justify-between text-center ${themeAssets.printBorder} border-r-0 relative`}>
                         <span className="absolute top-2 left-2 text-[10px] uppercase text-gray-300 font-bold">Lato Sinistro</span>
                         <div className="flex-1 w-full flex flex-col items-center justify-center relative">
                             {photos.length > 0 ? (
@@ -619,7 +619,7 @@ const CrosswordGrid: React.FC<CrosswordGridProps> = ({ data, onComplete, onEdit,
                             ) : data.images?.extraImage ? (
                                 <img src={data.images.extraImage} className="h-32 object-contain mb-4 drop-shadow-md" />
                             ) : null}
-                            <div className="w-full relative group pointer-events-auto">
+                            <div className="w-full relative group">
                                 {isEditingMsg ? (
                                     <div className="w-full animate-in zoom-in-95 bg-white p-2 rounded-xl shadow-lg border border-blue-200 z-20 absolute top-[-50px] left-0">
                                         <textarea className="w-full p-2 bg-gray-50 border border-blue-200 rounded-lg text-center text-sm focus:outline-none focus:border-blue-400 font-hand" rows={4} value={editableMessage} onChange={(e) => setEditableMessage(e.target.value)}/>
@@ -636,7 +636,7 @@ const CrosswordGrid: React.FC<CrosswordGridProps> = ({ data, onComplete, onEdit,
                         <div className="flex gap-2 text-2xl mt-2 justify-center drop-shadow-sm">{data.stickers?.slice(0,5).map((s,i) => <span key={i}>{s}</span>)}</div>
                     </div>
                     {/* GIOCO */}
-                    <div className="w-1/2 h-full p-4 md:p-6 flex flex-col relative z-10 pointer-events-auto">
+                    <div className="w-1/2 h-full p-4 md:p-6 flex flex-col relative z-10">
                         <span className="absolute top-2 right-2 text-[10px] uppercase text-gray-300 font-bold">Lato Destro</span>
                         {isCrossword ? (
                             <>
@@ -646,10 +646,10 @@ const CrosswordGrid: React.FC<CrosswordGridProps> = ({ data, onComplete, onEdit,
                                         <div className="flex justify-center gap-0.5">{data.solution.word.split('').map((c,i) => <div key={i} className={`w-4 h-4 border rounded text-[10px] flex items-center justify-center font-bold ${revealAnswers ? 'bg-yellow-400 text-white border-yellow-500' : 'bg-white border-yellow-200 text-gray-400'}`}>{revealAnswers ? c : (i+1)}</div>)}</div>
                                     </div>
                                 )}
-                                <div className="flex-1 flex items-start justify-center overflow-hidden min-h-0 pointer-events-auto">
+                                <div className="flex-1 flex items-start justify-center overflow-hidden min-h-0">
                                     <div style={{ width: '90%', maxHeight: '100%', aspectRatio: `${data.width}/${data.height}` }}>{renderGridCells(false)}</div>
                                 </div>
-                                <div className="mt-2 text-[9px] md:text-[10px] grid grid-cols-2 gap-2 leading-tight w-full border-t border-black pt-2 overflow-y-auto max-h-[35%] custom-scrollbar pointer-events-auto">
+                                <div className="mt-2 text-[9px] md:text-[10px] grid grid-cols-2 gap-2 leading-tight w-full border-t border-black pt-2 overflow-y-auto max-h-[35%] custom-scrollbar">
                                     <div className="pr-1"><b className="block border-b border-gray-300 mb-1 pb-0.5 font-bold text-xs">Orizzontali</b>{data.words.filter(w=>w.direction===Direction.ACROSS).map(w=><div key={w.id} className="mb-0.5"><b className="mr-1">{w.number}.</b>{w.clue}</div>)}</div>
                                     <div className="pl-1 border-l border-gray-100"><b className="block border-b border-gray-300 mb-1 pb-0.5 font-bold text-xs">Verticali</b>{data.words.filter(w=>w.direction===Direction.DOWN).map(w=><div key={w.id} className="mb-0.5"><b className="mr-1">{w.number}.</b>{w.clue}</div>)}</div>
                                 </div>
