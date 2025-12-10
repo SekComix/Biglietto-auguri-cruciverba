@@ -246,6 +246,42 @@ const CrosswordGrid: React.FC<CrosswordGridProps> = ({ data, onComplete, onEdit,
                             width: 100%; 
                             max-width: 1200px;
                         }
+
+                        /* ISTRUZIONI DI STAMPA STILE ALERT */
+                        .print-instructions {
+                            background-color: #eff6ff;
+                            border: 2px solid #bfdbfe;
+                            color: #1e40af;
+                            padding: 16px;
+                            border-radius: 12px;
+                            max-width: 800px;
+                            width: 90%;
+                            text-align: center;
+                            margin-bottom: 20px;
+                            box-shadow: 0 4px 6px -1px rgba(0,0,0,0.1);
+                        }
+                        .print-instructions h2 {
+                            margin: 0 0 8px 0;
+                            font-size: 18px;
+                            display: flex;
+                            align-items: center;
+                            justify-content: center;
+                            gap: 8px;
+                        }
+                        .print-instructions p {
+                            margin: 4px 0;
+                            font-size: 14px;
+                            line-height: 1.5;
+                        }
+                        .badge {
+                            background: #2563eb;
+                            color: white;
+                            padding: 2px 8px;
+                            border-radius: 4px;
+                            font-weight: bold;
+                            font-size: 12px;
+                            text-transform: uppercase;
+                        }
                         
                         .sheet-container {
                             background: white;
@@ -281,7 +317,7 @@ const CrosswordGrid: React.FC<CrosswordGridProps> = ({ data, onComplete, onEdit,
                                 margin: 0; 
                             }
                             body { background: white; margin: 0; padding: 0; display: block; }
-                            .toolbar, .instruction { display: none !important; }
+                            .toolbar, .instruction, .print-instructions { display: none !important; }
                             .content { margin: 0; padding: 0; gap: 0; display: block; width: 100%; max-width: none; }
                             .sheet-container { box-shadow: none; margin: 0; padding: 0; page-break-after: always; break-after: page; width: 297mm; height: 210mm; overflow: hidden; }
                             .preview-img { 
@@ -307,6 +343,21 @@ const CrosswordGrid: React.FC<CrosswordGridProps> = ({ data, onComplete, onEdit,
                         <button class="btn btn-primary" onclick="window.print()">🖨️ STAMPA / SALVA PDF</button>
                     </div>
                     <div class="content">
+                        
+                        <div class="print-instructions">
+                            <h2>🖨️ Istruzioni per la Stampa (o per la Copisteria)</h2>
+                            <p>
+                                <strong>FORMATO:</strong> Carta <span class="badge">A4</span> Orizzontale (Landscape).
+                            </p>
+                            <p>
+                                <strong>FRONTE/RETRO:</strong> Seleziona <span class="badge">LATO CORTO</span> (Short Edge / Flip on Short Edge).<br/>
+                                <em>Se la stampante non lo supporta, stampa i due fogli separati e incollali schiena contro schiena.</em>
+                            </p>
+                            <p style="margin-top:8px; font-size:12px; color:#64748b;">
+                                ℹ️ Usa il tasto <strong>"STAMPA / SALVA PDF"</strong> qui sopra. Queste istruzioni non verranno stampate sul biglietto.
+                            </p>
+                        </div>
+
                         <div>
                             <p class="instruction">FOGLIO 1: Fronte e Retro (Esterno)</p>
                             <div class="sheet-container">
