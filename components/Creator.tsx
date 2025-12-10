@@ -437,7 +437,7 @@ export const Creator: React.FC<CreatorProps> = ({ onCreated, initialData }) => {
                                 />
                                 <div className="mt-1 flex gap-1 items-start text-blue-400">
                                     <Info size={12} className="shrink-0 mt-0.5" />
-                                    <p className="text-[10px] leading-tight">Qui definisci lo <b>STILE</b> (il tono di voce). Sotto scrivi l'<b>ARGOMENTO</b> (il contenuto).</p>
+                                    <p className="text-[10px] leading-tight">Qui definisci lo <b>STILE</b> (il tono). Sotto devi definire il <b>CONTENUTO</b>.</p>
                                 </div>
                             </div>
                         )}
@@ -447,13 +447,18 @@ export const Creator: React.FC<CreatorProps> = ({ onCreated, initialData }) => {
                 {(mode === 'ai' || contentType === 'simple') ? (
                      <div className="w-full">
                          <div className="relative">
+                            <label className={`block text-xs font-bold mb-2 uppercase ${tone === 'custom' ? 'text-blue-600 animate-pulse' : 'text-gray-400'}`}>
+                                {tone === 'custom' ? "Cosa devo scrivere (Il Contenuto):" : (contentType === 'simple' ? "Messaggio:" : "Argomento:")}
+                            </label>
                             <textarea
                                 rows={3}
-                                className="w-full p-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-blue-500 outline-none resize-none"
+                                className={`w-full p-3 border rounded-xl focus:ring-2 focus:ring-blue-500 outline-none resize-none ${tone === 'custom' ? 'border-blue-300 bg-blue-50/50' : 'border-gray-200'}`}
                                 placeholder={
-                                    contentType === 'simple' && mode === 'manual' 
-                                    ? "Scrivi qui il tuo messaggio di auguri..." 
-                                    : "Argomento (es: Zio Carlo, ama la pesca e il vino rosso...)"
+                                    tone === 'custom' 
+                                    ? "Es: Auguri a zio Mario che fa 50 anni e ama la pesca..."
+                                    : (contentType === 'simple' && mode === 'manual' 
+                                        ? "Scrivi qui il tuo messaggio di auguri..." 
+                                        : "Argomento (es: Zio Carlo, ama la pesca e il vino rosso...)")
                                 }
                                 value={topic}
                                 onChange={(e) => setTopic(e.target.value)}
