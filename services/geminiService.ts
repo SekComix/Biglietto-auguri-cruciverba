@@ -1,3 +1,4 @@
+
 import { GoogleGenAI, Type, GenerateContentResponse } from "@google/genai";
 import { CrosswordData, ManualInput, ThemeType, ToneType } from '../types';
 
@@ -271,7 +272,7 @@ export const generateCrossword = async (
   extraData: {
     recipientName: string;
     eventDate: string;
-    images?: { extraImage?: string; photos?: string[]; photo?: string }; 
+    images?: { extraImage?: string; photos?: string[]; photo?: string; brandLogo?: string }; 
     stickers?: string[];
     contentType: 'crossword' | 'simple';
     tone?: ToneType;
@@ -417,7 +418,7 @@ export const generateCrossword = async (
       theme: theme,
       recipientName: extraData?.recipientName || '',
       eventDate: extraData?.eventDate || '',
-      images: { extraImage: extraData.images?.extraImage, photos: photoArray },
+      images: { extraImage: extraData.images?.extraImage, photos: photoArray, brandLogo: extraData.images?.brandLogo },
       stickers: extraData?.stickers,
       words: finalWords,
       width: Math.max(width, 8),
