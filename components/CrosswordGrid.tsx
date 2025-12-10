@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { CrosswordData, CellData, Direction, ThemeType } from '../types';
-import { Printer, Edit, Eye, EyeOff, BookOpen, FileText, CheckCircle2, Palette, Download, Loader2, XCircle, RotateCw } from 'lucide-react';
+import { Printer, Edit, Eye, EyeOff, BookOpen, FileText, CheckCircle2, Palette, Download, Loader2, XCircle, RotateCw, Maximize, Move } from 'lucide-react';
 import html2canvas from 'html2canvas';
 import { jsPDF } from 'jspdf';
 
@@ -116,7 +116,7 @@ const CrosswordGrid: React.FC<CrosswordGridProps> = ({ data, onComplete, onEdit,
   useEffect(() => {
     const handleMouseMove = (e: MouseEvent) => {
         if (activeResize) {
-            const deltaY = e.movementY * 0.01;
+            const deltaY = e.movementY * 0.02; // Sensibilità resize
             if (activeResize === 1) {
                 setWmSheet1(p => ({ ...p, scale: Math.max(0.5, Math.min(p.scale + deltaY, 5.0)) }));
             } else {
@@ -158,6 +158,12 @@ const CrosswordGrid: React.FC<CrosswordGridProps> = ({ data, onComplete, onEdit,
           startWmX: current.x,
           startWmY: current.y
       });
+  };
+
+  const startResize = (e: React.MouseEvent, sheet: 1 | 2) => {
+      if (!isEditingWatermark) return;
+      e.stopPropagation();
+      setActiveResize(sheet);
   };
 
   // --- PDF GENERATION ---
@@ -434,16 +440,31 @@ const CrosswordGrid: React.FC<CrosswordGridProps> = ({ data, onComplete, onEdit,
                  {/* 1. Watermark Layer */}
                  <div className={`absolute inset-0 flex items-center justify-center overflow-hidden z-0`}>
                     <div 
-                        className="relative"
+                        className="relative group"
                         style={{ 
                             transform: `translate(${wmSheet1.x}px, ${wmSheet1.y}px) scale(${wmSheet1.scale}) rotate(12deg)`,
-                            pointerEvents: isEditingWatermark ? 'auto' : 'none'
+                            pointerEvents: isEditingWatermark ? 'auto' : 'none',
+                            cursor: isEditingWatermark ? 'move' : 'default'
                         }}
                         onMouseDown={isEditingWatermark ? (e) => startDrag(e, 1) : undefined}
                     >
-                        <span className={`text-[100px] text-black transition-opacity duration-300 ${isEditingWatermark ? 'opacity-30 cursor-move' : 'opacity-20'}`}>
+                        <span className={`text-[100px] text-black transition-opacity duration-300 ${isEditingWatermark ? 'opacity-30' : 'opacity-20'}`}>
                             {themeAssets.watermark}
                         </span>
+
+                        {/* CONTROLS (RESIZE & BORDER) */}
+                        {isEditingWatermark && (
+                            <>
+                                <div className="absolute inset-0 border-2 border-dashed border-blue-500/50 rounded-lg pointer-events-none"></div>
+                                <div 
+                                    onMouseDown={(e) => startResize(e, 1)}
+                                    className="absolute -bottom-6 -right-6 w-10 h-10 bg-blue-600 text-white rounded-full shadow-xl flex items-center justify-center cursor-nwse-resize hover:bg-blue-700 z-50 hover:scale-110 transition-transform"
+                                    title="Trascina per ridimensionare"
+                                >
+                                    <Maximize size={20} />
+                                </div>
+                            </>
+                        )}
                     </div>
                  </div>
 
@@ -486,16 +507,31 @@ const CrosswordGrid: React.FC<CrosswordGridProps> = ({ data, onComplete, onEdit,
                 {/* 1. Watermark Layer */}
                 <div className={`absolute inset-0 flex items-center justify-center overflow-hidden z-0`}>
                     <div 
-                        className="relative"
+                        className="relative group"
                         style={{ 
                             transform: `translate(${wmSheet2.x}px, ${wmSheet2.y}px) scale(${wmSheet2.scale}) rotate(12deg)`,
-                            pointerEvents: isEditingWatermark ? 'auto' : 'none'
+                            pointerEvents: isEditingWatermark ? 'auto' : 'none',
+                            cursor: isEditingWatermark ? 'move' : 'default'
                         }}
                         onMouseDown={isEditingWatermark ? (e) => startDrag(e, 2) : undefined}
                     >
-                        <span className={`text-[100px] text-black transition-opacity duration-300 ${isEditingWatermark ? 'opacity-30 cursor-move' : 'opacity-20'}`}>
+                        <span className={`text-[100px] text-black transition-opacity duration-300 ${isEditingWatermark ? 'opacity-30' : 'opacity-20'}`}>
                             {themeAssets.watermark}
                         </span>
+
+                         {/* CONTROLS (RESIZE & BORDER) */}
+                         {isEditingWatermark && (
+                            <>
+                                <div className="absolute inset-0 border-2 border-dashed border-blue-500/50 rounded-lg pointer-events-none"></div>
+                                <div 
+                                    onMouseDown={(e) => startResize(e, 2)}
+                                    className="absolute -bottom-6 -right-6 w-10 h-10 bg-blue-600 text-white rounded-full shadow-xl flex items-center justify-center cursor-nwse-resize hover:bg-blue-700 z-50 hover:scale-110 transition-transform"
+                                    title="Trascina per ridimensionare"
+                                >
+                                    <Maximize size={20} />
+                                </div>
+                            </>
+                        )}
                     </div>
                 </div>
 
