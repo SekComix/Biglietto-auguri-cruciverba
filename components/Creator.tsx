@@ -1,7 +1,8 @@
+
 import React, { useState, useEffect } from 'react';
 import { generateCrossword, regenerateGreetingOptions } from '../services/geminiService';
 import { CrosswordData, ManualInput, ThemeType, ToneType, Direction } from '../types';
-import { Loader2, Wand2, Plus, Trash2, Gift, PartyPopper, CalendarHeart, Crown, KeyRound, Image as ImageIcon, Upload, Calendar, AlertCircle, Grid3X3, MailOpen, Images, Ghost, GraduationCap, ScrollText, HeartHandshake, BookOpen, Search, X, Smile, Heart, Music, Sparkles, Edit, PenTool, LayoutGrid, Zap, Check, MessageSquareDashed, Info, HelpCircle, Bot, BrainCircuit, Feather, Quote, Briefcase, GraduationCap as GradCap, Puzzle } from 'lucide-react';
+import { Loader2, Wand2, Plus, Trash2, Gift, PartyPopper, CalendarHeart, Crown, KeyRound, Image as ImageIcon, Upload, Calendar, AlertCircle, Grid3X3, MailOpen, Images, Ghost, GraduationCap, ScrollText, HeartHandshake, BookOpen, Search, X, Smile, Heart, Music, Sparkles, Edit, PenTool, LayoutGrid, Zap, Check, MessageSquareDashed, Info, HelpCircle, Bot, BrainCircuit, Feather, Quote, Briefcase, GraduationCap as GradCap, Puzzle, Stamp } from 'lucide-react';
 
 interface CreatorProps {
   onCreated: (data: CrosswordData) => void;
@@ -80,6 +81,7 @@ export const Creator: React.FC<CreatorProps> = ({ onCreated, initialData }) => {
 
   const [extraImage, setExtraImage] = useState<string | undefined>(undefined);
   const [photos, setPhotos] = useState<string[]>([]); 
+  const [brandLogo, setBrandLogo] = useState<string | undefined>(undefined);
   const [selectedStickers, setSelectedStickers] = useState<string[]>([]);
   const [activeStickerTab, setActiveStickerTab] = useState('Natale');
 
@@ -90,7 +92,7 @@ export const Creator: React.FC<CreatorProps> = ({ onCreated, initialData }) => {
   const [statusMsg, setStatusMsg] = useState('');
   const [error, setError] = useState<string | null>(null);
   
-  const [processingImg, setProcessingImg] = useState<'extra' | 'photo' | null>(null);
+  const [processingImg, setProcessingImg] = useState<'extra' | 'photo' | 'brand' | null>(null);
 
   const [manualWords, setManualWords] = useState<ManualInput[]>([
     { word: '', clue: '' },
@@ -106,6 +108,7 @@ export const Creator: React.FC<CreatorProps> = ({ onCreated, initialData }) => {
         setTheme(initialData.theme);
         setExtraImage(initialData.images?.extraImage);
         setPhotos(initialData.images?.photos || []);
+        setBrandLogo(initialData.images?.brandLogo);
         setSelectedStickers(initialData.stickers || []);
         
         // Restore Logic based on stored Original Mode
@@ -134,6 +137,7 @@ export const Creator: React.FC<CreatorProps> = ({ onCreated, initialData }) => {
         setHiddenSolution('');
         setExtraImage(undefined);
         setPhotos([]);
+        setBrandLogo(undefined);
         setSelectedStickers([]);
         setManualWords([{ word: '', clue: '' }, { word: '', clue: '' }, { word: '', clue: '' }]);
         setCreationMode('guided');
@@ -141,7 +145,7 @@ export const Creator: React.FC<CreatorProps> = ({ onCreated, initialData }) => {
     }
   }, [initialData]);
 
-  const handleImageUpload = (e: React.ChangeEvent<HTMLInputElement>, type: 'extra' | 'photo') => {
+  const handleImageUpload = (e: React.ChangeEvent<HTMLInputElement>, type: 'extra' | 'photo' | 'brand') => {
     const files = e.target.files;
     if (!files || files.length === 0) return;
 
@@ -179,6 +183,9 @@ export const Creator: React.FC<CreatorProps> = ({ onCreated, initialData }) => {
             if (type === 'extra') {
                 setExtraImage(dataUrl);
                 setProcessingImg(null); 
+            } else if (type === 'brand') {
+                setBrandLogo(dataUrl);
+                setProcessingImg(null);
             } else {
                 newPhotos.push(dataUrl);
                 processedCount++;
@@ -205,8 +212,9 @@ export const Creator: React.FC<CreatorProps> = ({ onCreated, initialData }) => {
     }
   };
 
-  const removeImage = (type: 'extra' | 'photo') => {
+  const removeImage = (type: 'extra' | 'photo' | 'brand') => {
       if (type === 'extra') setExtraImage(undefined);
+      else if (type === 'brand') setBrandLogo(undefined);
       else setPhotos([]);
   };
 
@@ -290,7 +298,7 @@ export const Creator: React.FC<CreatorProps> = ({ onCreated, initialData }) => {
         {
           recipientName,
           eventDate: finalDate, 
-          images: { extraImage, photos },
+          images: { extraImage, photos, brandLogo },
           stickers: selectedStickers,
           contentType: finalContentType,
           tone: finalMode === 'ai' ? finalTone : undefined,
@@ -563,7 +571,7 @@ export const Creator: React.FC<CreatorProps> = ({ onCreated, initialData }) => {
           {/* STEP 3: IMAGES */}
           <div className="mb-6">
             <label className="block text-xs font-bold text-gray-400 mb-3 uppercase tracking-wider text-center">3. Immagini e Foto</label>
-            <div className="grid grid-cols-2 gap-4 mb-6">
+            <div className="grid grid-cols-2 gap-4 mb-4">
                 
                 {/* BOX 1: COPERTINA */}
                 <div className="border-2 border-dashed border-gray-300 rounded-xl p-4 text-center hover:bg-gray-50 cursor-pointer relative transition-colors group overflow-hidden h-40 flex items-center justify-center bg-gray-50/50">
@@ -605,6 +613,26 @@ export const Creator: React.FC<CreatorProps> = ({ onCreated, initialData }) => {
                         )}
                 </div>
             </div>
+
+            {/* BOX 3: BRAND/LOGO AUTORE */}
+            <div className="flex justify-center">
+                 <div className="w-full max-w-xs border-2 border-dashed border-gray-200 rounded-lg p-2 flex items-center gap-3 relative hover:bg-gray-50 transition-colors">
+                     <input type="file" accept="image/*" onChange={(e) => handleImageUpload(e, 'brand')} className="absolute inset-0 opacity-0 cursor-pointer z-10" />
+                     <div className="bg-gray-100 p-2 rounded-full text-gray-500 shrink-0">
+                        {processingImg === 'brand' ? <Loader2 className="animate-spin" size={16}/> : <Stamp size={16}/>}
+                     </div>
+                     <div className="flex-1 text-left">
+                        <span className="block text-xs font-bold text-gray-600 uppercase">Firma Autore / Logo</span>
+                        <span className="block text-[9px] text-gray-400">Appare sul retro del biglietto</span>
+                     </div>
+                     {brandLogo && (
+                         <div className="relative w-10 h-10 border rounded bg-white">
+                             <img src={brandLogo} className="w-full h-full object-contain" />
+                             <button type="button" onClick={(e) => { e.preventDefault(); removeImage('brand'); }} className="absolute -top-1 -right-1 bg-red-500 text-white rounded-full p-0.5 z-20 hover:bg-red-600"><X size={10}/></button>
+                         </div>
+                     )}
+                 </div>
+            </div>
           </div>
 
           <div className="mb-6 bg-gray-50 p-3 rounded-xl border border-gray-100">
@@ -615,7 +643,7 @@ export const Creator: React.FC<CreatorProps> = ({ onCreated, initialData }) => {
              {selectedStickers.length > 0 && (
                 <div className="flex gap-2 mb-3 bg-white p-2 rounded-lg border border-dashed border-gray-200 overflow-x-auto custom-scrollbar">
                     <span className="text-[10px] text-gray-400 font-bold uppercase shrink-0 py-1">I tuoi sticker:</span>
-                    {selectedStickers.map((s, idx) => (
+                    {selectedStickers.map((s, idx) => (A
                         <button key={idx} type="button" onClick={() => toggleSticker(s)} className="text-lg hover:bg-red-100 rounded-full px-1" title="Clicca per rimuovere">{s}</button>
                     ))}
                 </div>
