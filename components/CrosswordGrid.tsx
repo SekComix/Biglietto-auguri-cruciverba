@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { CrosswordData, CellData, Direction, ThemeType } from '../types';
-import { Printer, Edit, Eye, EyeOff, BookOpen, FileText, CheckCircle2, Palette, Download, Loader2, XCircle, RotateCw, Maximize, Move } from 'lucide-react';
+import { Printer, Edit, Eye, EyeOff, BookOpen, FileText, CheckCircle2, Palette, Download, Loader2, XCircle, RotateCw, Maximize, Move, Info } from 'lucide-react';
 import html2canvas from 'html2canvas';
 import { jsPDF } from 'jspdf';
 
@@ -353,6 +353,9 @@ const CrosswordGrid: React.FC<CrosswordGridProps> = ({ data, onComplete, onEdit,
                                 <strong>FRONTE/RETRO:</strong> Seleziona <span class="badge">LATO CORTO</span> (Short Edge / Flip on Short Edge).<br/>
                                 <em>Se la stampante non lo supporta, stampa i due fogli separati e incollali schiena contro schiena.</em>
                             </p>
+                            <p>
+                                <strong>SFONDO:</strong> Attiva l'opzione <span class="badge">GRAFICA DI SFONDO</span> (Background Graphics) nelle impostazioni di stampa per vedere colori e texture.
+                            </p>
                             <p style="margin-top:8px; font-size:12px; color:#64748b;">
                                 ℹ️ Usa il tasto <strong>"STAMPA / SALVA PDF"</strong> qui sopra. Queste istruzioni non verranno stampate sul biglietto.
                             </p>
@@ -461,6 +464,20 @@ const CrosswordGrid: React.FC<CrosswordGridProps> = ({ data, onComplete, onEdit,
 
   return (
     <div className="flex flex-col items-center gap-8 w-full pb-20">
+       
+       {/* --- ON-SCREEN PRINT INSTRUCTIONS PANEL --- */}
+       <div className="w-full max-w-4xl bg-blue-50 border border-blue-200 rounded-xl p-4 flex flex-col md:flex-row gap-4 items-start shadow-sm mb-4">
+           <div className="bg-blue-100 p-2 rounded-full text-blue-600 shrink-0"><Printer size={24}/></div>
+           <div className="flex-1">
+               <h3 className="font-bold text-blue-900 text-lg mb-2">Come stampare correttamente:</h3>
+               <ul className="text-sm text-blue-800 space-y-1 list-disc list-inside">
+                   <li>Clicca su <b>"ANTEPRIMA STAMPA"</b> qui sopra.</li>
+                   <li>Scegli formato carta <b>A4 Orizzontale</b> (Landscape).</li>
+                   <li>Seleziona <b>Fronte/Retro sul Lato Corto</b> (Short Edge).</li>
+                   <li><b>IMPORTANTE:</b> Abilita l'opzione <b>"Grafica di Sfondo"</b> nelle impostazioni di stampa del browser per vedere colori e texture.</li>
+               </ul>
+           </div>
+       </div>
        
        {/* TOOLBAR */}
        <div className="flex flex-wrap gap-2 justify-center z-20 sticky top-2 p-2 bg-black/5 rounded-full backdrop-blur-sm shadow-xl border border-white/10">
@@ -592,7 +609,7 @@ const CrosswordGrid: React.FC<CrosswordGridProps> = ({ data, onComplete, onEdit,
                 {/* 3. Content Layer */}
                 <div className={`absolute inset-0 flex z-10 transition-opacity duration-300 ${isEditingWatermark ? 'opacity-50 pointer-events-none' : 'opacity-100'}`}>
                     {/* DEDICA */}
-                    <div className={`w-1/2 h-full p-6 flex flex-col items-center justify-between text-center ${themeAssets.printBorder} border-r-0 relative`}>
+                    <div className={`w-1/2 h-full p-6 flex flex-col items-center justify-between text-center ${themeAssets.printBorder} border-r-0 relative pointer-events-auto`}>
                         <span className="absolute top-2 left-2 text-[10px] uppercase text-gray-300 font-bold">Lato Sinistro</span>
                         <div className="flex-1 w-full flex flex-col items-center justify-center relative">
                             {photos.length > 0 ? (
@@ -619,7 +636,7 @@ const CrosswordGrid: React.FC<CrosswordGridProps> = ({ data, onComplete, onEdit,
                         <div className="flex gap-2 text-2xl mt-2 justify-center drop-shadow-sm">{data.stickers?.slice(0,5).map((s,i) => <span key={i}>{s}</span>)}</div>
                     </div>
                     {/* GIOCO */}
-                    <div className="w-1/2 h-full p-4 md:p-6 flex flex-col relative z-10">
+                    <div className="w-1/2 h-full p-4 md:p-6 flex flex-col relative z-10 pointer-events-auto">
                         <span className="absolute top-2 right-2 text-[10px] uppercase text-gray-300 font-bold">Lato Destro</span>
                         {isCrossword ? (
                             <>
