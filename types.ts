@@ -1,3 +1,4 @@
+
 export enum Direction {
   ACROSS = 'across',
   DOWN = 'down'
@@ -31,6 +32,7 @@ export interface CustomImages {
   extraImage?: string; // Base64 string (Logo, QR, Vignetta)
   photos?: string[]; // Array of Base64 strings (Collage)
   photo?: string; // Legacy support
+  brandLogo?: string; // Logo Autore/Copyright
 }
 
 export interface CrosswordData {
