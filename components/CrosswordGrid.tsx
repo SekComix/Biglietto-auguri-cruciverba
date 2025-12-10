@@ -414,7 +414,7 @@ const CrosswordGrid: React.FC<CrosswordGridProps> = ({ data, onComplete, onEdit,
 
   // --- RENDER HELPERS ---
   const renderGridCells = (isPrint = false) => (
-    <div className={`grid gap-[1px] ${isPrint ? '' : 'bg-black/10 p-2 rounded-lg'}`} style={{ gridTemplateColumns: `repeat(${data.width}, minmax(0, 1fr))`, aspectRatio: `${data.width}/${data.height}` }}>
+    <div className={`grid gap-[1px] ${isPrint ? '' : 'bg-black/10 p-2 rounded-lg'}`} style={{ gridTemplateColumns: `repeat(${data.width}, minmax(0, 1fr))`, aspectRatio: `${data.width}/${data.height}`, height: isPrint ? '100%' : 'auto', width: isPrint ? '100%' : 'auto' }}>
       {grid.map((row, y) => row.map((cell, x) => {
           const isSelected = !isPrint && selectedCell?.x === x && selectedCell?.y === y;
           const displayChar = (revealAnswers || isPrint) ? cell.char : cell.userChar; 
@@ -425,7 +425,7 @@ const CrosswordGrid: React.FC<CrosswordGridProps> = ({ data, onComplete, onEdit,
           
           return (
             <div 
-                key={`${x}-${y}`} 
+                key={`${x}-${y}-${revealAnswers}`} 
                 onClick={() => !isPrint && handleCellClick(x, y)} 
                 className={`relative flex items-center justify-center ${isPrint ? 'border-r border-b border-black text-black' : `w-full h-full text-xl font-bold cursor-pointer`}`} 
                 style={{
@@ -728,32 +728,42 @@ const CrosswordGrid: React.FC<CrosswordGridProps> = ({ data, onComplete, onEdit,
                      </div>
                  </div>
                  {/* Gioco */}
-                 <div className={themeAssets.printBorder} style={{ width: '50%', height: '100%', padding: '40px', display: 'flex', flexDirection: 'column', borderLeft: 'none', position: 'relative', zIndex: 10 }}>
+                 <div className={themeAssets.printBorder} style={{ width: '50%', height: '100%', padding: '40px', display: 'flex', flexDirection: 'column', borderLeft: 'none', position: 'relative', zIndex: 10, justifyContent: 'space-between' }}>
                     {isCrossword ? (
-                       <div style={{ flex: 1, display: 'flex', flexDirection: 'column', height: '100%' }}>
-                           <h2 style={{ fontSize: '20px', fontWeight: 'bold', textTransform: 'uppercase', borderBottom: '2px solid black', marginBottom: '10px', paddingBottom: '5px', textAlign: 'center', letterSpacing: '2px' }}>Cruciverba</h2>
-                           {data.solution && (
-                                <div style={{ marginBottom: '15px', textAlign: 'center' }}>
-                                    <div style={{ display: 'inline-flex', gap: '2px', border: '1px solid black', padding: '4px', borderRadius: '4px', backgroundColor: '#f9fafb' }}>
-                                        {data.solution.word.split('').map((c,i) => (
-                                            <div key={i} style={{ width: '20px', height: '20px', border: '1px solid black', fontSize: '12px', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 'bold' }}>
-                                                {revealAnswers ? c : (i+1)}
+                       <div style={{ flex: 1, display: 'flex', flexDirection: 'column', height: '100%', justifyContent: 'space-between' }}>
+                           
+                           {/* HEADER: Title & Solution */}
+                           <div>
+                                <h2 style={{ fontSize: '20px', fontWeight: 'bold', textTransform: 'uppercase', borderBottom: '2px solid black', marginBottom: '10px', paddingBottom: '5px', textAlign: 'center', letterSpacing: '2px' }}>Cruciverba</h2>
+                                {data.solution && (
+                                        <div style={{ marginBottom: '10px', textAlign: 'center' }}>
+                                            <div style={{ display: 'inline-flex', gap: '2px', border: '1px solid black', padding: '4px', borderRadius: '4px', backgroundColor: '#f9fafb' }}>
+                                                {data.solution.word.split('').map((c,i) => (
+                                                    <div key={i} style={{ width: '20px', height: '20px', border: '1px solid black', fontSize: '12px', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 'bold' }}>
+                                                        {revealAnswers ? c : (i+1)}
+                                                    </div>
+                                                ))}
                                             </div>
-                                        ))}
-                                    </div>
-                                </div>
-                            )}
-                           <div style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', marginBottom: '20px' }}>
-                               <div style={{ width: '90%', maxHeight: '100%' }}>{renderGridCells(true)}</div>
+                                        </div>
+                                )}
                            </div>
-                           <div style={{ fontSize: '10px', display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '20px', lineHeight: 1.2, borderTop: '2px solid black', paddingTop: '15px' }}>
+
+                           {/* FIXED GRID CONTAINER - 400px HEIGHT CONSTRAINT */}
+                           <div style={{ width: '100%', height: '400px', display: 'flex', alignItems: 'center', justifyContent: 'center', marginBottom: '10px' }}>
+                               <div style={{ aspectRatio: `${data.width}/${data.height}`, height: '100%', maxHeight: '100%', maxWidth: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                                   {renderGridCells(true)}
+                               </div>
+                           </div>
+                           
+                           {/* CLUES FOOTER */}
+                           <div style={{ height: '180px', overflow: 'hidden', fontSize: '10px', display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '20px', lineHeight: 1.2, borderTop: '2px solid black', paddingTop: '10px' }}>
                                 <div>
                                     <b style={{ display: 'block', borderBottom: '1px solid #ccc', marginBottom: '5px', paddingBottom: '2px', textTransform: 'uppercase', fontWeight: 'bold' }}>Orizzontali</b>
-                                    {data.words.filter(w=>w.direction===Direction.ACROSS).map(w=><div key={w.id} style={{ marginBottom: '2px' }}><b style={{ marginRight: '4px' }}>{w.number}.</b>{w.clue}</div>)}
+                                    {data.words.filter(w=>w.direction===Direction.ACROSS).slice(0, 10).map(w=><div key={w.id} style={{ marginBottom: '2px', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}><b style={{ marginRight: '4px' }}>{w.number}.</b>{w.clue}</div>)}
                                 </div>
                                 <div>
                                     <b style={{ display: 'block', borderBottom: '1px solid #ccc', marginBottom: '5px', paddingBottom: '2px', textTransform: 'uppercase', fontWeight: 'bold' }}>Verticali</b>
-                                    {data.words.filter(w=>w.direction===Direction.DOWN).map(w=><div key={w.id} style={{ marginBottom: '2px' }}><b style={{ marginRight: '4px' }}>{w.number}.</b>{w.clue}</div>)}
+                                    {data.words.filter(w=>w.direction===Direction.DOWN).slice(0, 10).map(w=><div key={w.id} style={{ marginBottom: '2px', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}><b style={{ marginRight: '4px' }}>{w.number}.</b>{w.clue}</div>)}
                                 </div>
                            </div>
                        </div>
