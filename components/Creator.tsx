@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { generateCrossword, regenerateGreetingOptions } from '../services/geminiService';
 import { CrosswordData, ManualInput, ThemeType, ToneType, Direction } from '../types';
@@ -643,7 +642,7 @@ export const Creator: React.FC<CreatorProps> = ({ onCreated, initialData }) => {
              {selectedStickers.length > 0 && (
                 <div className="flex gap-2 mb-3 bg-white p-2 rounded-lg border border-dashed border-gray-200 overflow-x-auto custom-scrollbar">
                     <span className="text-[10px] text-gray-400 font-bold uppercase shrink-0 py-1">I tuoi sticker:</span>
-                    {selectedStickers.map((s, idx) => (A
+                    {selectedStickers.map((s, idx) => (
                         <button key={idx} type="button" onClick={() => toggleSticker(s)} className="text-lg hover:bg-red-100 rounded-full px-1" title="Clicca per rimuovere">{s}</button>
                     ))}
                 </div>
