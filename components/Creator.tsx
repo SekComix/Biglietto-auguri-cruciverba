@@ -114,7 +114,7 @@ export const Creator: React.FC<CreatorProps> = ({ onCreated, initialData }) => {
     if (!files || files.length === 0) return;
 
     setProcessingImg(type);
-    const fileArray = Array.from(files) as File[];
+    const fileArray = Array.from(files);
     const filesToProcess = type === 'photo' ? fileArray.slice(0, 9 - (photos.length)) : [fileArray[0]];
 
     if (filesToProcess.length === 0) {
