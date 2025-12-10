@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect, useRef } from 'react';
 import { CrosswordData, CellData, Direction, ThemeType } from '../types';
 import { Printer, Edit, Eye, EyeOff, BookOpen, FileText, CheckCircle2, Palette, Download, Loader2, XCircle, RotateCw, Maximize, Move, Info } from 'lucide-react';
@@ -545,6 +546,15 @@ const CrosswordGrid: React.FC<CrosswordGridProps> = ({ data, onComplete, onEdit,
                      <div className={`w-1/2 h-full p-8 flex flex-col items-center justify-center text-center ${themeAssets.printBorder} border-r-0 relative`}>
                          <span className="absolute top-2 left-2 text-[10px] uppercase text-gray-300 font-bold">Retro Biglietto</span>
                          <div className="text-6xl opacity-20 mb-4">{themeAssets.decoration}</div>
+                         
+                         {/* BRAND LOGO */}
+                         {data.images?.brandLogo && (
+                            <div className="absolute bottom-8 left-1/2 -translate-x-1/2 flex flex-col items-center opacity-80">
+                                <p className="text-[8px] uppercase tracking-widest text-gray-400 mb-1">Created by</p>
+                                <img src={data.images.brandLogo} className="h-8 object-contain" />
+                            </div>
+                         )}
+
                          {/* REMOVED 'Enigmistica Auguri' Text */}
                      </div>
                      {/* FRONTE */}
@@ -671,6 +681,15 @@ const CrosswordGrid: React.FC<CrosswordGridProps> = ({ data, onComplete, onEdit,
                  {/* Retro */}
                  <div className={themeAssets.printBorder} style={{ width: '50%', height: '100%', padding: '60px', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', textAlign: 'center', borderRight: 'none', position: 'relative', zIndex: 10 }}>
                     <div style={{ fontSize: '80px', opacity: 0.2, marginBottom: '20px' }}>{themeAssets.decoration}</div>
+                    
+                    {/* BRAND LOGO PDF */}
+                    {data.images?.brandLogo && (
+                        <div style={{ position: 'absolute', bottom: '40px', left: '50%', transform: 'translateX(-50%)', display: 'flex', flexDirection: 'column', alignItems: 'center', opacity: 0.8 }}>
+                            <p style={{ fontSize: '10px', textTransform: 'uppercase', letterSpacing: '2px', color: '#9ca3af', marginBottom: '5px' }}>Created by</p>
+                            <img src={data.images.brandLogo} style={{ height: '40px', objectFit: 'contain' }} />
+                        </div>
+                    )}
+
                     {/* REMOVED 'Enigmistica Auguri' Text */}
                  </div>
                  {/* Fronte */}
