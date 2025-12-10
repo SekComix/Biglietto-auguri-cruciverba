@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { generateCrossword, regenerateGreetingOptions } from '../services/geminiService';
 import { CrosswordData, ManualInput, ThemeType, ToneType, Direction } from '../types';
-import { Loader2, Wand2, Plus, Trash2, Gift, PartyPopper, CalendarHeart, Crown, KeyRound, Image as ImageIcon, Upload, Calendar, AlertCircle, Grid3X3, MailOpen, Images, Ghost, GraduationCap, ScrollText, HeartHandshake, BookOpen, Search, X, Smile, Heart, Music, Sparkles, Edit, PenTool, LayoutGrid, Zap, Check, MessageSquareDashed, Info, HelpCircle, Bot, BrainCircuit, Feather, Quote, Briefcase, GraduationCap as GradCap } from 'lucide-react';
+import { Loader2, Wand2, Plus, Trash2, Gift, PartyPopper, CalendarHeart, Crown, KeyRound, Image as ImageIcon, Upload, Calendar, AlertCircle, Grid3X3, MailOpen, Images, Ghost, GraduationCap, ScrollText, HeartHandshake, BookOpen, Search, X, Smile, Heart, Music, Sparkles, Edit, PenTool, LayoutGrid, Zap, Check, MessageSquareDashed, Info, HelpCircle, Bot, BrainCircuit, Feather, Quote, Briefcase, GraduationCap as GradCap, Puzzle } from 'lucide-react';
 
 interface CreatorProps {
   onCreated: (data: CrosswordData) => void;
@@ -39,10 +39,17 @@ const AI_TONES = [
     { id: 'funny', label: 'Simpatico', icon: Smile, desc: 'Divertente e leggero' },
     { id: 'heartfelt', label: 'Dolce', icon: Heart, desc: 'Affettuoso e commovente' },
     { id: 'rhyme', label: 'Rima', icon: Music, desc: 'In rima baciata o alternata' },
-    { id: 'sarcastic', label: 'Sarcastico', icon: Zap, desc: 'Pungente ma scherzoso' }, // NEW
-    { id: 'quotes', label: 'Citazioni', icon: Quote, desc: 'Ispirato a frasi famose' }, // NEW
-    { id: 'poetic', label: 'Poetico', icon: Feather, desc: 'Lirico ed elegante' }, // NEW
-    { id: 'formal', label: 'Formale', icon: Briefcase, desc: 'Classico e rispettoso' }, // NEW
+    { id: 'sarcastic', label: 'Sarcastico', icon: Zap, desc: 'Pungente ma scherzoso' },
+    { id: 'quotes', label: 'Citazioni', icon: Quote, desc: 'Ispirato a frasi famose' },
+    { id: 'poetic', label: 'Poetico', icon: Feather, desc: 'Lirico ed elegante' },
+    { id: 'formal', label: 'Formale', icon: Briefcase, desc: 'Classico e rispettoso' },
+];
+
+// FUTURE-PROOFING: Activity Modules
+const ACTIVITY_MODULES = [
+    { id: 'crossword', label: 'Cruciverba', icon: Grid3X3, desc: 'Parole incrociate personalizzate' },
+    { id: 'simple', label: 'Solo Dedica', icon: MailOpen, desc: 'Nessun gioco, solo testo' },
+    // Future: { id: 'rebus', label: 'Rebus', icon: HelpCircle, desc: 'Coming soon...' }
 ];
 
 type CreationMode = 'guided' | 'freestyle' | 'manual';
@@ -58,17 +65,13 @@ export const Creator: React.FC<CreatorProps> = ({ onCreated, initialData }) => {
     graduation: `Oggi`
   };
 
-  const [contentType, setContentType] = useState<'crossword' | 'simple'>('crossword');
-  
-  // NEW: State for the 3 modes
+  // State
   const [creationMode, setCreationMode] = useState<CreationMode>('guided');
+  const [selectedActivity, setSelectedActivity] = useState<string>('crossword'); // 'crossword' | 'simple'
   
   const [tone, setTone] = useState<ToneType>('surprise');
   const [theme, setTheme] = useState<ThemeType>('christmas');
   
-  // 'topic' è l'input generico. 
-  // In 'guided' è l'argomento (es. "Zio Mario").
-  // In 'freestyle' è il prompt completo (es. "Scrivi come un pirata...").
   const [topic, setTopic] = useState('');
   
   const [recipientName, setRecipientName] = useState('');
@@ -80,7 +83,6 @@ export const Creator: React.FC<CreatorProps> = ({ onCreated, initialData }) => {
   const [selectedStickers, setSelectedStickers] = useState<string[]>([]);
   const [activeStickerTab, setActiveStickerTab] = useState('Natale');
 
-  // AI Suggestions
   const [isGeneratingSuggestions, setIsGeneratingSuggestions] = useState(false);
   const [suggestedPhrases, setSuggestedPhrases] = useState<string[]>([]);
 
@@ -98,7 +100,7 @@ export const Creator: React.FC<CreatorProps> = ({ onCreated, initialData }) => {
 
   useEffect(() => {
     if (initialData) {
-        setContentType(initialData.type);
+        setSelectedActivity(initialData.type); // Maps 'crossword' or 'simple'
         setRecipientName(initialData.recipientName);
         setEventDate(initialData.eventDate);
         setTheme(initialData.theme);
@@ -116,7 +118,6 @@ export const Creator: React.FC<CreatorProps> = ({ onCreated, initialData }) => {
             // It was AI
             if (initialData.originalTone === 'custom') {
                 setCreationMode('freestyle');
-                // In freestyle, the customTone contains the prompt
                 setTopic(initialData.originalCustomTone || (initialData.originalInput as string) || '');
             } else {
                 setCreationMode('guided');
@@ -127,7 +128,6 @@ export const Creator: React.FC<CreatorProps> = ({ onCreated, initialData }) => {
         
         if (initialData.originalHiddenSolution) setHiddenSolution(initialData.originalHiddenSolution);
     } else {
-        // Reset defaults
         setRecipientName('');
         setEventDate('');
         setTopic('');
@@ -137,6 +137,7 @@ export const Creator: React.FC<CreatorProps> = ({ onCreated, initialData }) => {
         setSelectedStickers([]);
         setManualWords([{ word: '', clue: '' }, { word: '', clue: '' }, { word: '', clue: '' }]);
         setCreationMode('guided');
+        setSelectedActivity('crossword');
     }
   }, [initialData]);
 
@@ -243,7 +244,10 @@ export const Creator: React.FC<CreatorProps> = ({ onCreated, initialData }) => {
     e.preventDefault();
     if (loading || processingImg) return; 
     setLoading(true);
-    setStatusMsg(contentType === 'crossword' ? "Costruisco la griglia..." : "Creo il biglietto...");
+    // Use selectedActivity directly as contentType if strictly 'crossword' or 'simple'
+    const finalContentType = (selectedActivity === 'crossword' || selectedActivity === 'simple') ? selectedActivity : 'simple';
+    
+    setStatusMsg(finalContentType === 'crossword' ? "Costruisco la griglia..." : "Creo il biglietto...");
     setError(null);
 
     try {
@@ -255,7 +259,7 @@ export const Creator: React.FC<CreatorProps> = ({ onCreated, initialData }) => {
       // CONFIGURATION BASED ON MODE
       if (creationMode === 'manual') {
           finalMode = 'manual';
-          if (contentType === 'crossword') {
+          if (finalContentType === 'crossword') {
              const validWords = manualWords.filter(w => w.word.trim() && w.clue.trim());
              if (validWords.length < 2) throw new Error("Inserisci almeno 2 parole complete.");
              inputData = validWords;
@@ -263,16 +267,14 @@ export const Creator: React.FC<CreatorProps> = ({ onCreated, initialData }) => {
              if (!topic.trim()) throw new Error("Scrivi il messaggio di auguri.");
           }
       } else if (creationMode === 'freestyle') {
-          // Freestyle logic: we pass 'custom' tone and the prompt as the customTone
           if (!topic.trim()) throw new Error("Scrivi le istruzioni per l'IA.");
           finalTone = 'custom';
-          finalCustomTone = topic; // The whole prompt is the instruction
+          finalCustomTone = topic; 
           inputData = topic; 
       } else {
           // Guided logic
-          if (contentType === 'crossword' && !topic.trim()) throw new Error("Inserisci un argomento (es. Zio Mario).");
-          if (contentType === 'simple' && !topic.trim()) throw new Error("Scrivi o seleziona un messaggio.");
-          // tone is already set from state
+          if (finalContentType === 'crossword' && !topic.trim()) throw new Error("Inserisci un argomento (es. Zio Mario).");
+          if (finalContentType === 'simple' && !topic.trim()) throw new Error("Scrivi o seleziona un messaggio.");
       }
 
       if (!recipientName.trim()) throw new Error("Inserisci il nome del festeggiato.");
@@ -290,7 +292,7 @@ export const Creator: React.FC<CreatorProps> = ({ onCreated, initialData }) => {
           eventDate: finalDate, 
           images: { extraImage, photos },
           stickers: selectedStickers,
-          contentType,
+          contentType: finalContentType,
           tone: finalMode === 'ai' ? finalTone : undefined,
           customTone: finalCustomTone
         },
@@ -325,6 +327,27 @@ export const Creator: React.FC<CreatorProps> = ({ onCreated, initialData }) => {
     );
   };
 
+  const ActivitySelector = () => (
+    <div className="grid grid-cols-2 gap-3 mb-4">
+        {ACTIVITY_MODULES.map(act => (
+            <button
+                key={act.id}
+                type="button"
+                onClick={() => setSelectedActivity(act.id)}
+                className={`p-3 rounded-xl border flex items-center gap-3 transition-all ${selectedActivity === act.id ? 'bg-white border-blue-500 shadow-md ring-2 ring-blue-100' : 'bg-white/40 border-gray-200 hover:bg-white'}`}
+            >
+                <div className={`p-2 rounded-full ${selectedActivity === act.id ? 'bg-blue-100 text-blue-600' : 'bg-gray-100 text-gray-500'}`}>
+                    <act.icon size={18} />
+                </div>
+                <div className="text-left">
+                    <div className={`text-sm font-bold ${selectedActivity === act.id ? 'text-gray-800' : 'text-gray-500'}`}>{act.label}</div>
+                    <div className="text-[10px] text-gray-400 leading-tight">{act.desc}</div>
+                </div>
+            </button>
+        ))}
+    </div>
+  );
+
   // --- RENDER ---
   return (
     <form onSubmit={handleGenerate} className={`max-w-3xl mx-auto bg-white/95 backdrop-blur p-6 md:p-8 rounded-3xl shadow-2xl border-2 border-white/50 relative overflow-hidden transition-all`}>
@@ -347,22 +370,9 @@ export const Creator: React.FC<CreatorProps> = ({ onCreated, initialData }) => {
             <h2 className="font-bold text-3xl md:text-4xl text-gray-800 mb-2 font-body">Crea il Tuo Biglietto</h2>
           </div>
 
-          {/* STEP 1: CONTENT TYPE */}
+          {/* STEP 1: EVENT DETAILS */}
           <div className="mb-6">
-            <label className="block text-xs font-bold text-gray-400 mb-3 uppercase tracking-wider text-center">1. Cosa vuoi creare?</label>
-            <div className="flex gap-4">
-                <button type="button" onClick={() => setContentType('crossword')} className={`flex-1 p-4 rounded-xl border-2 transition-all flex flex-col items-center gap-2 ${contentType === 'crossword' ? 'border-blue-500 bg-blue-50 text-blue-700 shadow-md' : 'border-gray-200 hover:border-blue-300 bg-white'}`}>
-                    <Grid3X3 size={28} /><span className="font-bold">Cruciverba</span>
-                </button>
-                <button type="button" onClick={() => setContentType('simple')} className={`flex-1 p-4 rounded-xl border-2 transition-all flex flex-col items-center gap-2 ${contentType === 'simple' ? 'border-purple-500 bg-purple-50 text-purple-700 shadow-md' : 'border-gray-200 hover:border-purple-300 bg-white'}`}>
-                    <MailOpen size={28} /><span className="font-bold">Solo Auguri</span>
-                </button>
-            </div>
-          </div>
-
-          {/* STEP 2: EVENT DETAILS */}
-          <div className="mb-6">
-            <label className="block text-xs font-bold text-gray-400 mb-3 uppercase tracking-wider text-center">2. Evento</label>
+            <label className="block text-xs font-bold text-gray-400 mb-3 uppercase tracking-wider text-center">1. Destinatario & Evento</label>
             <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-5 gap-3 mb-4">
               {THEMES.map((t) => (
                 <button key={t.id} type="button" onClick={() => setTheme(t.id)} className={`flex flex-col items-center justify-center p-2 rounded-xl transition-all ${theme === t.id ? `${t.color} text-white scale-105 shadow-lg` : 'bg-gray-100 hover:bg-gray-200'}`}>
@@ -372,19 +382,19 @@ export const Creator: React.FC<CreatorProps> = ({ onCreated, initialData }) => {
             </div>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div>
-                <label className="block text-xs font-bold text-gray-400 mb-2 uppercase">Per chi è?</label>
-                <input required type="text" placeholder="Nome" className="w-full p-3 border-2 border-gray-200 rounded-xl font-bold focus:border-blue-400 outline-none" value={recipientName} onChange={(e) => setRecipientName(e.target.value)} />
+                    <label className="block text-xs font-bold text-gray-400 mb-2 uppercase">Per chi è?</label>
+                    <input required type="text" placeholder="Nome" className="w-full p-3 border-2 border-gray-200 rounded-xl font-bold focus:border-blue-400 outline-none" value={recipientName} onChange={(e) => setRecipientName(e.target.value)} />
                 </div>
                 <div>
-                <label className="block text-xs font-bold text-gray-400 mb-2 uppercase">Data Evento</label>
-                <input type="text" placeholder={DEFAULT_DATES[theme] || "es. 25 Dicembre"} className="w-full p-3 border-2 border-gray-200 rounded-xl font-bold focus:border-blue-400 outline-none" value={eventDate} onChange={(e) => setEventDate(e.target.value)} />
+                    <label className="block text-xs font-bold text-gray-400 mb-2 uppercase">Data Evento</label>
+                    <input type="text" placeholder={DEFAULT_DATES[theme] || "es. 25 Dicembre"} className="w-full p-3 border-2 border-gray-200 rounded-xl font-bold focus:border-blue-400 outline-none" value={eventDate} onChange={(e) => setEventDate(e.target.value)} />
                 </div>
             </div>
           </div>
 
-          {/* STEP 3: CREATION MODE (TAB SYSTEM) */}
+          {/* STEP 2: CONTENT CONFIGURATION (TABS + ACTIVITY SELECTOR) */}
           <div className="mb-6">
-            <label className="block text-xs font-bold text-gray-400 mb-3 uppercase tracking-wider text-center">3. Metodo di Creazione</label>
+            <label className="block text-xs font-bold text-gray-400 mb-3 uppercase tracking-wider text-center">2. Personalizza Contenuto</label>
             
             <div className="bg-gray-100 p-1 rounded-xl flex mb-4 text-sm font-bold text-gray-600 shadow-inner">
                 <button 
@@ -413,7 +423,11 @@ export const Creator: React.FC<CreatorProps> = ({ onCreated, initialData }) => {
             {/* TAB CONTENT: GUIDED */}
             {creationMode === 'guided' && (
                 <div className="bg-blue-50/50 rounded-xl p-4 border border-blue-100 animate-in fade-in">
-                    <label className="block text-xs font-bold text-blue-400 mb-2 uppercase">Scegli lo Stile:</label>
+                    <label className="block text-xs font-bold text-blue-400 mb-2 uppercase">Cosa vuoi inserire?</label>
+                    <ActivitySelector />
+
+                    {/* Tone Selection */}
+                    <label className="block text-xs font-bold text-blue-400 mb-2 uppercase border-t border-blue-200 pt-3">Stile e Tono:</label>
                     <div className="grid grid-cols-2 md:grid-cols-4 gap-2 mb-4">
                         {AI_TONES.map((t) => (
                             <button
@@ -431,12 +445,12 @@ export const Creator: React.FC<CreatorProps> = ({ onCreated, initialData }) => {
 
                     <div className="relative">
                         <label className="block text-xs font-bold text-gray-400 mb-2 uppercase">
-                            {contentType === 'crossword' ? "Argomento / Contenuto:" : "Cosa devo scrivere?"}
+                            {selectedActivity === 'crossword' ? "Argomento del Cruciverba (es. Calcio, Cucina):" : "Messaggio o Istruzioni per la Dedica:"}
                         </label>
                         <textarea
                             rows={3}
                             className="w-full p-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-blue-500 outline-none resize-none bg-white"
-                            placeholder={contentType === 'crossword' ? "Es: Zio Mario, ama il calcio, la pizza e dormire..." : "Es: Auguri per i 50 anni, ringrazia per la festa..."}
+                            placeholder={selectedActivity === 'crossword' ? "Es: Zio Mario, ama il calcio, la pizza e dormire..." : "Es: Auguri per i 50 anni, ringrazia per la festa..."}
                             value={topic}
                             onChange={(e) => setTopic(e.target.value)}
                         />
@@ -493,7 +507,11 @@ export const Creator: React.FC<CreatorProps> = ({ onCreated, initialData }) => {
             {/* TAB CONTENT: MANUAL */}
             {creationMode === 'manual' && (
                 <div className="bg-orange-50/50 rounded-xl p-4 border border-orange-100 animate-in fade-in">
-                    {contentType === 'crossword' ? (
+                    <label className="block text-xs font-bold text-orange-400 mb-2 uppercase">Cosa vuoi inserire?</label>
+                    <ActivitySelector />
+                    
+                    <div className="border-t border-orange-200 pt-3">
+                    {selectedActivity === 'crossword' ? (
                         <>
                              <div className="bg-orange-100 p-3 rounded-lg mb-4 flex gap-3 items-start">
                                 <div className="bg-white p-1 rounded-full text-orange-500 mt-0.5"><Edit size={14} /></div>
@@ -529,50 +547,64 @@ export const Creator: React.FC<CreatorProps> = ({ onCreated, initialData }) => {
                             />
                         </div>
                     )}
+                    </div>
                 </div>
             )}
 
           </div>
 
-          {contentType === 'crossword' && (
+          {selectedActivity === 'crossword' && (
               <div className="mb-6 p-3 bg-yellow-50 rounded-xl border border-yellow-200 animate-fade-in">
                   <label className="flex items-center gap-2 text-sm font-bold text-yellow-800 mb-2"><KeyRound size={16}/> Parola Nascosta (Opzionale)</label>
                   <input type="text" placeholder="SOLUZIONE SEGRETA" className="w-full p-2 border border-yellow-300 rounded uppercase font-bold text-center tracking-widest focus:ring-2 focus:ring-yellow-400 outline-none bg-white" value={hiddenSolution} onChange={(e) => setHiddenSolution(e.target.value)} maxLength={15} />
               </div>
           )}
 
-          <div className="grid grid-cols-2 gap-4 mb-6">
-              <div className="border-2 border-dashed border-gray-300 rounded-xl p-4 text-center hover:bg-gray-50 cursor-pointer relative transition-colors group overflow-hidden h-32 flex items-center justify-center">
-                    <input type="file" accept="image/*" onChange={(e) => handleImageUpload(e, 'extra')} className="absolute inset-0 opacity-0 cursor-pointer z-10" />
-                    {processingImg === 'extra' ? (
-                       <div className="flex flex-col items-center text-blue-500"><Loader2 className="animate-spin mb-1"/><span className="text-[10px] font-bold">Elaborazione...</span></div>
-                    ) : extraImage ? (
-                        <div className="relative w-full h-full group-hover:scale-95 transition-transform">
-                             <img src={extraImage} className="h-full w-full object-contain mx-auto" />
-                             <button type="button" onClick={(e) => { e.preventDefault(); removeImage('extra'); }} className="absolute top-1 right-1 bg-red-500 text-white rounded-full p-1 z-20 hover:bg-red-600"><Trash2 size={12}/></button>
-                        </div>
-                    ) : (
-                        <div className="flex flex-col items-center group-hover:scale-105 transition-transform">
-                             <Upload className="text-gray-400 mb-1"/><span className="text-[10px] font-bold text-gray-500 uppercase">Logo / Disegno</span>
-                        </div>
-                    )}
-              </div>
+          {/* STEP 3: IMAGES */}
+          <div className="mb-6">
+            <label className="block text-xs font-bold text-gray-400 mb-3 uppercase tracking-wider text-center">3. Immagini e Foto</label>
+            <div className="grid grid-cols-2 gap-4 mb-6">
+                
+                {/* BOX 1: COPERTINA */}
+                <div className="border-2 border-dashed border-gray-300 rounded-xl p-4 text-center hover:bg-gray-50 cursor-pointer relative transition-colors group overflow-hidden h-40 flex items-center justify-center bg-gray-50/50">
+                        <input type="file" accept="image/*" onChange={(e) => handleImageUpload(e, 'extra')} className="absolute inset-0 opacity-0 cursor-pointer z-10" />
+                        {processingImg === 'extra' ? (
+                        <div className="flex flex-col items-center text-blue-500"><Loader2 className="animate-spin mb-1"/><span className="text-[10px] font-bold">Elaborazione...</span></div>
+                        ) : extraImage ? (
+                            <div className="relative w-full h-full group-hover:scale-95 transition-transform">
+                                <img src={extraImage} className="h-full w-full object-contain mx-auto" />
+                                <div className="absolute bottom-0 inset-x-0 bg-black/50 text-white text-[10px] py-1 font-bold">COPERTINA</div>
+                                <button type="button" onClick={(e) => { e.preventDefault(); removeImage('extra'); }} className="absolute top-1 right-1 bg-red-500 text-white rounded-full p-1 z-20 hover:bg-red-600"><Trash2 size={12}/></button>
+                            </div>
+                        ) : (
+                            <div className="flex flex-col items-center group-hover:scale-105 transition-transform px-2">
+                                <div className="bg-white p-2 rounded-full shadow-sm mb-2"><ImageIcon className="text-blue-400" size={24}/></div>
+                                <span className="text-xs font-bold text-gray-600 uppercase">Immagine di Copertina</span>
+                                <span className="text-[9px] text-gray-400">(Logo, Disegno, etc.)</span>
+                            </div>
+                        )}
+                </div>
 
-              <div className="border-2 border-dashed border-gray-300 rounded-xl p-0 text-center hover:bg-gray-50 cursor-pointer relative transition-colors group overflow-hidden h-32 flex items-center justify-center">
-                    <input type="file" accept="image/*" multiple onChange={(e) => handleImageUpload(e, 'photo')} className="absolute inset-0 opacity-0 cursor-pointer z-10" />
-                    {processingImg === 'photo' ? (
-                       <div className="flex flex-col items-center text-blue-500"><Loader2 className="animate-spin mb-1"/><span className="text-[10px] font-bold">Collage...</span></div>
-                    ) : photos.length > 0 ? (
-                        <div className="relative w-full h-full">
-                             {renderPhotoPreview()} 
-                             <button type="button" onClick={(e) => { e.preventDefault(); removeImage('photo'); }} className="absolute top-1 right-1 bg-red-500 text-white rounded-full p-1 z-30 hover:bg-red-600"><Trash2 size={12}/></button>
-                        </div>
-                    ) : (
-                        <div className="flex flex-col items-center group-hover:scale-105 transition-transform p-4">
-                             <Images className="text-gray-400 mb-1"/><span className="text-[10px] font-bold text-gray-500 uppercase">Foto Ricordo (1-9)</span>
-                        </div>
-                    )}
-              </div>
+                {/* BOX 2: FOTO INTERNO */}
+                <div className="border-2 border-dashed border-gray-300 rounded-xl p-0 text-center hover:bg-gray-50 cursor-pointer relative transition-colors group overflow-hidden h-40 flex items-center justify-center bg-gray-50/50">
+                        <input type="file" accept="image/*" multiple onChange={(e) => handleImageUpload(e, 'photo')} className="absolute inset-0 opacity-0 cursor-pointer z-10" />
+                        {processingImg === 'photo' ? (
+                        <div className="flex flex-col items-center text-blue-500"><Loader2 className="animate-spin mb-1"/><span className="text-[10px] font-bold">Collage...</span></div>
+                        ) : photos.length > 0 ? (
+                            <div className="relative w-full h-full">
+                                {renderPhotoPreview()} 
+                                <div className="absolute bottom-0 inset-x-0 bg-black/50 text-white text-[10px] py-1 font-bold">INTERNO</div>
+                                <button type="button" onClick={(e) => { e.preventDefault(); removeImage('photo'); }} className="absolute top-1 right-1 bg-red-500 text-white rounded-full p-1 z-30 hover:bg-red-600"><Trash2 size={12}/></button>
+                            </div>
+                        ) : (
+                            <div className="flex flex-col items-center group-hover:scale-105 transition-transform px-2">
+                                <div className="bg-white p-2 rounded-full shadow-sm mb-2"><Images className="text-purple-400" size={24}/></div>
+                                <span className="text-xs font-bold text-gray-600 uppercase">Foto Ricordo</span>
+                                <span className="text-[9px] text-gray-400">(Per collage interno)</span>
+                            </div>
+                        )}
+                </div>
+            </div>
           </div>
 
           <div className="mb-6 bg-gray-50 p-3 rounded-xl border border-gray-100">
