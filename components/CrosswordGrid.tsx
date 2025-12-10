@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { CrosswordData, CellData, Direction, ThemeType } from '../types';
-import { Printer, Edit, Eye, EyeOff, BookOpen, FileText, CheckCircle2, Palette, Download, Loader2 } from 'lucide-react';
+import { Printer, Edit, Eye, EyeOff, BookOpen, FileText, CheckCircle2, Palette, Download, Loader2, XCircle, RotateCw } from 'lucide-react';
 import html2canvas from 'html2canvas';
 import { jsPDF } from 'jspdf';
 
@@ -194,45 +194,125 @@ const CrosswordGrid: React.FC<CrosswordGridProps> = ({ data, onComplete, onEdit,
         }
 
         win.document.write(`
+            <!DOCTYPE html>
             <html>
                 <head>
                     <title>Anteprima Biglietto - ${data.recipientName}</title>
+                    <meta name="viewport" content="width=device-width, initial-scale=1.0">
                     <style>
-                        body { font-family: sans-serif; background-color: #f3f4f6; margin: 0; padding: 0; display: flex; flex-direction: column; alignItems: center; }
+                        body { 
+                            font-family: system-ui, -apple-system, sans-serif; 
+                            background-color: #374151; 
+                            margin: 0; 
+                            padding: 0; 
+                            display: flex; 
+                            flex-direction: column; 
+                            align-items: center; 
+                            min-height: 100vh;
+                        }
                         .toolbar { 
                             position: fixed; top: 0; left: 0; right: 0; 
-                            background: white; padding: 15px; 
-                            box-shadow: 0 2px 10px rgba(0,0,0,0.1); 
-                            text-align: center; z-index: 1000;
-                            display: flex; justify-content: center; gap: 20px;
+                            background: white; padding: 12px 20px; 
+                            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1); 
+                            display: flex; justify-content: center; gap: 15px; flex-wrap: wrap;
+                            z-index: 1000;
                         }
-                        .print-btn { 
-                            background-color: #2563eb; color: white; border: none; 
-                            padding: 12px 24px; border-radius: 50px; 
-                            font-size: 16px; font-weight: bold; cursor: pointer; 
-                            box-shadow: 0 4px 6px rgba(37, 99, 235, 0.3);
-                            display: flex; align-items: center; gap: 8px;
+                        .btn { 
+                            border: none; padding: 10px 20px; border-radius: 8px; 
+                            font-size: 14px; font-weight: 600; cursor: pointer; 
+                            display: flex; align-items: center; gap: 6px;
+                            transition: transform 0.1s;
                         }
-                        .print-btn:hover { background-color: #1d4ed8; }
-                        .content { margin-top: 100px; padding-bottom: 50px; display: flex; flex-direction: column; align-items: center; gap: 20px; width: 100%; }
-                        img { max-width: 95%; height: auto; box-shadow: 0 4px 6px rgba(0,0,0,0.1); border: 1px solid #ddd; }
-                        .instruction { color: #666; margin-bottom: 10px; font-size: 14px; }
+                        .btn:active { transform: scale(0.95); }
+                        .btn-primary { background-color: #2563eb; color: white; box-shadow: 0 4px 6px rgba(37, 99, 235, 0.2); }
+                        .btn-primary:hover { background-color: #1d4ed8; }
+                        .btn-secondary { background-color: #f3f4f6; color: #374151; border: 1px solid #d1d5db; }
+                        .btn-secondary:hover { background-color: #e5e7eb; }
+                        
+                        .content { 
+                            margin-top: 80px; 
+                            padding: 20px; 
+                            padding-bottom: 60px;
+                            display: flex; 
+                            flex-direction: column; 
+                            align-items: center; 
+                            gap: 40px; 
+                            width: 100%; 
+                            max-width: 1200px;
+                        }
+                        
+                        .sheet-container {
+                            background: white;
+                            padding: 0;
+                            box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04);
+                            position: relative;
+                            width: fit-content;
+                        }
+
+                        .preview-img { 
+                            display: block;
+                            max-width: 95vw; 
+                            max-height: 85vh; /* Fits on screen */
+                            object-fit: contain;
+                            border: 1px solid #eee; 
+                        }
+
+                        .instruction { 
+                            color: #e5e7eb; 
+                            margin-bottom: 5px; 
+                            font-size: 16px; 
+                            font-weight: bold; 
+                            text-align: center;
+                            text-shadow: 0 2px 4px rgba(0,0,0,0.5);
+                        }
+
+                        /* ROTATION CLASS */
+                        .rotate-180 { transform: rotate(180deg); }
+
                         @media print {
-                            .toolbar { display: none; }
-                            .content { margin-top: 0; }
-                            img { page-break-after: always; max-width: 100%; box-shadow: none; border: none; }
+                            @page { 
+                                size: A4 landscape; 
+                                margin: 0; 
+                            }
+                            body { background: white; margin: 0; padding: 0; display: block; }
+                            .toolbar, .instruction { display: none !important; }
+                            .content { margin: 0; padding: 0; gap: 0; display: block; width: 100%; max-width: none; }
+                            .sheet-container { box-shadow: none; margin: 0; padding: 0; page-break-after: always; break-after: page; width: 297mm; height: 210mm; overflow: hidden; }
+                            .preview-img { 
+                                width: 297mm; 
+                                height: 210mm; 
+                                max-width: none; 
+                                max-height: none; 
+                                border: none; 
+                            }
                         }
                     </style>
+                    <script>
+                        function toggleRotation() {
+                            const sheet2 = document.getElementById('sheet2-img');
+                            sheet2.classList.toggle('rotate-180');
+                        }
+                    </script>
                 </head>
                 <body>
                     <div class="toolbar">
-                        <button class="print-btn" onclick="window.print()">🖨️ STAMPA / SALVA PDF</button>
+                        <button class="btn btn-secondary" onclick="window.close()">❌ Chiudi Anteprima</button>
+                        <button class="btn btn-secondary" onclick="toggleRotation()">🔄 Ruota Retro 180° (Fix Stampante)</button>
+                        <button class="btn btn-primary" onclick="window.print()">🖨️ STAMPA / SALVA PDF</button>
                     </div>
                     <div class="content">
-                        <p class="instruction">FOGLIO 1 (Fronte/Retro)</p>
-                        <img src="${imgData1}" />
-                        <p class="instruction">FOGLIO 2 (Interno)</p>
-                        <img src="${imgData2}" />
+                        <div>
+                            <p class="instruction">FOGLIO 1: Fronte e Retro (Esterno)</p>
+                            <div class="sheet-container">
+                                <img src="${imgData1}" class="preview-img" />
+                            </div>
+                        </div>
+                        <div>
+                            <p class="instruction">FOGLIO 2: Interno (Dedica e Cruciverba)</p>
+                            <div class="sheet-container">
+                                <img id="sheet2-img" src="${imgData2}" class="preview-img" />
+                            </div>
+                        </div>
                     </div>
                 </body>
             </html>
@@ -280,7 +360,6 @@ const CrosswordGrid: React.FC<CrosswordGridProps> = ({ data, onComplete, onEdit,
           
           if (!cell.char) return <div key={`${x}-${y}`} className={`${isPrint ? 'bg-gray-50 border border-gray-200' : 'bg-black/5 rounded-sm'}`} />;
           
-          // FORZATURA COLORI: Usa style inline per priorità assoluta o classi specifiche non condizionate
           const isSolution = cell.isSolutionCell;
           
           return (
@@ -289,7 +368,7 @@ const CrosswordGrid: React.FC<CrosswordGridProps> = ({ data, onComplete, onEdit,
                 onClick={() => !isPrint && handleCellClick(x, y)} 
                 className={`relative flex items-center justify-center ${isPrint ? 'border-r border-b border-black text-black' : `w-full h-full text-xl font-bold cursor-pointer`}`} 
                 style={{
-                    backgroundColor: isSolution ? '#FEF08A' : (isSelected && !isPrint ? '#DBEAFE' : '#FFFFFF'), // yellow-200 or blue-100 or white
+                    backgroundColor: isSolution ? '#FEF08A' : (isSelected && !isPrint ? '#DBEAFE' : '#FFFFFF'), 
                     width: isPrint ? '100%' : undefined,
                     height: isPrint ? '100%' : undefined
                 }}
@@ -327,16 +406,16 @@ const CrosswordGrid: React.FC<CrosswordGridProps> = ({ data, onComplete, onEdit,
     <div className="flex flex-col items-center gap-8 w-full pb-20">
        
        {/* TOOLBAR */}
-       <div className="flex flex-wrap gap-2 justify-center z-20 sticky top-2 p-2 bg-black/5 rounded-full backdrop-blur-sm">
-            <button onClick={onEdit} className="bg-white px-4 py-2 rounded-full shadow border text-sm flex items-center gap-2 font-bold hover:bg-gray-50 text-gray-700"><Edit size={16} /> Modifica</button>
-            <button onClick={() => setIsEditingWatermark(!isEditingWatermark)} className={`px-4 py-2 rounded-full shadow border text-sm flex items-center gap-2 font-bold transition-colors ${isEditingWatermark ? 'bg-blue-600 text-white border-blue-600' : 'bg-white text-gray-700'}`}>
+       <div className="flex flex-wrap gap-2 justify-center z-20 sticky top-2 p-2 bg-black/5 rounded-full backdrop-blur-sm shadow-xl border border-white/10">
+            <button onClick={onEdit} className="bg-white px-4 py-2 rounded-full shadow border text-sm flex items-center gap-2 font-bold hover:bg-gray-50 text-gray-700 transition-transform active:scale-95"><Edit size={16} /> Modifica</button>
+            <button onClick={() => setIsEditingWatermark(!isEditingWatermark)} className={`px-4 py-2 rounded-full shadow border text-sm flex items-center gap-2 font-bold transition-all active:scale-95 ${isEditingWatermark ? 'bg-blue-600 text-white border-blue-600 shadow-blue-500/30' : 'bg-white text-gray-700'}`}>
                 {isEditingWatermark ? <CheckCircle2 size={16}/> : <Palette size={16}/>} {isEditingWatermark ? 'Fatto' : 'Sfondo'}
             </button>
-            <button onClick={() => setRevealAnswers(!revealAnswers)} className={`px-4 py-2 rounded-full shadow border text-sm flex items-center gap-2 font-bold transition-colors ${revealAnswers ? 'bg-yellow-100 text-yellow-800 border-yellow-300' : 'bg-white text-gray-700'}`}>{revealAnswers ? <EyeOff size={16}/> : <Eye size={16}/>} {revealAnswers ? 'Nascondi' : 'Soluzione'}</button>
+            <button onClick={() => setRevealAnswers(!revealAnswers)} className={`px-4 py-2 rounded-full shadow border text-sm flex items-center gap-2 font-bold transition-all active:scale-95 ${revealAnswers ? 'bg-yellow-100 text-yellow-800 border-yellow-300' : 'bg-white text-gray-700'}`}>{revealAnswers ? <EyeOff size={16}/> : <Eye size={16}/>} {revealAnswers ? 'Nascondi' : 'Soluzione'}</button>
             <button 
                 onClick={handleDownloadPDF} 
                 disabled={isGeneratingPDF}
-                className={`text-white px-6 py-2 rounded-full shadow text-sm flex items-center gap-2 font-bold transition-colors ${isGeneratingPDF ? 'bg-gray-400 cursor-wait' : 'bg-green-600 hover:bg-green-700'}`}
+                className={`text-white px-6 py-2 rounded-full shadow-lg text-sm flex items-center gap-2 font-bold transition-all active:scale-95 ${isGeneratingPDF ? 'bg-gray-400 cursor-wait' : 'bg-gradient-to-r from-green-600 to-emerald-600 hover:from-green-700 hover:to-emerald-700 ring-2 ring-white/20'}`}
             >
                 {isGeneratingPDF ? <Loader2 size={16} className="animate-spin"/> : <Printer size={16} />} 
                 {isGeneratingPDF ? 'Elaboro...' : 'ANTEPRIMA STAMPA'}
@@ -352,8 +431,8 @@ const CrosswordGrid: React.FC<CrosswordGridProps> = ({ data, onComplete, onEdit,
             </h3>
             
             <div className="bg-white w-full aspect-[297/210] shadow-2xl flex relative overflow-hidden rounded-sm select-none">
-                 {/* Watermark Editor */}
-                 <div className={`absolute inset-0 flex items-center justify-center overflow-hidden pointer-events-none`}>
+                 {/* 1. Watermark Layer */}
+                 <div className={`absolute inset-0 flex items-center justify-center overflow-hidden z-0`}>
                     <div 
                         className="relative"
                         style={{ 
@@ -362,34 +441,35 @@ const CrosswordGrid: React.FC<CrosswordGridProps> = ({ data, onComplete, onEdit,
                         }}
                         onMouseDown={isEditingWatermark ? (e) => startDrag(e, 1) : undefined}
                     >
-                        {/* INCREASED OPACITY: from 0.06 to 0.15 for visibility */}
-                        <span className={`text-[100px] text-black transition-opacity ${isEditingWatermark ? 'opacity-30 cursor-move' : 'opacity-10'}`}>
+                        <span className={`text-[100px] text-black transition-opacity duration-300 ${isEditingWatermark ? 'opacity-30 cursor-move' : 'opacity-20'}`}>
                             {themeAssets.watermark}
                         </span>
                     </div>
                  </div>
-                 <div className="absolute inset-y-0 left-1/2 w-px bg-gray-300 border-l border-dashed border-gray-400 opacity-50 z-10"></div>
-                 <div className={`absolute inset-0 flex z-10 transition-opacity duration-300 ${isEditingWatermark ? 'opacity-20 pointer-events-none blur-[1px]' : 'opacity-100'}`}>
-                     {/* RETRO */}
-                     <div className="w-1/2 h-full p-8 flex flex-col items-center justify-center text-center border-r border-gray-100 bg-white/90">
+
+                 {/* 2. Fold Line */}
+                 <div className="absolute inset-y-0 left-1/2 w-px bg-gray-300 border-l border-dashed border-gray-400 opacity-50 z-10 pointer-events-none"></div>
+
+                 {/* 3. Content Layer (BACKGROUND TRANSPARENT TO SHOW WATERMARK) */}
+                 <div className={`absolute inset-0 flex z-10 transition-opacity duration-300 ${isEditingWatermark ? 'opacity-50 pointer-events-none' : 'opacity-100'}`}>
+                     {/* RETRO - ADDED BORDER CLASS HERE */}
+                     <div className={`w-1/2 h-full p-8 flex flex-col items-center justify-center text-center ${themeAssets.printBorder} border-r-0 relative`}>
                          <span className="absolute top-2 left-2 text-[10px] uppercase text-gray-300 font-bold">Retro Biglietto</span>
                          <div className="text-6xl opacity-20 mb-4">{themeAssets.decoration}</div>
-                         <div className="text-xs text-gray-400 uppercase tracking-widest mb-2 font-bold">Enigmistica Auguri</div>
-                         <p className="text-[10px] text-gray-400">Un regalo speciale per te</p>
+                         {/* REMOVED 'Enigmistica Auguri' Text */}
                      </div>
                      {/* FRONTE */}
-                     <div className={`w-1/2 h-full p-8 flex flex-col items-center justify-center text-center ${themeAssets.printBorder} border-l-0 relative bg-white/90`}>
+                     <div className={`w-1/2 h-full p-8 flex flex-col items-center justify-center text-center ${themeAssets.printBorder} border-l-0 relative`}>
                          <span className="absolute top-2 right-2 text-[10px] uppercase text-gray-300 font-bold">Copertina</span>
-                         <h1 className={`text-4xl md:text-5xl ${themeAssets.fontTitle} mb-4 text-gray-900 leading-tight`}>{data.title}</h1>
+                         <h1 className={`text-4xl md:text-5xl ${themeAssets.fontTitle} mb-4 text-gray-900 leading-tight drop-shadow-sm`}>{data.title}</h1>
                          <div className="w-16 h-1 bg-gray-800 mb-4 opacity-50"></div>
                          <p className="text-sm md:text-base uppercase text-gray-500 mb-8 font-bold tracking-widest">
-                             {/* FALLBACK DATA */}
                              {data.eventDate || "Data Speciale"} <span className="text-black/30 mx-1">•</span> {currentYear}
                          </p>
                          {data.images?.extraImage ? (
-                            <img src={data.images.extraImage} className="h-32 md:h-48 object-contain mb-4" />
+                            <img src={data.images.extraImage} className="h-32 md:h-48 object-contain mb-4 drop-shadow-md" />
                          ) : (
-                            <div className="text-8xl opacity-80">{themeAssets.decoration}</div>
+                            <div className="text-8xl opacity-80 drop-shadow-sm">{themeAssets.decoration}</div>
                          )}
                          <div className="mt-auto"><p className="text-xs italic text-gray-400">"Apri per scoprire..."</p></div>
                      </div>
@@ -403,8 +483,8 @@ const CrosswordGrid: React.FC<CrosswordGridProps> = ({ data, onComplete, onEdit,
                 <BookOpen size={20}/> FOGLIO 2 (Interno)
            </h3>
            <div className="bg-white w-full aspect-[297/210] shadow-2xl flex relative overflow-hidden rounded-sm select-none">
-                {/* Watermark Editor */}
-                <div className={`absolute inset-0 flex items-center justify-center overflow-hidden pointer-events-none`}>
+                {/* 1. Watermark Layer */}
+                <div className={`absolute inset-0 flex items-center justify-center overflow-hidden z-0`}>
                     <div 
                         className="relative"
                         style={{ 
@@ -413,16 +493,19 @@ const CrosswordGrid: React.FC<CrosswordGridProps> = ({ data, onComplete, onEdit,
                         }}
                         onMouseDown={isEditingWatermark ? (e) => startDrag(e, 2) : undefined}
                     >
-                         {/* INCREASED OPACITY */}
-                        <span className={`text-[100px] text-black transition-opacity ${isEditingWatermark ? 'opacity-30 cursor-move' : 'opacity-10'}`}>
+                        <span className={`text-[100px] text-black transition-opacity duration-300 ${isEditingWatermark ? 'opacity-30 cursor-move' : 'opacity-20'}`}>
                             {themeAssets.watermark}
                         </span>
                     </div>
                 </div>
-                <div className="absolute inset-y-0 left-1/2 w-px bg-gray-300 border-l border-dashed border-gray-400 opacity-50 z-10"></div>
-                <div className={`absolute inset-0 flex z-10 transition-opacity duration-300 ${isEditingWatermark ? 'opacity-20 pointer-events-none blur-[1px]' : 'opacity-100'}`}>
+
+                {/* 2. Fold Line */}
+                <div className="absolute inset-y-0 left-1/2 w-px bg-gray-300 border-l border-dashed border-gray-400 opacity-50 z-10 pointer-events-none"></div>
+
+                {/* 3. Content Layer */}
+                <div className={`absolute inset-0 flex z-10 transition-opacity duration-300 ${isEditingWatermark ? 'opacity-50 pointer-events-none' : 'opacity-100'}`}>
                     {/* DEDICA */}
-                    <div className={`w-1/2 h-full p-6 flex flex-col items-center justify-between text-center ${themeAssets.printBorder} border-r-0 relative bg-white/90`}>
+                    <div className={`w-1/2 h-full p-6 flex flex-col items-center justify-between text-center ${themeAssets.printBorder} border-r-0 relative`}>
                         <span className="absolute top-2 left-2 text-[10px] uppercase text-gray-300 font-bold">Lato Sinistro</span>
                         <div className="flex-1 w-full flex flex-col items-center justify-center relative">
                             {photos.length > 0 ? (
@@ -430,32 +513,32 @@ const CrosswordGrid: React.FC<CrosswordGridProps> = ({ data, onComplete, onEdit,
                                     <PhotoCollage photos={photos} />
                                 </div>
                             ) : data.images?.extraImage ? (
-                                <img src={data.images.extraImage} className="h-32 object-contain mb-4" />
+                                <img src={data.images.extraImage} className="h-32 object-contain mb-4 drop-shadow-md" />
                             ) : null}
-                            <div className="w-full relative group">
+                            <div className="w-full relative group pointer-events-auto">
                                 {isEditingMsg ? (
-                                    <div className="w-full animate-in zoom-in-95 bg-white p-2 rounded-xl shadow-lg border border-blue-200 z-20 absolute top-[-50px] left-0 pointer-events-auto">
+                                    <div className="w-full animate-in zoom-in-95 bg-white p-2 rounded-xl shadow-lg border border-blue-200 z-20 absolute top-[-50px] left-0">
                                         <textarea className="w-full p-2 bg-gray-50 border border-blue-200 rounded-lg text-center text-sm focus:outline-none focus:border-blue-400 font-hand" rows={4} value={editableMessage} onChange={(e) => setEditableMessage(e.target.value)}/>
                                         <div className="flex gap-2 mt-2 justify-center"><button onClick={() => setIsEditingMsg(false)} className="bg-green-500 text-white text-xs px-3 py-1 rounded-full font-bold">Fatto</button></div>
                                     </div>
                                 ) : (
-                                    <div className="relative cursor-pointer hover:bg-yellow-50 rounded-xl p-2 transition-colors border border-transparent hover:border-yellow-200 pointer-events-auto" onClick={() => setIsEditingMsg(true)}>
-                                        <p className={`text-xl md:text-2xl leading-relaxed ${themeAssets.fontTitle} text-gray-800`}>"{editableMessage}"</p>
+                                    <div className="relative cursor-pointer hover:bg-yellow-50/50 rounded-xl p-2 transition-colors border border-transparent hover:border-yellow-200" onClick={() => setIsEditingMsg(true)}>
+                                        <p className={`text-xl md:text-2xl leading-relaxed ${themeAssets.fontTitle} text-gray-800 drop-shadow-sm`}>"{editableMessage}"</p>
                                         <span className="absolute -top-2 -right-2 opacity-0 group-hover:opacity-100 text-gray-400 bg-white rounded-full p-1 shadow-md pointer-events-none"><Edit size={12}/></span>
                                     </div>
                                 )}
                             </div>
                         </div>
-                        <div className="flex gap-2 text-2xl mt-2 justify-center">{data.stickers?.slice(0,5).map((s,i) => <span key={i}>{s}</span>)}</div>
+                        <div className="flex gap-2 text-2xl mt-2 justify-center drop-shadow-sm">{data.stickers?.slice(0,5).map((s,i) => <span key={i}>{s}</span>)}</div>
                     </div>
                     {/* GIOCO */}
-                    <div className="w-1/2 h-full p-4 md:p-6 flex flex-col relative z-10 bg-white/90">
+                    <div className="w-1/2 h-full p-4 md:p-6 flex flex-col relative z-10">
                         <span className="absolute top-2 right-2 text-[10px] uppercase text-gray-300 font-bold">Lato Destro</span>
                         {isCrossword ? (
                             <>
                                 <h2 className="text-lg font-bold uppercase border-b-2 border-black mb-2 pb-1 text-center tracking-widest">Cruciverba</h2>
                                 {data.solution && (
-                                    <div className="mb-2 bg-yellow-50 border border-yellow-200 p-1 rounded-lg text-center mx-auto inline-block">
+                                    <div className="mb-2 bg-yellow-50 border border-yellow-200 p-1 rounded-lg text-center mx-auto inline-block shadow-sm">
                                         <div className="flex justify-center gap-0.5">{data.solution.word.split('').map((c,i) => <div key={i} className={`w-4 h-4 border rounded text-[10px] flex items-center justify-center font-bold ${revealAnswers ? 'bg-yellow-400 text-white border-yellow-500' : 'bg-white border-yellow-200 text-gray-400'}`}>{revealAnswers ? c : (i+1)}</div>)}</div>
                                     </div>
                                 )}
@@ -480,14 +563,14 @@ const CrosswordGrid: React.FC<CrosswordGridProps> = ({ data, onComplete, onEdit,
        <div ref={exportRef} style={{ position: 'fixed', top: 0, left: '-9999px', width: '1123px', zIndex: -100 }}>
             {/* SHEET 1 */}
             <div id="pdf-sheet-1" style={{ width: '1123px', height: '794px', display: 'flex', position: 'relative', backgroundColor: 'white', overflow: 'hidden' }}>
-                 <div style={{ position: 'absolute', top: '50%', left: '50%', transform: `translate(-50%, -50%) translate(${wmSheet1.x}px, ${wmSheet1.y}px) scale(${wmSheet1.scale}) rotate(12deg)`, fontSize: '300px', opacity: 0.1, zIndex: 0, whiteSpace: 'nowrap' }}>{themeAssets.watermark}</div>
+                 <div style={{ position: 'absolute', top: '50%', left: '50%', transform: `translate(-50%, -50%) translate(${wmSheet1.x}px, ${wmSheet1.y}px) scale(${wmSheet1.scale}) rotate(12deg)`, fontSize: '300px', opacity: 0.20, zIndex: 0, whiteSpace: 'nowrap' }}>{themeAssets.watermark}</div>
                  {/* Retro */}
-                 <div style={{ width: '50%', height: '100%', padding: '60px', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', textAlign: 'center', borderRight: '1px solid #eee' }}>
+                 <div className={themeAssets.printBorder} style={{ width: '50%', height: '100%', padding: '60px', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', textAlign: 'center', borderRight: 'none', position: 'relative', zIndex: 10 }}>
                     <div style={{ fontSize: '80px', opacity: 0.2, marginBottom: '20px' }}>{themeAssets.decoration}</div>
-                    <div style={{ fontSize: '14px', textTransform: 'uppercase', color: '#999', letterSpacing: '2px' }}>Enigmistica Auguri</div>
+                    {/* REMOVED 'Enigmistica Auguri' Text */}
                  </div>
                  {/* Fronte */}
-                 <div className={themeAssets.printBorder} style={{ width: '50%', height: '100%', padding: '60px', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', textAlign: 'center', borderLeft: 'none', position: 'relative' }}>
+                 <div className={themeAssets.printBorder} style={{ width: '50%', height: '100%', padding: '60px', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', textAlign: 'center', borderLeft: 'none', position: 'relative', zIndex: 10 }}>
                      <h1 className={themeAssets.fontTitle} style={{ fontSize: '50px', marginBottom: '10px', lineHeight: 1.2 }}>{data.title}</h1>
                      <div style={{ width: '80px', height: '3px', background: '#333', marginBottom: '20px' }}></div>
                      <p style={{ fontSize: '18px', textTransform: 'uppercase', color: '#666', letterSpacing: '2px', marginBottom: '40px' }}>
@@ -504,9 +587,9 @@ const CrosswordGrid: React.FC<CrosswordGridProps> = ({ data, onComplete, onEdit,
 
             {/* SHEET 2 */}
             <div id="pdf-sheet-2" style={{ width: '1123px', height: '794px', display: 'flex', position: 'relative', backgroundColor: 'white', overflow: 'hidden' }}>
-                 <div style={{ position: 'absolute', top: '50%', left: '50%', transform: `translate(-50%, -50%) translate(${wmSheet2.x}px, ${wmSheet2.y}px) scale(${wmSheet2.scale}) rotate(12deg)`, fontSize: '300px', opacity: 0.1, zIndex: 0, whiteSpace: 'nowrap' }}>{themeAssets.watermark}</div>
+                 <div style={{ position: 'absolute', top: '50%', left: '50%', transform: `translate(-50%, -50%) translate(${wmSheet2.x}px, ${wmSheet2.y}px) scale(${wmSheet2.scale}) rotate(12deg)`, fontSize: '300px', opacity: 0.20, zIndex: 0, whiteSpace: 'nowrap' }}>{themeAssets.watermark}</div>
                  {/* Dedica */}
-                 <div className={themeAssets.printBorder} style={{ width: '50%', height: '100%', padding: '40px', display: 'flex', flexDirection: 'column', alignItems: 'center', textAlign: 'center', borderRight: 'none' }}>
+                 <div className={themeAssets.printBorder} style={{ width: '50%', height: '100%', padding: '40px', display: 'flex', flexDirection: 'column', alignItems: 'center', textAlign: 'center', borderRight: 'none', position: 'relative', zIndex: 10 }}>
                      <div style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', width: '100%' }}>
                         {photos.length > 0 ? (
                             <div style={{ width: '80%', aspectRatio: '1/1', border: '5px solid white', boxShadow: '0 4px 6px rgba(0,0,0,0.1)', overflow: 'hidden', backgroundColor: '#f3f4f6', marginBottom: '20px' }}>
@@ -522,7 +605,7 @@ const CrosswordGrid: React.FC<CrosswordGridProps> = ({ data, onComplete, onEdit,
                      </div>
                  </div>
                  {/* Gioco */}
-                 <div className={themeAssets.printBorder} style={{ width: '50%', height: '100%', padding: '40px', display: 'flex', flexDirection: 'column', borderLeft: 'none' }}>
+                 <div className={themeAssets.printBorder} style={{ width: '50%', height: '100%', padding: '40px', display: 'flex', flexDirection: 'column', borderLeft: 'none', position: 'relative', zIndex: 10 }}>
                     {isCrossword ? (
                        <div style={{ flex: 1, display: 'flex', flexDirection: 'column', height: '100%' }}>
                            <h2 style={{ fontSize: '20px', fontWeight: 'bold', textTransform: 'uppercase', borderBottom: '2px solid black', marginBottom: '10px', paddingBottom: '5px', textAlign: 'center', letterSpacing: '2px' }}>Cruciverba</h2>
