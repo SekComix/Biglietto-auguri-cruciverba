@@ -230,6 +230,17 @@ export const Creator: React.FC<CreatorProps> = ({ onCreated, initialData }) => {
     setManualWords(newWords);
   };
 
+  const handleQuickTest = () => {
+     setRecipientName("Mario Rossi");
+     setEventDate("25 Dicembre");
+     setTheme('christmas');
+     setCreationMode('guided');
+     setSelectedActivity('crossword');
+     setTone('funny');
+     setTopic("Ama il calcio, la pizza e dormire sul divano.");
+     setHiddenSolution("AUGURI");
+  };
+
   const handleGenerateSuggestions = async () => {
       if (!recipientName) { setError("Inserisci prima il nome del festeggiato"); return; }
       setIsGeneratingSuggestions(true);
@@ -375,6 +386,13 @@ export const Creator: React.FC<CreatorProps> = ({ onCreated, initialData }) => {
       <div className={`transition-opacity duration-500 ${loading ? 'opacity-20 pointer-events-none' : 'opacity-100'}`}>
           <div className="text-center mb-8 relative">
             <h2 className="font-bold text-3xl md:text-4xl text-gray-800 mb-2 font-body">Crea il Tuo Biglietto</h2>
+            <button 
+                type="button" 
+                onClick={handleQuickTest}
+                className="absolute top-0 right-0 bg-yellow-400 text-yellow-900 text-[10px] font-bold px-2 py-1 rounded-full flex items-center gap-1 hover:bg-yellow-300 transition-colors shadow-sm"
+            >
+                <Zap size={10} fill="currentColor"/> Test Rapido
+            </button>
           </div>
 
           {/* STEP 1: EVENT DETAILS */}
