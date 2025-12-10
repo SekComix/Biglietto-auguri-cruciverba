@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { generateCrossword, regenerateGreetingOptions } from '../services/geminiService';
 import { CrosswordData, ManualInput, ThemeType, ToneType, Direction } from '../types';
-import { Loader2, Wand2, Plus, Trash2, Gift, PartyPopper, CalendarHeart, Crown, KeyRound, Image as ImageIcon, Upload, Calendar, AlertCircle, Grid3X3, MailOpen, Images, Ghost, GraduationCap, ScrollText, HeartHandshake, BookOpen, Search, X, Smile, Heart, Music, Sparkles, Edit, PenTool, LayoutGrid, Zap, Check, MessageSquareDashed, Info, HelpCircle, Bot } from 'lucide-react';
+import { Loader2, Wand2, Plus, Trash2, Gift, PartyPopper, CalendarHeart, Crown, KeyRound, Image as ImageIcon, Upload, Calendar, AlertCircle, Grid3X3, MailOpen, Images, Ghost, GraduationCap, ScrollText, HeartHandshake, BookOpen, Search, X, Smile, Heart, Music, Sparkles, Edit, PenTool, LayoutGrid, Zap, Check, MessageSquareDashed, Info, HelpCircle, Bot, BrainCircuit, Feather, Quote, Briefcase, GraduationCap as GradCap } from 'lucide-react';
 
 interface CreatorProps {
   onCreated: (data: CrosswordData) => void;
@@ -34,6 +34,19 @@ const STICKER_CATEGORIES: Record<string, string[]> = {
     'Extra': ['⭐', '🌟', '✨', '💫', '💎', '⚜️', '🍀', '🎵', '🎶', '☀️', '💣', '💯']
 };
 
+const AI_TONES = [
+    { id: 'surprise', label: 'Sorpresa', icon: Sparkles, desc: 'Entusiasta e gioioso' },
+    { id: 'funny', label: 'Simpatico', icon: Smile, desc: 'Divertente e leggero' },
+    { id: 'heartfelt', label: 'Dolce', icon: Heart, desc: 'Affettuoso e commovente' },
+    { id: 'rhyme', label: 'Rima', icon: Music, desc: 'In rima baciata o alternata' },
+    { id: 'sarcastic', label: 'Sarcastico', icon: Zap, desc: 'Pungente ma scherzoso' }, // NEW
+    { id: 'quotes', label: 'Citazioni', icon: Quote, desc: 'Ispirato a frasi famose' }, // NEW
+    { id: 'poetic', label: 'Poetico', icon: Feather, desc: 'Lirico ed elegante' }, // NEW
+    { id: 'formal', label: 'Formale', icon: Briefcase, desc: 'Classico e rispettoso' }, // NEW
+];
+
+type CreationMode = 'guided' | 'freestyle' | 'manual';
+
 export const Creator: React.FC<CreatorProps> = ({ onCreated, initialData }) => {
   const currentYear = new Date().getFullYear();
   const DEFAULT_DATES: Partial<Record<ThemeType, string>> = {
@@ -46,12 +59,18 @@ export const Creator: React.FC<CreatorProps> = ({ onCreated, initialData }) => {
   };
 
   const [contentType, setContentType] = useState<'crossword' | 'simple'>('crossword');
-  const [mode, setMode] = useState<'ai' | 'manual'>('ai');
+  
+  // NEW: State for the 3 modes
+  const [creationMode, setCreationMode] = useState<CreationMode>('guided');
+  
   const [tone, setTone] = useState<ToneType>('surprise');
-  const [customTone, setCustomTone] = useState('');
   const [theme, setTheme] = useState<ThemeType>('christmas');
   
+  // 'topic' è l'input generico. 
+  // In 'guided' è l'argomento (es. "Zio Mario").
+  // In 'freestyle' è il prompt completo (es. "Scrivi come un pirata...").
   const [topic, setTopic] = useState('');
+  
   const [recipientName, setRecipientName] = useState('');
   const [eventDate, setEventDate] = useState('');
   const [hiddenSolution, setHiddenSolution] = useState('');
@@ -87,17 +106,28 @@ export const Creator: React.FC<CreatorProps> = ({ onCreated, initialData }) => {
         setPhotos(initialData.images?.photos || []);
         setSelectedStickers(initialData.stickers || []);
         
-        if (initialData.originalMode) setMode(initialData.originalMode);
-        if (initialData.originalHiddenSolution) setHiddenSolution(initialData.originalHiddenSolution);
-        if (initialData.originalTone) setTone(initialData.originalTone);
-        if (initialData.originalCustomTone) setCustomTone(initialData.originalCustomTone);
-        
-        if (initialData.type === 'crossword' && initialData.originalMode === 'manual' && Array.isArray(initialData.originalInput)) {
-            setManualWords(initialData.originalInput as ManualInput[]);
-        } else if (typeof initialData.originalInput === 'string') {
-            setTopic(initialData.originalInput);
+        // Restore Logic based on stored Original Mode
+        if (initialData.originalMode === 'manual') {
+            setCreationMode('manual');
+            if (Array.isArray(initialData.originalInput)) {
+                setManualWords(initialData.originalInput as ManualInput[]);
+            }
+        } else {
+            // It was AI
+            if (initialData.originalTone === 'custom') {
+                setCreationMode('freestyle');
+                // In freestyle, the customTone contains the prompt
+                setTopic(initialData.originalCustomTone || (initialData.originalInput as string) || '');
+            } else {
+                setCreationMode('guided');
+                if (initialData.originalTone) setTone(initialData.originalTone);
+                setTopic(initialData.originalInput as string || '');
+            }
         }
+        
+        if (initialData.originalHiddenSolution) setHiddenSolution(initialData.originalHiddenSolution);
     } else {
+        // Reset defaults
         setRecipientName('');
         setEventDate('');
         setTopic('');
@@ -106,6 +136,7 @@ export const Creator: React.FC<CreatorProps> = ({ onCreated, initialData }) => {
         setPhotos([]);
         setSelectedStickers([]);
         setManualWords([{ word: '', clue: '' }, { word: '', clue: '' }, { word: '', clue: '' }]);
+        setCreationMode('guided');
     }
   }, [initialData]);
 
@@ -196,8 +227,9 @@ export const Creator: React.FC<CreatorProps> = ({ onCreated, initialData }) => {
       setIsGeneratingSuggestions(true);
       setSuggestedPhrases([]);
       try {
-          const toneToUse = tone;
-          const promptToUse = tone === 'custom' ? customTone : undefined;
+          const toneToUse = creationMode === 'freestyle' ? 'custom' : tone;
+          const promptToUse = creationMode === 'freestyle' ? topic : undefined;
+          
           const phrases = await regenerateGreetingOptions("placeholder", theme, recipientName, toneToUse, promptToUse);
           setSuggestedPhrases(phrases);
       } catch (e) {
@@ -216,39 +248,51 @@ export const Creator: React.FC<CreatorProps> = ({ onCreated, initialData }) => {
 
     try {
       let inputData: string | ManualInput[] = topic;
-      
-      if (contentType === 'crossword') {
-          if (mode === 'manual') {
-            const validWords = manualWords.filter(w => w.word.trim() && w.clue.trim());
-            if (validWords.length < 2) throw new Error("Inserisci almeno 2 parole complete.");
-            inputData = validWords;
+      let finalTone: ToneType | undefined = tone;
+      let finalCustomTone: string | undefined = undefined;
+      let finalMode: 'ai' | 'manual' = 'ai';
+
+      // CONFIGURATION BASED ON MODE
+      if (creationMode === 'manual') {
+          finalMode = 'manual';
+          if (contentType === 'crossword') {
+             const validWords = manualWords.filter(w => w.word.trim() && w.clue.trim());
+             if (validWords.length < 2) throw new Error("Inserisci almeno 2 parole complete.");
+             inputData = validWords;
           } else {
-            if (!topic.trim()) throw new Error("Inserisci un argomento o scegli una frase.");
+             if (!topic.trim()) throw new Error("Scrivi il messaggio di auguri.");
           }
+      } else if (creationMode === 'freestyle') {
+          // Freestyle logic: we pass 'custom' tone and the prompt as the customTone
+          if (!topic.trim()) throw new Error("Scrivi le istruzioni per l'IA.");
+          finalTone = 'custom';
+          finalCustomTone = topic; // The whole prompt is the instruction
+          inputData = topic; 
       } else {
-          if (!topic.trim()) throw new Error("Scrivi un messaggio o scegline uno.");
+          // Guided logic
+          if (contentType === 'crossword' && !topic.trim()) throw new Error("Inserisci un argomento (es. Zio Mario).");
+          if (contentType === 'simple' && !topic.trim()) throw new Error("Scrivi o seleziona un messaggio.");
+          // tone is already set from state
       }
 
       if (!recipientName.trim()) throw new Error("Inserisci il nome del festeggiato.");
 
       const cleanSolution = hiddenSolution.trim().toUpperCase();
-      
-      // Default Date Fallback logic
       const finalDate = eventDate.trim() || DEFAULT_DATES[theme] || 'Oggi';
 
       const data = await generateCrossword(
-        mode, 
+        finalMode, 
         theme, 
         inputData, 
         cleanSolution || undefined,
         {
           recipientName,
-          eventDate: finalDate, // Use the fallback date
+          eventDate: finalDate, 
           images: { extraImage, photos },
           stickers: selectedStickers,
           contentType,
-          tone: mode === 'ai' ? tone : undefined,
-          customTone: (mode === 'ai' && tone === 'custom') ? customTone : undefined
+          tone: finalMode === 'ai' ? finalTone : undefined,
+          customTone: finalCustomTone
         },
         (msg) => setStatusMsg(msg)
       );
@@ -262,61 +306,26 @@ export const Creator: React.FC<CreatorProps> = ({ onCreated, initialData }) => {
     }
   };
 
-  const handleQuickPreview = () => {
-    const autoDate = DEFAULT_DATES[theme] || 'Data Speciale';
-    const finalDate = eventDate.trim() || autoDate;
-    const finalName = recipientName.trim() || 'Mario';
-
-    const demoData: CrosswordData = {
-        type: 'crossword',
-        theme: theme, 
-        title: `Per ${finalName}`,
-        recipientName: finalName,
-        eventDate: finalDate,
-        message: `Tanti auguri ${finalName}! Questo è un esempio di come verrà il tuo biglietto. Personalizzalo con le tue foto e parole!`,
-        width: 10,
-        height: 10,
-        words: [
-            { id: 'd1', word: 'AUGURI', clue: 'Si fanno alle feste', direction: Direction.ACROSS, startX: 1, startY: 1, number: 1 },
-            { id: 'd2', word: 'GIOIA', clue: 'Felicità immensa', direction: Direction.DOWN, startX: 3, startY: 0, number: 2 },
-            { id: 'd3', word: 'REGALI', clue: 'Pacchetti con fiocco', direction: Direction.ACROSS, startX: 3, startY: 4, number: 3 },
-            { id: 'd4', word: 'AMICI', clue: 'Persone care', direction: Direction.DOWN, startX: 6, startY: 2, number: 4 }
-        ],
-        solution: {
-            word: 'TEST',
-            cells: [{x:1, y:1, char:'A', index:0}, {x:3, y:4, char:'R', index:1}, {x:6, y:2, char:'A', index:2}, {x:3, y:5, char:'E', index:3}]
-        },
-        images: {
-            photos: photos.length > 0 ? photos : ['https://images.unsplash.com/photo-1543589077-47d81606c1bf?auto=format&fit=crop&w=400&q=80'],
-            extraImage: extraImage
-        },
-        stickers: selectedStickers.length > 0 ? selectedStickers : ['⭐', '🎉', '❤️']
-    };
-    onCreated(demoData);
-  };
-
   const renderPhotoPreview = () => {
+    if (photos.length === 0) return null;
     const count = photos.length;
-    if (count === 0) return null;
     let gridClass = 'grid-cols-1';
     if (count === 2) gridClass = 'grid-cols-2';
     else if (count > 2 && count <= 4) gridClass = 'grid-cols-2';
     else if (count >= 5) gridClass = 'grid-cols-3';
 
     return (
-        <div className={`w-full h-full grid gap-0.5 overflow-hidden bg-gray-100 ${gridClass}`}>
+        <div className={`grid gap-0.5 w-full h-full bg-white overflow-hidden ${gridClass} pointer-events-none`}>
             {photos.map((p, i) => (
-                <div key={i} className="relative overflow-hidden w-full h-full">
-                    <img src={p} className="w-full h-full object-cover" alt={`foto-${i}`} />
+                <div key={i} className="relative w-full h-full overflow-hidden aspect-square">
+                    <img src={p} className="w-full h-full object-cover" alt={`preview-${i}`} />
                 </div>
             ))}
-            <div className="absolute inset-0 bg-black/20 opacity-0 group-hover:opacity-100 flex items-center justify-center text-white text-xs font-bold transition-opacity z-10 pointer-events-none">
-                {count} Foto
-            </div>
         </div>
     );
   };
 
+  // --- RENDER ---
   return (
     <form onSubmit={handleGenerate} className={`max-w-3xl mx-auto bg-white/95 backdrop-blur p-6 md:p-8 rounded-3xl shadow-2xl border-2 border-white/50 relative overflow-hidden transition-all`}>
       
@@ -336,191 +345,193 @@ export const Creator: React.FC<CreatorProps> = ({ onCreated, initialData }) => {
       <div className={`transition-opacity duration-500 ${loading ? 'opacity-20 pointer-events-none' : 'opacity-100'}`}>
           <div className="text-center mb-8 relative">
             <h2 className="font-bold text-3xl md:text-4xl text-gray-800 mb-2 font-body">Crea il Tuo Biglietto</h2>
-            <button type="button" onClick={handleQuickPreview} className="absolute top-0 right-0 text-xs bg-gray-100 hover:bg-yellow-100 text-gray-500 hover:text-yellow-700 px-3 py-1.5 rounded-full border border-gray-200 transition-colors flex items-center gap-1 font-bold shadow-sm"><Zap size={14} className="text-yellow-500 fill-current"/> Test Rapido</button>
           </div>
 
+          {/* STEP 1: CONTENT TYPE */}
           <div className="mb-6">
             <label className="block text-xs font-bold text-gray-400 mb-3 uppercase tracking-wider text-center">1. Cosa vuoi creare?</label>
             <div className="flex gap-4">
-                <button type="button" onClick={() => setContentType('crossword')} className={`flex-1 p-4 rounded-xl border-2 transition-all flex flex-col items-center gap-2 ${contentType === 'crossword' ? 'border-blue-500 bg-blue-50 text-blue-700' : 'border-gray-200 hover:border-blue-300'}`}>
+                <button type="button" onClick={() => setContentType('crossword')} className={`flex-1 p-4 rounded-xl border-2 transition-all flex flex-col items-center gap-2 ${contentType === 'crossword' ? 'border-blue-500 bg-blue-50 text-blue-700 shadow-md' : 'border-gray-200 hover:border-blue-300 bg-white'}`}>
                     <Grid3X3 size={28} /><span className="font-bold">Cruciverba</span>
                 </button>
-                <button type="button" onClick={() => setContentType('simple')} className={`flex-1 p-4 rounded-xl border-2 transition-all flex flex-col items-center gap-2 ${contentType === 'simple' ? 'border-purple-500 bg-purple-50 text-purple-700' : 'border-gray-200 hover:border-purple-300'}`}>
+                <button type="button" onClick={() => setContentType('simple')} className={`flex-1 p-4 rounded-xl border-2 transition-all flex flex-col items-center gap-2 ${contentType === 'simple' ? 'border-purple-500 bg-purple-50 text-purple-700 shadow-md' : 'border-gray-200 hover:border-purple-300 bg-white'}`}>
                     <MailOpen size={28} /><span className="font-bold">Solo Auguri</span>
                 </button>
             </div>
           </div>
 
+          {/* STEP 2: EVENT DETAILS */}
           <div className="mb-6">
             <label className="block text-xs font-bold text-gray-400 mb-3 uppercase tracking-wider text-center">2. Evento</label>
-            <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-5 gap-3">
+            <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-5 gap-3 mb-4">
               {THEMES.map((t) => (
                 <button key={t.id} type="button" onClick={() => setTheme(t.id)} className={`flex flex-col items-center justify-center p-2 rounded-xl transition-all ${theme === t.id ? `${t.color} text-white scale-105 shadow-lg` : 'bg-gray-100 hover:bg-gray-200'}`}>
                   <t.icon size={20} className="mb-1" /><span className="text-[10px] font-bold">{t.label}</span>
                 </button>
               ))}
             </div>
-          </div>
-
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
-            <div>
-              <label className="block text-xs font-bold text-gray-400 mb-2 uppercase">Per chi è?</label>
-              <input required type="text" placeholder="Nome" className="w-full p-3 border-2 border-gray-200 rounded-xl font-bold focus:border-blue-400 outline-none" value={recipientName} onChange={(e) => setRecipientName(e.target.value)} />
-            </div>
-            <div>
-              <label className="block text-xs font-bold text-gray-400 mb-2 uppercase">Data Evento</label>
-              <input type="text" placeholder={DEFAULT_DATES[theme] || "es. 25 Dicembre"} className="w-full p-3 border-2 border-gray-200 rounded-xl font-bold focus:border-blue-400 outline-none" value={eventDate} onChange={(e) => setEventDate(e.target.value)} />
-            </div>
-          </div>
-
-          <div className="mb-6 bg-gray-50 rounded-xl border border-gray-100 animate-fade-in overflow-hidden">
-                <div className="flex border-b border-gray-200">
-                    <button 
-                        type="button" 
-                        onClick={() => setMode('ai')} 
-                        className={`flex-1 py-3 text-sm font-bold flex items-center justify-center gap-2 transition-colors relative ${mode === 'ai' ? 'bg-white text-blue-600' : 'bg-gray-50 text-gray-400 hover:text-gray-600'}`}
-                    >
-                        <Wand2 size={16}/> 
-                        Generazione Automatica (AI)
-                        {mode === 'ai' && <div className="absolute bottom-0 left-0 w-full h-0.5 bg-blue-600"></div>}
-                    </button>
-                    <button 
-                        type="button" 
-                        onClick={() => setMode('manual')} 
-                        title="Tu scrivi le parole, noi creiamo l'incrocio"
-                        className={`flex-1 py-3 text-sm font-bold flex items-center justify-center gap-2 transition-colors relative group ${mode === 'manual' ? 'bg-white text-blue-600' : 'bg-gray-50 text-gray-400 hover:text-gray-600'}`}
-                    >
-                        <Edit size={16}/> 
-                        Inserimento Manuale
-                        {mode === 'manual' && <div className="absolute bottom-0 left-0 w-full h-0.5 bg-blue-600"></div>}
-                        
-                        {/* Tooltip Hover */}
-                        <div className="absolute bottom-full mb-2 left-1/2 -translate-x-1/2 w-48 bg-black text-white text-xs rounded py-1 px-2 opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none z-10 text-center shadow-lg">
-                            Scegli tu le parole, noi creiamo lo schema!
-                            <div className="absolute top-full left-1/2 -translate-x-1/2 border-4 border-transparent border-t-black"></div>
-                        </div>
-                    </button>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div>
+                <label className="block text-xs font-bold text-gray-400 mb-2 uppercase">Per chi è?</label>
+                <input required type="text" placeholder="Nome" className="w-full p-3 border-2 border-gray-200 rounded-xl font-bold focus:border-blue-400 outline-none" value={recipientName} onChange={(e) => setRecipientName(e.target.value)} />
                 </div>
+                <div>
+                <label className="block text-xs font-bold text-gray-400 mb-2 uppercase">Data Evento</label>
+                <input type="text" placeholder={DEFAULT_DATES[theme] || "es. 25 Dicembre"} className="w-full p-3 border-2 border-gray-200 rounded-xl font-bold focus:border-blue-400 outline-none" value={eventDate} onChange={(e) => setEventDate(e.target.value)} />
+                </div>
+            </div>
+          </div>
 
-                <div className="p-4">
-                {mode === 'ai' && (
-                    <div className="animate-in fade-in">
-                        <label className="block text-xs font-bold text-gray-400 mb-2 uppercase">Stile del messaggio:</label>
-                        <div className="flex gap-2 overflow-x-auto pb-2 mb-2 custom-scrollbar">
-                            {[
-                                { id: 'surprise', label: 'Sorpresa', icon: Sparkles },
-                                { id: 'funny', label: 'Simpatico', icon: Smile },
-                                { id: 'heartfelt', label: 'Dolce', icon: Heart },
-                                { id: 'rhyme', label: 'Rima', icon: Music },
-                                { id: 'custom', label: 'Istruzioni AI', icon: Bot }, // Changed Label and Icon
-                            ].map((t) => (
-                                <button
-                                    key={t.id}
-                                    type="button"
-                                    onClick={() => setTone(t.id as ToneType)}
-                                    className={`flex-shrink-0 flex items-center gap-1 px-3 py-1.5 rounded-full text-xs font-bold border transition-all ${tone === t.id ? 'bg-blue-600 text-white border-blue-600' : 'bg-white text-gray-500 border-gray-200 hover:border-blue-300'}`}
-                                >
-                                    <t.icon size={12} /> {t.label}
-                                </button>
-                            ))}
-                        </div>
-                        
-                        {tone === 'custom' && (
-                            <div className="mb-3 animate-in slide-in-from-top-2">
-                                <label className="flex items-center gap-1 text-[10px] font-bold text-blue-600 mb-1"><MessageSquareDashed size={10}/> Istruzioni Stile (Come deve parlare?):</label>
-                                <input 
-                                    type="text"
-                                    className="w-full p-3 text-sm border-2 border-blue-200 bg-blue-50 rounded-xl focus:ring-2 focus:ring-blue-400 outline-none text-blue-800 placeholder-blue-300 font-medium"
-                                    placeholder="Es: 'Come un pirata', 'Sarcasmo gentile', 'Usa metafore calcistiche'..."
-                                    value={customTone}
-                                    onChange={(e) => setCustomTone(e.target.value)}
-                                />
-                                <div className="mt-1 flex gap-1 items-start text-blue-400">
-                                    <Info size={12} className="shrink-0 mt-0.5" />
-                                    <p className="text-[10px] leading-tight">Qui definisci lo <b>STILE</b> (il tono). Sotto devi definire il <b>CONTENUTO</b>.</p>
-                                </div>
-                            </div>
-                        )}
+          {/* STEP 3: CREATION MODE (TAB SYSTEM) */}
+          <div className="mb-6">
+            <label className="block text-xs font-bold text-gray-400 mb-3 uppercase tracking-wider text-center">3. Metodo di Creazione</label>
+            
+            <div className="bg-gray-100 p-1 rounded-xl flex mb-4 text-sm font-bold text-gray-600 shadow-inner">
+                <button 
+                    type="button" 
+                    onClick={() => setCreationMode('guided')}
+                    className={`flex-1 py-3 rounded-lg flex items-center justify-center gap-2 transition-all ${creationMode === 'guided' ? 'bg-white text-blue-600 shadow-sm' : 'hover:bg-gray-200'}`}
+                >
+                    <Wand2 size={16}/> Assistente
+                </button>
+                <button 
+                    type="button" 
+                    onClick={() => setCreationMode('freestyle')}
+                    className={`flex-1 py-3 rounded-lg flex items-center justify-center gap-2 transition-all ${creationMode === 'freestyle' ? 'bg-white text-purple-600 shadow-sm' : 'hover:bg-gray-200'}`}
+                >
+                    <BrainCircuit size={16}/> Prompt AI
+                </button>
+                <button 
+                    type="button" 
+                    onClick={() => setCreationMode('manual')}
+                    className={`flex-1 py-3 rounded-lg flex items-center justify-center gap-2 transition-all ${creationMode === 'manual' ? 'bg-white text-orange-600 shadow-sm' : 'hover:bg-gray-200'}`}
+                >
+                    <Edit size={16}/> Manuale
+                </button>
+            </div>
+
+            {/* TAB CONTENT: GUIDED */}
+            {creationMode === 'guided' && (
+                <div className="bg-blue-50/50 rounded-xl p-4 border border-blue-100 animate-in fade-in">
+                    <label className="block text-xs font-bold text-blue-400 mb-2 uppercase">Scegli lo Stile:</label>
+                    <div className="grid grid-cols-2 md:grid-cols-4 gap-2 mb-4">
+                        {AI_TONES.map((t) => (
+                            <button
+                                key={t.id}
+                                type="button"
+                                onClick={() => setTone(t.id as ToneType)}
+                                className={`flex flex-col items-center justify-center p-3 rounded-xl border transition-all h-20 ${tone === t.id ? 'bg-white border-blue-500 shadow-md text-blue-600 ring-2 ring-blue-100' : 'bg-white/50 border-gray-200 hover:border-blue-300 text-gray-600 hover:bg-white'}`}
+                            >
+                                <t.icon size={20} className="mb-1" />
+                                <span className="text-xs font-bold">{t.label}</span>
+                                <span className="text-[9px] opacity-70 leading-tight hidden md:block">{t.desc}</span>
+                            </button>
+                        ))}
                     </div>
-                )}
 
-                {(mode === 'ai' || contentType === 'simple') ? (
-                     <div className="w-full">
-                         <div className="relative">
-                            <label className={`block text-xs font-bold mb-2 uppercase ${tone === 'custom' ? 'text-blue-600 animate-pulse' : 'text-gray-400'}`}>
-                                {tone === 'custom' ? "Cosa devo scrivere (Il Contenuto):" : (contentType === 'simple' ? "Messaggio:" : "Argomento:")}
-                            </label>
-                            <textarea
-                                rows={3}
-                                className={`w-full p-3 border rounded-xl focus:ring-2 focus:ring-blue-500 outline-none resize-none ${tone === 'custom' ? 'border-blue-300 bg-blue-50/50' : 'border-gray-200'}`}
-                                placeholder={
-                                    tone === 'custom' 
-                                    ? "Es: Auguri a zio Mario che fa 50 anni e ama la pesca..."
-                                    : (contentType === 'simple' && mode === 'manual' 
-                                        ? "Scrivi qui il tuo messaggio di auguri..." 
-                                        : "Argomento (es: Zio Carlo, ama la pesca e il vino rosso...)")
-                                }
-                                value={topic}
-                                onChange={(e) => setTopic(e.target.value)}
-                            />
-                            {mode === 'ai' && (
-                                <button 
-                                    type="button" 
-                                    onClick={handleGenerateSuggestions}
-                                    disabled={isGeneratingSuggestions || !recipientName}
-                                    className={`absolute right-2 bottom-2 text-xs bg-blue-600 text-white px-3 py-1.5 rounded-full font-bold flex items-center gap-1 hover:bg-blue-700 transition-all shadow-md ${isGeneratingSuggestions ? 'opacity-70 cursor-wait' : ''}`}
-                                    title="Genera idee basate sullo stile scelto"
-                                >
-                                    {isGeneratingSuggestions ? <Loader2 size={12} className="animate-spin"/> : <Sparkles size={12}/>} 
-                                    Suggeriscimi Frasi
-                                </button>
-                            )}
-                         </div>
-
-                         {suggestedPhrases.length > 0 && (
+                    <div className="relative">
+                        <label className="block text-xs font-bold text-gray-400 mb-2 uppercase">
+                            {contentType === 'crossword' ? "Argomento / Contenuto:" : "Cosa devo scrivere?"}
+                        </label>
+                        <textarea
+                            rows={3}
+                            className="w-full p-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-blue-500 outline-none resize-none bg-white"
+                            placeholder={contentType === 'crossword' ? "Es: Zio Mario, ama il calcio, la pizza e dormire..." : "Es: Auguri per i 50 anni, ringrazia per la festa..."}
+                            value={topic}
+                            onChange={(e) => setTopic(e.target.value)}
+                        />
+                        <button 
+                            type="button" 
+                            onClick={handleGenerateSuggestions}
+                            disabled={isGeneratingSuggestions || !recipientName}
+                            className={`absolute right-2 bottom-2 text-xs bg-blue-100 text-blue-600 hover:bg-blue-200 px-3 py-1.5 rounded-full font-bold flex items-center gap-1 transition-all ${isGeneratingSuggestions ? 'opacity-70 cursor-wait' : ''}`}
+                            title="Genera idee"
+                        >
+                            {isGeneratingSuggestions ? <Loader2 size={12} className="animate-spin"/> : <Sparkles size={12}/>} 
+                            Suggerimenti
+                        </button>
+                    </div>
+                    {suggestedPhrases.length > 0 && (
                              <div className="mt-3 grid gap-2 animate-in slide-in-from-top-2">
-                                 <p className="text-xs font-bold text-gray-400 uppercase">Idee per te (Clicca per usare):</p>
+                                 <p className="text-xs font-bold text-gray-400 uppercase">Idee per te:</p>
                                  {suggestedPhrases.map((phrase, i) => (
                                      <button 
                                         key={i}
                                         type="button"
                                         onClick={() => { setTopic(phrase); setSuggestedPhrases([]); }}
-                                        className="text-left text-sm p-3 bg-white border border-gray-200 rounded-lg hover:border-blue-400 hover:bg-blue-50 transition-colors flex gap-2 group"
+                                        className="text-left text-xs p-2 bg-white border border-gray-200 rounded-lg hover:border-blue-400 hover:bg-blue-50 transition-colors flex gap-2 group"
                                      >
-                                        <span className="mt-0.5 text-blue-500 opacity-0 group-hover:opacity-100 transition-opacity"><Check size={14}/></span>
+                                        <span className="mt-0.5 text-blue-500 opacity-0 group-hover:opacity-100 transition-opacity"><Check size={12}/></span>
                                         {phrase}
                                      </button>
                                  ))}
                              </div>
-                         )}
-                     </div>
-                ) : (
-                    <div className="space-y-2 animate-in fade-in">
-                        {/* Box Info Chiaro e Parlante */}
-                        <div className="bg-blue-50 border border-blue-200 p-3 rounded-xl mb-4 flex gap-3 items-start shadow-sm">
-                             <div className="bg-blue-100 p-1.5 rounded-full text-blue-600 mt-0.5"><HelpCircle size={18} /></div>
-                             <div>
-                                 <h4 className="text-sm font-bold text-blue-900 mb-1">Come funziona?</h4>
-                                 <p className="text-xs text-blue-800 leading-relaxed">
-                                     Tu scrivi le parole (es. <b>NONNA</b>) e gli indizi (es. <i>"Fa le torte migliori"</i>).<br/>
-                                     Cliccando "Genera", <b>noi calcoleremo l'incastro perfetto</b> per creare il cruciverba.
-                                 </p>
-                             </div>
-                        </div>
-
-                        {manualWords.map((item, idx) => (
-                            <div key={idx} className="flex gap-2 relative">
-                                <div className="relative w-1/3">
-                                    <input placeholder="PAROLA" value={item.word} onChange={(e) => handleManualChange(idx, 'word', e.target.value)} className="w-full p-2 border rounded-lg font-bold uppercase focus:border-blue-400 outline-none" />
-                                </div>
-                                <input placeholder="Indizio (es. Il suo piatto preferito)" value={item.clue} onChange={(e) => handleManualChange(idx, 'clue', e.target.value)} className="flex-1 p-2 border rounded-lg focus:border-blue-400 outline-none" />
-                                {manualWords.length > 2 && <button type="button" onClick={() => removeRow(idx)}><Trash2 size={18} className="text-gray-400 hover:text-red-500" /></button>}
-                            </div>
-                        ))}
-                        <button type="button" onClick={addRow} className="text-blue-500 text-sm font-bold flex items-center gap-1 mt-2 hover:bg-blue-50 p-2 rounded-lg transition-colors"><Plus size={16}/> Aggiungi riga</button>
-                    </div>
-                )}
+                    )}
                 </div>
+            )}
+
+            {/* TAB CONTENT: FREESTYLE */}
+            {creationMode === 'freestyle' && (
+                <div className="bg-purple-50/50 rounded-xl p-4 border border-purple-100 animate-in fade-in">
+                    <div className="flex items-center gap-2 mb-2">
+                        <Bot className="text-purple-600" size={20}/>
+                        <label className="text-sm font-bold text-purple-900">Istruzioni Libere (Prompt)</label>
+                    </div>
+                    <p className="text-xs text-purple-700 mb-3">
+                        Scrivi qui esattamente cosa vuoi che faccia l'IA. Definisci sia lo <b>stile</b> che il <b>contenuto</b>.
+                    </p>
+                    <textarea
+                        rows={5}
+                        className="w-full p-4 border-2 border-purple-200 bg-white rounded-xl focus:ring-2 focus:ring-purple-400 outline-none resize-none text-purple-900 placeholder-purple-300 font-medium"
+                        placeholder="Es: Crea un cruciverba per Mario. Usa un tono sarcastico sui suoi 40 anni. Le parole devono riguardare il tennis e la cucina romana..."
+                        value={topic}
+                        onChange={(e) => setTopic(e.target.value)}
+                    />
+                </div>
+            )}
+
+            {/* TAB CONTENT: MANUAL */}
+            {creationMode === 'manual' && (
+                <div className="bg-orange-50/50 rounded-xl p-4 border border-orange-100 animate-in fade-in">
+                    {contentType === 'crossword' ? (
+                        <>
+                             <div className="bg-orange-100 p-3 rounded-lg mb-4 flex gap-3 items-start">
+                                <div className="bg-white p-1 rounded-full text-orange-500 mt-0.5"><Edit size={14} /></div>
+                                <div>
+                                    <h4 className="text-xs font-bold text-orange-900 mb-1">Inserimento Parole</h4>
+                                    <p className="text-[10px] text-orange-800 leading-relaxed">
+                                        Tu scegli le parole e gli indizi, noi calcoliamo solo l'incastro.
+                                    </p>
+                                </div>
+                            </div>
+                            <div className="space-y-2">
+                                {manualWords.map((item, idx) => (
+                                    <div key={idx} className="flex gap-2 relative">
+                                        <div className="relative w-1/3">
+                                            <input placeholder="PAROLA" value={item.word} onChange={(e) => handleManualChange(idx, 'word', e.target.value)} className="w-full p-2 border border-orange-200 bg-white rounded-lg font-bold uppercase focus:border-orange-400 outline-none text-sm" />
+                                        </div>
+                                        <input placeholder="Indizio (es. Il suo piatto preferito)" value={item.clue} onChange={(e) => handleManualChange(idx, 'clue', e.target.value)} className="flex-1 p-2 border border-orange-200 bg-white rounded-lg focus:border-orange-400 outline-none text-sm" />
+                                        {manualWords.length > 2 && <button type="button" onClick={() => removeRow(idx)}><Trash2 size={16} className="text-gray-400 hover:text-red-500" /></button>}
+                                    </div>
+                                ))}
+                                <button type="button" onClick={addRow} className="text-orange-600 text-xs font-bold flex items-center gap-1 mt-2 hover:bg-orange-100 p-2 rounded-lg transition-colors"><Plus size={14}/> Aggiungi riga</button>
+                            </div>
+                        </>
+                    ) : (
+                        <div>
+                            <label className="block text-xs font-bold text-orange-400 mb-2 uppercase">Scrivi il tuo messaggio:</label>
+                            <textarea
+                                rows={4}
+                                className="w-full p-3 border border-orange-200 rounded-xl focus:ring-2 focus:ring-orange-500 outline-none resize-none bg-white"
+                                placeholder="Scrivi qui i tuoi auguri..."
+                                value={topic}
+                                onChange={(e) => setTopic(e.target.value)}
+                            />
+                        </div>
+                    )}
+                </div>
+            )}
+
           </div>
 
           {contentType === 'crossword' && (
@@ -553,7 +564,7 @@ export const Creator: React.FC<CreatorProps> = ({ onCreated, initialData }) => {
                        <div className="flex flex-col items-center text-blue-500"><Loader2 className="animate-spin mb-1"/><span className="text-[10px] font-bold">Collage...</span></div>
                     ) : photos.length > 0 ? (
                         <div className="relative w-full h-full">
-                             {renderPhotoPreview()}
+                             {renderPhotoPreview()} 
                              <button type="button" onClick={(e) => { e.preventDefault(); removeImage('photo'); }} className="absolute top-1 right-1 bg-red-500 text-white rounded-full p-1 z-30 hover:bg-red-600"><Trash2 size={12}/></button>
                         </div>
                     ) : (
