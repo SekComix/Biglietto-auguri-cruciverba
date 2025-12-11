@@ -748,15 +748,15 @@ const CrosswordGrid: React.FC<CrosswordGridProps> = ({ data, onComplete, onEdit,
                                 )}
                            </div>
 
-                           {/* FIXED GRID CONTAINER - 400px HEIGHT CONSTRAINT */}
-                           <div style={{ width: '100%', height: '400px', display: 'flex', alignItems: 'center', justifyContent: 'center', marginBottom: '10px' }}>
+                           {/* FIXED GRID CONTAINER - 300px HEIGHT CONSTRAINT (Reduced from 400px to give more space to clues) */}
+                           <div style={{ width: '100%', height: '300px', display: 'flex', alignItems: 'center', justifyContent: 'center', marginBottom: '20px' }}>
                                <div style={{ aspectRatio: `${data.width}/${data.height}`, height: '100%', maxHeight: '100%', maxWidth: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
                                    {renderGridCells(true)}
                                </div>
                            </div>
                            
-                           {/* CLUES FOOTER */}
-                           <div style={{ height: '180px', overflow: 'hidden', fontSize: '10px', display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '20px', lineHeight: 1.2, borderTop: '2px solid black', paddingTop: '10px' }}>
+                           {/* CLUES FOOTER - FLEX GROW (No fixed height) */}
+                           <div style={{ flex: 1, overflow: 'hidden', fontSize: '11px', display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '20px', lineHeight: 1.3, borderTop: '2px solid black', paddingTop: '15px', alignContent: 'start' }}>
                                 <div>
                                     <b style={{ display: 'block', borderBottom: '1px solid #ccc', marginBottom: '5px', paddingBottom: '2px', textTransform: 'uppercase', fontWeight: 'bold' }}>Orizzontali</b>
                                     {data.words.filter(w=>w.direction===Direction.ACROSS).slice(0, 10).map(w=><div key={w.id} style={{ marginBottom: '2px', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}><b style={{ marginRight: '4px' }}>{w.number}.</b>{w.clue}</div>)}
