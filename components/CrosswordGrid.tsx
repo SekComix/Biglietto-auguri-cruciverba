@@ -25,6 +25,11 @@ const THEME_ASSETS: Record<ThemeType, any> = {
   generic: { fontTitle: 'font-body', printBorder: 'border-solid border-2 border-gray-300', decoration: '🎁', watermark: '🎁' }
 };
 
+const getSolutionLabel = (index: number) => {
+    // Converte 1 -> A, 2 -> B, ecc.
+    return String.fromCharCode(64 + index);
+};
+
 const PhotoCollage: React.FC<{ photos: string[] }> = ({ photos }) => {
     if (!photos || photos.length === 0) return null;
     const count = photos.length;
@@ -415,7 +420,7 @@ const CrosswordGrid: React.FC<CrosswordGridProps> = ({ data, onComplete, onEdit,
   // --- RENDER HELPERS ---
   const renderGridCells = (isPrint = false) => (
     <div 
-        className={`grid ${isPrint ? 'border-t-2 border-l-2 border-black gap-0' : 'gap-[1px] bg-black/10 p-2 rounded-lg'}`} 
+        className={`grid ${isPrint ? 'gap-0' : 'gap-[1px] bg-black/10 p-2 rounded-lg'}`} 
         style={{ 
             gridTemplateColumns: `repeat(${data.width}, minmax(0, 1fr))`, 
             aspectRatio: `${data.width}/${data.height}`, 
@@ -425,33 +430,43 @@ const CrosswordGrid: React.FC<CrosswordGridProps> = ({ data, onComplete, onEdit,
     >
       {grid.map((row, y) => row.map((cell, x) => {
           const isSelected = !isPrint && selectedCell?.x === x && selectedCell?.y === y;
-          const displayChar = (revealAnswers || isPrint) ? cell.char : cell.userChar; 
+          // IN STAMPA: Mai mostrare la lettera, a meno che non sia specificamente richiesto (qui no).
+          // La cella è vuota in stampa per essere compilata a mano.
+          const displayChar = isPrint ? '' : (revealAnswers ? cell.char : cell.userChar); 
           
-          if (!cell.char) return <div key={`${x}-${y}`} className={`${isPrint ? 'bg-transparent' : 'bg-black/5 rounded-sm'}`} />;
+          // CASELLA VUOTA (NESSUNA LETTERA)
+          if (!cell.char) {
+              // IN STAMPA: Trasparente (o bianca), niente blocchi neri, proprio come a schermo
+              return <div key={`${x}-${y}`} className={`${isPrint ? 'bg-transparent' : 'bg-black/5 rounded-sm'}`} />;
+          }
           
           const isSolution = cell.isSolutionCell;
           
+          // CASELLA ATTIVA (PAROLA)
           return (
             <div 
                 key={`${x}-${y}-${revealAnswers}`} 
                 onClick={() => !isPrint && handleCellClick(x, y)} 
-                className={`relative flex items-center justify-center ${isPrint ? 'border-r-2 border-b-2 border-black text-black' : `w-full h-full text-xl font-bold cursor-pointer`}`} 
+                className={`relative flex items-center justify-center ${isPrint ? 'border border-black text-black' : `w-full h-full text-xl font-bold cursor-pointer`}`} 
                 style={{
-                    backgroundColor: isSolution ? '#FEF08A' : (isSelected && !isPrint ? '#DBEAFE' : (isPrint ? 'transparent' : '#FFFFFF')), 
+                    backgroundColor: isSolution ? '#FEF08A' : (isSelected && !isPrint ? '#DBEAFE' : (isPrint ? 'white' : '#FFFFFF')), 
                     width: isPrint ? '100%' : undefined,
-                    height: isPrint ? '100%' : undefined
+                    height: isPrint ? '100%' : undefined,
+                    boxSizing: 'border-box' // Fix bordi doppi
                 }}
             >
-              {cell.number && <span className={`absolute top-0 left-0 leading-none ${isPrint ? 'text-[7px] p-[2px] font-bold' : 'text-[9px] p-0.5 text-gray-500'}`}>{cell.number}</span>}
+              {cell.number && <span className={`absolute top-0 left-0 leading-none ${isPrint ? 'text-[8px] p-[1px] font-bold' : 'text-[9px] p-0.5 text-gray-500'}`}>{cell.number}</span>}
               
               {cell.isSolutionCell && cell.solutionIndex !== undefined && (
-                  <div className={`absolute bottom-0 right-0 leading-none font-bold text-gray-600 bg-white/60 rounded-tl-sm z-10 ${isPrint ? 'text-[7px] p-[1px]' : 'text-[9px] p-0.5'}`}>
-                      {cell.solutionIndex}
+                  <div className={`absolute bottom-0 right-0 leading-none font-bold text-gray-600 bg-white/60 rounded-tl-sm z-10 ${isPrint ? 'text-[8px] p-[1px]' : 'text-[9px] p-0.5'}`}>
+                      {/* USE LETTER A, B, C instead of Number for Solution Index */}
+                      {getSolutionLabel(cell.solutionIndex)}
                   </div>
               )}
               
               {isPrint ? (
-                  <span className="font-bold text-lg">{displayChar}</span>
+                  // IN STAMPA: Niente lettera (vuota)
+                  <span className="font-bold text-lg"></span>
               ) : (
                   isSelected && !revealAnswers ? (
                      <input 
@@ -661,15 +676,15 @@ const CrosswordGrid: React.FC<CrosswordGridProps> = ({ data, onComplete, onEdit,
                                 <h2 className="text-lg font-bold uppercase border-b-2 border-black mb-2 pb-1 text-center tracking-widest">Cruciverba</h2>
                                 {data.solution && (
                                     <div className="mb-2 bg-yellow-50 border border-yellow-200 p-1 rounded-lg text-center mx-auto inline-block shadow-sm">
-                                        <div className="flex justify-center gap-0.5">{data.solution.word.split('').map((c,i) => <div key={i} className={`w-4 h-4 border rounded text-[10px] flex items-center justify-center font-bold ${revealAnswers ? 'bg-yellow-400 text-white border-yellow-500' : 'bg-white border-yellow-200 text-gray-400'}`}>{revealAnswers ? c : (i+1)}</div>)}</div>
+                                        <div className="flex justify-center gap-0.5">{data.solution.word.split('').map((c,i) => <div key={i} className={`w-4 h-4 border rounded text-[10px] flex items-center justify-center font-bold ${revealAnswers ? 'bg-yellow-400 text-white border-yellow-500' : 'bg-white border-yellow-200 text-gray-400'}`}>{revealAnswers ? c : getSolutionLabel(i+1)}</div>)}</div>
                                     </div>
                                 )}
                                 <div className="flex-1 flex items-start justify-center overflow-hidden min-h-0">
                                     <div style={{ width: '90%', maxHeight: '100%', aspectRatio: `${data.width}/${data.height}` }}>{renderGridCells(false)}</div>
                                 </div>
                                 <div className="mt-2 text-[9px] md:text-[10px] grid grid-cols-2 gap-2 leading-tight w-full border-t border-black pt-2 overflow-y-auto max-h-[35%] custom-scrollbar">
-                                    <div className="pr-1"><b className="block border-b border-gray-300 mb-1 pb-0.5 font-bold text-xs">Orizzontali</b>{data.words.filter(w=>w.direction===Direction.ACROSS).map(w=><div key={w.id} className="mb-0.5"><b className="mr-1">{w.number}.</b>{w.clue}</div>)}</div>
-                                    <div className="pl-1 border-l border-gray-100"><b className="block border-b border-gray-300 mb-1 pb-0.5 font-bold text-xs">Verticali</b>{data.words.filter(w=>w.direction===Direction.DOWN).map(w=><div key={w.id} className="mb-0.5"><b className="mr-1">{w.number}.</b>{w.clue}</div>)}</div>
+                                    <div className="pr-1"><b className="block border-b border-gray-300 mb-1 pb-0.5 font-bold text-xs">Orizzontali</b>{data.words.filter(w=>w.direction===Direction.ACROSS).map(w=><div key={w.id} className="mb-0.5"><b className="mr-1">{w.number}.</b>{w.clue} ({w.word.length})</div>)}</div>
+                                    <div className="pl-1 border-l border-gray-100"><b className="block border-b border-gray-300 mb-1 pb-0.5 font-bold text-xs">Verticali</b>{data.words.filter(w=>w.direction===Direction.DOWN).map(w=><div key={w.id} className="mb-0.5"><b className="mr-1">{w.number}.</b>{w.clue} ({w.word.length})</div>)}</div>
                                 </div>
                             </>
                         ) : (
@@ -748,7 +763,7 @@ const CrosswordGrid: React.FC<CrosswordGridProps> = ({ data, onComplete, onEdit,
                                             <div style={{ display: 'inline-flex', gap: '2px', border: '1px solid black', padding: '4px', borderRadius: '4px', backgroundColor: '#f9fafb' }}>
                                                 {data.solution.word.split('').map((c,i) => (
                                                     <div key={i} style={{ width: '20px', height: '20px', border: '1px solid black', fontSize: '12px', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 'bold' }}>
-                                                        {revealAnswers ? c : (i+1)}
+                                                        {revealAnswers ? c : getSolutionLabel(i+1)}
                                                     </div>
                                                 ))}
                                             </div>
@@ -756,22 +771,22 @@ const CrosswordGrid: React.FC<CrosswordGridProps> = ({ data, onComplete, onEdit,
                                 )}
                            </div>
 
-                           {/* FIXED GRID CONTAINER - 300px HEIGHT CONSTRAINT (Reduced from 400px to give more space to clues) */}
-                           <div style={{ width: '100%', height: '300px', display: 'flex', alignItems: 'center', justifyContent: 'center', marginBottom: '20px' }}>
+                           {/* FIXED GRID CONTAINER - 300px HEIGHT CONSTRAINT */}
+                           <div style={{ width: '100%', height: '300px', display: 'flex', alignItems: 'center', justifyContent: 'center', marginBottom: '20px', flexShrink: 0 }}>
                                <div style={{ aspectRatio: `${data.width}/${data.height}`, height: '100%', maxHeight: '100%', maxWidth: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
                                    {renderGridCells(true)}
                                </div>
                            </div>
                            
                            {/* CLUES FOOTER - FLEX GROW (No fixed height) */}
-                           <div style={{ flex: 1, overflow: 'hidden', fontSize: '11px', display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '20px', lineHeight: 1.3, borderTop: '2px solid black', paddingTop: '15px', alignContent: 'start' }}>
+                           <div style={{ flex: 1, overflow: 'hidden', fontSize: '10px', display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '20px', lineHeight: 1.2, borderTop: '2px solid black', paddingTop: '15px', alignContent: 'start' }}>
                                 <div>
                                     <b style={{ display: 'block', borderBottom: '1px solid #ccc', marginBottom: '5px', paddingBottom: '2px', textTransform: 'uppercase', fontWeight: 'bold' }}>Orizzontali</b>
-                                    {data.words.filter(w=>w.direction===Direction.ACROSS).slice(0, 10).map(w=><div key={w.id} style={{ marginBottom: '2px', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}><b style={{ marginRight: '4px' }}>{w.number}.</b>{w.clue}</div>)}
+                                    {data.words.filter(w=>w.direction===Direction.ACROSS).map(w=><div key={w.id} style={{ marginBottom: '4px', whiteSpace: 'normal' }}><b style={{ marginRight: '4px' }}>{w.number}.</b>{w.clue} ({w.word.length})</div>)}
                                 </div>
                                 <div>
                                     <b style={{ display: 'block', borderBottom: '1px solid #ccc', marginBottom: '5px', paddingBottom: '2px', textTransform: 'uppercase', fontWeight: 'bold' }}>Verticali</b>
-                                    {data.words.filter(w=>w.direction===Direction.DOWN).slice(0, 10).map(w=><div key={w.id} style={{ marginBottom: '2px', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}><b style={{ marginRight: '4px' }}>{w.number}.</b>{w.clue}</div>)}
+                                    {data.words.filter(w=>w.direction===Direction.DOWN).map(w=><div key={w.id} style={{ marginBottom: '4px', whiteSpace: 'normal' }}><b style={{ marginRight: '4px' }}>{w.number}.</b>{w.clue} ({w.word.length})</div>)}
                                 </div>
                            </div>
                        </div>
