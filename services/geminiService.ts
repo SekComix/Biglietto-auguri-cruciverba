@@ -215,30 +215,93 @@ function normalizeCoordinates(placedWords: any[]) {
     return { words: normalizedWords, width, height };
 }
 
+function reindexGridNumbering(words: any[]) {
+    const startPoints: {x: number, y: number}[] = [];
+    const pointsSet = new Set<string>();
+
+    words.forEach(w => {
+        const key = `${w.startX},${w.startY}`;
+        if (!pointsSet.has(key)) {
+            pointsSet.add(key);
+            startPoints.push({ x: w.startX, y: w.startY });
+        }
+    });
+
+    startPoints.sort((a, b) => {
+        if (a.y !== b.y) return a.y - b.y;
+        return a.x - b.x;
+    });
+
+    const coordToNumber = new Map<string, number>();
+    startPoints.forEach((p, index) => {
+        coordToNumber.set(`${p.x},${p.y}`, index + 1);
+    });
+
+    return words.map(w => ({
+        ...w,
+        number: coordToNumber.get(`${w.startX},${w.startY}`)
+    })).sort((a,b) => a.number - b.number); 
+}
+
+// NUOVA LOGICA: Distribuzione sparsa delle lettere
 const findSolutionInGrid = (words: any[], hiddenWord: string): any => {
     if (!hiddenWord) return null;
     const targetChars = hiddenWord.toUpperCase().replace(/[^A-Z]/g, '').split('');
     const solutionCells: any[] = [];
     const usedCoords = new Set<string>();
-    const gridMap: Record<string, string> = {};
-    words.forEach((w: any) => {
+    
+    // Mappa di tutte le coordinate disponibili per ogni lettera
+    // Struttura: { 'A': [ {x, y, wordId}, ... ], 'B': ... }
+    const availablePositions: Record<string, {x: number, y: number, wordIndex: number}[]> = {};
+
+    words.forEach((w: any, wIdx: number) => {
         for(let i=0; i<w.word.length; i++) {
+            const char = w.word[i];
             const x = w.direction === 'across' ? w.startX + i : w.startX;
             const y = w.direction === 'down' ? w.startY + i : w.startY;
-            gridMap[`${x},${y}`] = w.word[i];
+            
+            if (!availablePositions[char]) availablePositions[char] = [];
+            availablePositions[char].push({ x, y, wordIndex: wIdx });
         }
     });
+
+    // Insieme degli indici di parola già usati per la soluzione
+    const usedWordIndices = new Set<number>();
+
     for (let i = 0; i < targetChars.length; i++) {
         const char = targetChars[i];
-        for (const key in gridMap) {
-            if (gridMap[key] === char && !usedCoords.has(key)) {
-                const [x, y] = key.split(',').map(Number);
-                solutionCells.push({ x, y, char, index: i });
-                usedCoords.add(key);
-                break;
-            }
+        const candidates = availablePositions[char] || [];
+        
+        // Filtra coordinate già usate
+        const validCandidates = candidates.filter(c => !usedCoords.has(`${c.x},${c.y}`));
+
+        if (validCandidates.length === 0) {
+            // Impossibile formare la parola completa
+            return null; 
         }
+
+        // Strategia di selezione:
+        // 1. Mischia i candidati per evitare determinismo (prendere sempre il primo in alto a sinistra)
+        // 2. Prioritizza candidati che appartengono a parole NON ancora usate per la soluzione
+        
+        // Shuffle semplice
+        validCandidates.sort(() => Math.random() - 0.5);
+
+        // Cerca un candidato da una parola nuova
+        let bestCandidate = validCandidates.find(c => !usedWordIndices.has(c.wordIndex));
+        
+        // Se non esiste, prendi il primo disponibile (anche se riusa una parola)
+        if (!bestCandidate) {
+            bestCandidate = validCandidates[0];
+        }
+
+        // Registra la selezione
+        const { x, y, wordIndex } = bestCandidate;
+        solutionCells.push({ x, y, char, index: i });
+        usedCoords.add(`${x},${y}`);
+        usedWordIndices.add(wordIndex);
     }
+
     if (solutionCells.length > 0) return { word: hiddenWord.toUpperCase(), cells: solutionCells };
     return null;
 };
@@ -325,7 +388,6 @@ export const generateCrossword = async (
                      }
                  } catch (e) {
                      console.warn("Fallita integrazione AI parole mancanti", e);
-                     // Procediamo comunque, magari l'utente è fortunato o l'algoritmo incastra bene
                  }
              }
           }
@@ -362,21 +424,22 @@ export const generateCrossword = async (
       await new Promise(r => setTimeout(r, 500));
       const placedWordsRaw = generateLayout(generatedWords);
       const normalized = normalizeCoordinates(placedWordsRaw);
+      
+      const reindexedWords = reindexGridNumbering(normalized.words);
+
       width = normalized.width;
       height = normalized.height;
-      finalWords = normalized.words.map((w: any, idx: number) => ({ ...w, id: `word-${idx}`, word: w.word.toUpperCase().trim() }));
-      calculatedSolution = hiddenSolutionWord ? findSolutionInGrid(normalized.words, hiddenSolutionWord) : null;
+      finalWords = reindexedWords.map((w: any, idx: number) => ({ ...w, id: `word-${idx}`, word: w.word.toUpperCase().trim() }));
+      calculatedSolution = hiddenSolutionWord ? findSolutionInGrid(reindexedWords, hiddenSolutionWord) : null;
   }
 
   // --- LOGICA MESSAGGIO AUGURI ---
   if (typeof inputData === 'string' && inputData.trim().length > 0) {
       if (mode === 'ai') {
-          // SE L'UTENTE HA DATO SOLO L'ARGOMENTO (TOPIC), GENERIAMO IL MESSAGGIO CON L'IA
-          // Questo serve se l'utente non ha cliccato "Suggeriscimi frasi" ma direttamente "Genera"
           if (onStatusUpdate) onStatusUpdate("Scrivo la dedica...");
           try {
               const generatedMessage = await regenerateGreeting(
-                  inputData, // Topic is the context
+                  inputData, 
                   theme, 
                   extraData.recipientName, 
                   extraData.tone || 'surprise', 
@@ -384,11 +447,9 @@ export const generateCrossword = async (
               );
               message = generatedMessage;
           } catch (e) {
-              // Fallback se l'IA fallisce, usiamo l'input raw
               message = inputData;
           }
       } else {
-          // Manual mode: quello che scrivi è quello che ottieni
           message = inputData;
       }
   } else {
@@ -444,7 +505,6 @@ export const regenerateGreetingOptions = async (
     let instructions = tone === 'custom' && customPrompt ? `Istruzioni specifiche: "${customPrompt}".` : `Stile: ${tone}.`;
     let context = currentMessage !== 'placeholder' ? `Contesto/Argomento: "${currentMessage}".` : '';
 
-    // Request 5 variations (increased from 3)
     const prompt = `Scrivi 5 diverse opzioni di messaggi di auguri brevi per ${recipient}. Evento: ${theme}. ${instructions} ${context} Max 30 parole per opzione. Restituisci JSON: { "options": ["messaggio 1", "messaggio 2", "messaggio 3", "messaggio 4", "messaggio 5"] }`;
     
     const schema = {
@@ -476,7 +536,6 @@ export const regenerateGreeting = async (
     tone: ToneType,
     customPrompt?: string
 ): Promise<string> => {
-     // Wrapper that returns just one best option
      const options = await regenerateGreetingOptions(currentMessage, theme, recipient, tone, customPrompt);
      return options[0];
 }
