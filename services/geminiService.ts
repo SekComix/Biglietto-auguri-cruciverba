@@ -283,7 +283,8 @@ function reindexGridNumbering(words: any[]) {
 
 const findSolutionInGrid = (words: any[], hiddenWord: string): any => {
     if (!hiddenWord) return null;
-    const targetChars = hiddenWord.toUpperCase().replace(/[^A-Z]/g, '').split('');
+    const cleanTarget = hiddenWord.toUpperCase().replace(/[^A-Z]/g, '');
+    const targetChars = cleanTarget.split('');
     const solutionCells: any[] = [];
     const usedCoords = new Set<string>();
     
@@ -324,7 +325,8 @@ const findSolutionInGrid = (words: any[], hiddenWord: string): any => {
         usedWordIndices.add(wordIndex);
     }
 
-    if (solutionCells.length > 0) return { word: hiddenWord.toUpperCase(), cells: solutionCells };
+    // Return sia la parola pulita per la logica, sia l'originale per la visualizzazione (con spazi)
+    if (solutionCells.length > 0) return { word: cleanTarget, original: hiddenWord.toUpperCase(), cells: solutionCells };
     return null;
 };
 
@@ -441,8 +443,6 @@ export const generateCrossword = async (
       if (onStatusUpdate) onStatusUpdate("Costruisco la griglia...");
       await new Promise(r => setTimeout(r, 500));
       
-      // CRITICO: Layout con scarto.
-      // Le parole che non entrano nel 14x14 vengono eliminate per evitare problemi grafici
       const placedWordsRaw = generateLayout(generatedWords);
       
       if (placedWordsRaw.length < 2) throw new Error("Non sono riuscito a incastrare abbastanza parole. Riprova.");
