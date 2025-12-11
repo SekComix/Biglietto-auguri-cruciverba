@@ -420,7 +420,7 @@ const CrosswordGrid: React.FC<CrosswordGridProps> = ({ data, onComplete, onEdit,
   // --- RENDER HELPERS ---
   const renderGridCells = (isPrint = false) => (
     <div 
-        className={`grid ${isPrint ? 'gap-0' : 'gap-[1px] bg-black/10 p-2 rounded-lg'}`} 
+        className={`grid gap-[1px] bg-black/10 p-2 rounded-lg`} 
         style={{ 
             gridTemplateColumns: `repeat(${data.width}, minmax(0, 1fr))`, 
             aspectRatio: `${data.width}/${data.height}`, 
@@ -437,7 +437,7 @@ const CrosswordGrid: React.FC<CrosswordGridProps> = ({ data, onComplete, onEdit,
           // CASELLA VUOTA (NESSUNA LETTERA)
           if (!cell.char) {
               // IN STAMPA: Trasparente (o bianca), niente blocchi neri, proprio come a schermo
-              return <div key={`${x}-${y}`} className={`${isPrint ? 'bg-transparent' : 'bg-black/5 rounded-sm'}`} />;
+              return <div key={`${x}-${y}`} className={`bg-black/5 rounded-sm`} />;
           }
           
           const isSolution = cell.isSolutionCell;
@@ -447,15 +447,15 @@ const CrosswordGrid: React.FC<CrosswordGridProps> = ({ data, onComplete, onEdit,
             <div 
                 key={`${x}-${y}-${revealAnswers}`} 
                 onClick={() => !isPrint && handleCellClick(x, y)} 
-                className={`relative flex items-center justify-center ${isPrint ? 'border border-black text-black' : `w-full h-full text-xl font-bold cursor-pointer`}`} 
+                className={`relative flex items-center justify-center w-full h-full text-xl font-bold cursor-pointer rounded-sm`} 
                 style={{
-                    backgroundColor: isSolution ? '#FEF08A' : (isSelected && !isPrint ? '#DBEAFE' : (isPrint ? 'white' : '#FFFFFF')), 
+                    backgroundColor: isSolution ? '#FEF08A' : (isSelected && !isPrint ? '#DBEAFE' : '#FFFFFF'), 
                     width: isPrint ? '100%' : undefined,
                     height: isPrint ? '100%' : undefined,
                     boxSizing: 'border-box' // Fix bordi doppi
                 }}
             >
-              {cell.number && <span className={`absolute top-0 left-0 leading-none ${isPrint ? 'text-[8px] p-[1px] font-bold' : 'text-[9px] p-0.5 text-gray-500'}`}>{cell.number}</span>}
+              {cell.number && <span className={`absolute top-0 left-0 leading-none ${isPrint ? 'text-[8px] p-[1px] font-bold text-gray-500' : 'text-[9px] p-0.5 text-gray-500'}`}>{cell.number}</span>}
               
               {cell.isSolutionCell && cell.solutionIndex !== undefined && (
                   <div className={`absolute bottom-0 right-0 leading-none font-bold text-gray-600 bg-white/60 rounded-tl-sm z-10 ${isPrint ? 'text-[8px] p-[1px]' : 'text-[9px] p-0.5'}`}>
@@ -771,15 +771,15 @@ const CrosswordGrid: React.FC<CrosswordGridProps> = ({ data, onComplete, onEdit,
                                 )}
                            </div>
 
-                           {/* FIXED GRID CONTAINER - 300px HEIGHT CONSTRAINT */}
-                           <div style={{ width: '100%', height: '300px', display: 'flex', alignItems: 'center', justifyContent: 'center', marginBottom: '20px', flexShrink: 0 }}>
+                           {/* FIXED GRID CONTAINER - INCREASED TO 500px to fill white space */}
+                           <div style={{ width: '100%', height: '500px', display: 'flex', alignItems: 'center', justifyContent: 'center', marginBottom: '20px', flexShrink: 0 }}>
                                <div style={{ aspectRatio: `${data.width}/${data.height}`, height: '100%', maxHeight: '100%', maxWidth: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
                                    {renderGridCells(true)}
                                </div>
                            </div>
                            
-                           {/* CLUES FOOTER - FLEX GROW (No fixed height) */}
-                           <div style={{ flex: 1, overflow: 'hidden', fontSize: '10px', display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '20px', lineHeight: 1.2, borderTop: '2px solid black', paddingTop: '15px', alignContent: 'start' }}>
+                           {/* CLUES FOOTER - FLEX GROW (No fixed height) - REDUCED FONT SIZE */}
+                           <div style={{ flex: 1, overflow: 'hidden', fontSize: '9px', display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '20px', lineHeight: 1.2, borderTop: '2px solid black', paddingTop: '15px', alignContent: 'start' }}>
                                 <div>
                                     <b style={{ display: 'block', borderBottom: '1px solid #ccc', marginBottom: '5px', paddingBottom: '2px', textTransform: 'uppercase', fontWeight: 'bold' }}>Orizzontali</b>
                                     {data.words.filter(w=>w.direction===Direction.ACROSS).map(w=><div key={w.id} style={{ marginBottom: '4px', whiteSpace: 'normal' }}><b style={{ marginRight: '4px' }}>{w.number}.</b>{w.clue} ({w.word.length})</div>)}
