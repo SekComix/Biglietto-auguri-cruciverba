@@ -414,12 +414,20 @@ const CrosswordGrid: React.FC<CrosswordGridProps> = ({ data, onComplete, onEdit,
 
   // --- RENDER HELPERS ---
   const renderGridCells = (isPrint = false) => (
-    <div className={`grid gap-[1px] ${isPrint ? '' : 'bg-black/10 p-2 rounded-lg'}`} style={{ gridTemplateColumns: `repeat(${data.width}, minmax(0, 1fr))`, aspectRatio: `${data.width}/${data.height}`, height: isPrint ? '100%' : 'auto', width: isPrint ? '100%' : 'auto' }}>
+    <div 
+        className={`grid ${isPrint ? 'border-t-2 border-l-2 border-black gap-0' : 'gap-[1px] bg-black/10 p-2 rounded-lg'}`} 
+        style={{ 
+            gridTemplateColumns: `repeat(${data.width}, minmax(0, 1fr))`, 
+            aspectRatio: `${data.width}/${data.height}`, 
+            height: isPrint ? '100%' : 'auto', 
+            width: isPrint ? '100%' : 'auto' 
+        }}
+    >
       {grid.map((row, y) => row.map((cell, x) => {
           const isSelected = !isPrint && selectedCell?.x === x && selectedCell?.y === y;
           const displayChar = (revealAnswers || isPrint) ? cell.char : cell.userChar; 
           
-          if (!cell.char) return <div key={`${x}-${y}`} className={`${isPrint ? 'bg-gray-50 border border-gray-200' : 'bg-black/5 rounded-sm'}`} />;
+          if (!cell.char) return <div key={`${x}-${y}`} className={`${isPrint ? 'bg-transparent' : 'bg-black/5 rounded-sm'}`} />;
           
           const isSolution = cell.isSolutionCell;
           
@@ -427,14 +435,14 @@ const CrosswordGrid: React.FC<CrosswordGridProps> = ({ data, onComplete, onEdit,
             <div 
                 key={`${x}-${y}-${revealAnswers}`} 
                 onClick={() => !isPrint && handleCellClick(x, y)} 
-                className={`relative flex items-center justify-center ${isPrint ? 'border-r border-b border-black text-black' : `w-full h-full text-xl font-bold cursor-pointer`}`} 
+                className={`relative flex items-center justify-center ${isPrint ? 'border-r-2 border-b-2 border-black text-black' : `w-full h-full text-xl font-bold cursor-pointer`}`} 
                 style={{
-                    backgroundColor: isSolution ? '#FEF08A' : (isSelected && !isPrint ? '#DBEAFE' : '#FFFFFF'), 
+                    backgroundColor: isSolution ? '#FEF08A' : (isSelected && !isPrint ? '#DBEAFE' : (isPrint ? 'transparent' : '#FFFFFF')), 
                     width: isPrint ? '100%' : undefined,
                     height: isPrint ? '100%' : undefined
                 }}
             >
-              {cell.number && <span className={`absolute top-0 left-0 leading-none ${isPrint ? 'text-[6px] p-[1px]' : 'text-[9px] p-0.5 text-gray-500'}`}>{cell.number}</span>}
+              {cell.number && <span className={`absolute top-0 left-0 leading-none ${isPrint ? 'text-[7px] p-[2px] font-bold' : 'text-[9px] p-0.5 text-gray-500'}`}>{cell.number}</span>}
               
               {cell.isSolutionCell && cell.solutionIndex !== undefined && (
                   <div className={`absolute bottom-0 right-0 leading-none font-bold text-gray-600 bg-white/60 rounded-tl-sm z-10 ${isPrint ? 'text-[7px] p-[1px]' : 'text-[9px] p-0.5'}`}>
@@ -677,9 +685,9 @@ const CrosswordGrid: React.FC<CrosswordGridProps> = ({ data, onComplete, onEdit,
        <div ref={exportRef} style={{ position: 'fixed', top: 0, left: '-9999px', width: '1123px', zIndex: -100 }}>
             {/* SHEET 1 */}
             <div id="pdf-sheet-1" style={{ width: '1123px', height: '794px', display: 'flex', position: 'relative', backgroundColor: 'white', overflow: 'hidden' }}>
-                 <div style={{ position: 'absolute', top: '50%', left: '50%', transform: `translate(-50%, -50%) translate(${wmSheet1.x}px, ${wmSheet1.y}px) scale(${wmSheet1.scale}) rotate(12deg)`, fontSize: '300px', opacity: 0.20, zIndex: 0, whiteSpace: 'nowrap' }}>{themeAssets.watermark}</div>
+                 <div style={{ position: 'absolute', top: '50%', left: '50%', transform: `translate(-50%, -50%) translate(${wmSheet1.x}px, ${wmSheet1.y}px) scale(${wmSheet1.scale}) rotate(12deg)`, fontSize: '130px', opacity: 0.20, zIndex: 0, whiteSpace: 'nowrap' }}>{themeAssets.watermark}</div>
                  {/* Retro */}
-                 <div className={themeAssets.printBorder} style={{ width: '50%', height: '100%', padding: '60px', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', textAlign: 'center', borderRight: 'none', position: 'relative', zIndex: 10 }}>
+                 <div className={themeAssets.printBorder} style={{ width: '50%', height: '100%', padding: '60px', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', textAlign: 'center', borderRight: 'none', position: 'relative', zIndex: 10, boxSizing: 'border-box' }}>
                     <div style={{ fontSize: '80px', opacity: 0.2, marginBottom: '20px' }}>{themeAssets.decoration}</div>
                     
                     {/* BRAND LOGO PDF */}
@@ -693,7 +701,7 @@ const CrosswordGrid: React.FC<CrosswordGridProps> = ({ data, onComplete, onEdit,
                     {/* REMOVED 'Enigmistica Auguri' Text */}
                  </div>
                  {/* Fronte */}
-                 <div className={themeAssets.printBorder} style={{ width: '50%', height: '100%', padding: '60px', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', textAlign: 'center', borderLeft: 'none', position: 'relative', zIndex: 10 }}>
+                 <div className={themeAssets.printBorder} style={{ width: '50%', height: '100%', padding: '60px', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', textAlign: 'center', borderLeft: 'none', position: 'relative', zIndex: 10, boxSizing: 'border-box' }}>
                      <h1 className={themeAssets.fontTitle} style={{ fontSize: '50px', marginBottom: '10px', lineHeight: 1.2 }}>{data.title}</h1>
                      <div style={{ width: '80px', height: '3px', background: '#333', marginBottom: '20px' }}></div>
                      <p style={{ fontSize: '18px', textTransform: 'uppercase', color: '#666', letterSpacing: '2px', marginBottom: '40px' }}>
@@ -710,9 +718,9 @@ const CrosswordGrid: React.FC<CrosswordGridProps> = ({ data, onComplete, onEdit,
 
             {/* SHEET 2 */}
             <div id="pdf-sheet-2" style={{ width: '1123px', height: '794px', display: 'flex', position: 'relative', backgroundColor: 'white', overflow: 'hidden' }}>
-                 <div style={{ position: 'absolute', top: '50%', left: '50%', transform: `translate(-50%, -50%) translate(${wmSheet2.x}px, ${wmSheet2.y}px) scale(${wmSheet2.scale}) rotate(12deg)`, fontSize: '300px', opacity: 0.20, zIndex: 0, whiteSpace: 'nowrap' }}>{themeAssets.watermark}</div>
+                 <div style={{ position: 'absolute', top: '50%', left: '50%', transform: `translate(-50%, -50%) translate(${wmSheet2.x}px, ${wmSheet2.y}px) scale(${wmSheet2.scale}) rotate(12deg)`, fontSize: '130px', opacity: 0.20, zIndex: 0, whiteSpace: 'nowrap' }}>{themeAssets.watermark}</div>
                  {/* Dedica */}
-                 <div className={themeAssets.printBorder} style={{ width: '50%', height: '100%', padding: '40px', display: 'flex', flexDirection: 'column', alignItems: 'center', textAlign: 'center', borderRight: 'none', position: 'relative', zIndex: 10 }}>
+                 <div className={themeAssets.printBorder} style={{ width: '50%', height: '100%', padding: '40px', display: 'flex', flexDirection: 'column', alignItems: 'center', textAlign: 'center', borderRight: 'none', position: 'relative', zIndex: 10, boxSizing: 'border-box' }}>
                      <div style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', width: '100%' }}>
                         {photos.length > 0 ? (
                             <div style={{ width: '80%', aspectRatio: '1/1', border: '5px solid white', boxShadow: '0 4px 6px rgba(0,0,0,0.1)', overflow: 'hidden', backgroundColor: '#f3f4f6', marginBottom: '20px' }}>
@@ -728,7 +736,7 @@ const CrosswordGrid: React.FC<CrosswordGridProps> = ({ data, onComplete, onEdit,
                      </div>
                  </div>
                  {/* Gioco */}
-                 <div className={themeAssets.printBorder} style={{ width: '50%', height: '100%', padding: '40px', display: 'flex', flexDirection: 'column', borderLeft: 'none', position: 'relative', zIndex: 10, justifyContent: 'space-between' }}>
+                 <div className={themeAssets.printBorder} style={{ width: '50%', height: '100%', padding: '40px', display: 'flex', flexDirection: 'column', borderLeft: 'none', position: 'relative', zIndex: 10, justifyContent: 'space-between', boxSizing: 'border-box' }}>
                     {isCrossword ? (
                        <div style={{ flex: 1, display: 'flex', flexDirection: 'column', height: '100%', justifyContent: 'space-between' }}>
                            
