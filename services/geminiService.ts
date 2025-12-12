@@ -362,6 +362,7 @@ export const generateCrossword = async (
     contentType: 'crossword' | 'simple';
     tone?: ToneType;
     customTone?: string;
+    hasWatermark?: boolean; // NEW
   },
   onStatusUpdate?: (status: string) => void
 ): Promise<CrosswordData> => {
@@ -514,7 +515,8 @@ export const generateCrossword = async (
       originalMode: mode,
       originalHiddenSolution: hiddenSolutionWord,
       originalTone: extraData.tone,
-      originalCustomTone: extraData.customTone
+      originalCustomTone: extraData.customTone,
+      hasWatermark: extraData.hasWatermark // NEW
   };
 };
 
