@@ -91,6 +91,10 @@ export const Creator: React.FC<CreatorProps> = ({ onCreated, initialData }) => {
   const [statusMsg, setStatusMsg] = useState('');
   const [error, setError] = useState<string | null>(null);
   
+  // Validation state triggers
+  const [showNameError, setShowNameError] = useState(false);
+  const [showTopicError, setShowTopicError] = useState(false);
+  
   const [processingImg, setProcessingImg] = useState<'extra' | 'photo' | 'brand' | null>(null);
 
   const [manualWords, setManualWords] = useState<ManualInput[]>([
@@ -144,13 +148,21 @@ export const Creator: React.FC<CreatorProps> = ({ onCreated, initialData }) => {
     }
   }, [initialData]);
 
-  // Gestione Errore Dinamico (Toast a tempo)
+  // Gestione Errore Dinamico (Toast a tempo) e Reset bordi rossi
   useEffect(() => {
       if (error) {
-          const timer = setTimeout(() => setError(null), 5000);
+          const timer = setTimeout(() => {
+              setError(null);
+              setShowNameError(false);
+              setShowTopicError(false);
+          }, 5000);
           return () => clearTimeout(timer);
       }
   }, [error]);
+
+  // Reset visual error on input
+  useEffect(() => { if(recipientName) setShowNameError(false); }, [recipientName]);
+  useEffect(() => { if(topic) setShowTopicError(false); }, [topic]);
 
   const handleImageUpload = (e: React.ChangeEvent<HTMLInputElement>, type: 'extra' | 'photo' | 'brand') => {
     const files = e.target.files;
@@ -250,7 +262,11 @@ export const Creator: React.FC<CreatorProps> = ({ onCreated, initialData }) => {
   };
 
   const handleGenerateSuggestions = async () => {
-      if (!recipientName) { setError("Inserisci prima il nome del festeggiato"); return; }
+      if (!recipientName) { 
+          setError("Inserisci prima il nome del festeggiato"); 
+          setShowNameError(true);
+          return; 
+      }
       setIsGeneratingSuggestions(true);
       setSuggestedPhrases([]);
       try {
@@ -274,6 +290,8 @@ export const Creator: React.FC<CreatorProps> = ({ onCreated, initialData }) => {
     
     setStatusMsg(finalContentType === 'crossword' ? "Costruisco la griglia..." : "Creo il biglietto...");
     setError(null);
+    setShowNameError(false);
+    setShowTopicError(false);
 
     try {
       let inputData: string | ManualInput[] = topic;
@@ -288,19 +306,34 @@ export const Creator: React.FC<CreatorProps> = ({ onCreated, initialData }) => {
              if (validWords.length < 2) throw new Error("Inserisci almeno 2 parole complete.");
              inputData = validWords;
           } else {
-             if (!topic.trim()) throw new Error("Scrivi il messaggio di auguri.");
+             if (!topic.trim()) {
+                 setShowTopicError(true);
+                 throw new Error("Scrivi il messaggio di auguri.");
+             }
           }
       } else if (creationMode === 'freestyle') {
-          if (!topic.trim()) throw new Error("Scrivi le istruzioni per l'IA.");
+          if (!topic.trim()) {
+              setShowTopicError(true);
+              throw new Error("Scrivi le istruzioni per l'IA.");
+          }
           finalTone = 'custom';
           finalCustomTone = topic; 
           inputData = topic; 
       } else {
-          if (finalContentType === 'crossword' && !topic.trim()) throw new Error("Inserisci un argomento (es. Zio Mario).");
-          if (finalContentType === 'simple' && !topic.trim()) throw new Error("Scrivi o seleziona un messaggio.");
+          if (finalContentType === 'crossword' && !topic.trim()) {
+              setShowTopicError(true);
+              throw new Error("Inserisci un argomento (es. Zio Mario).");
+          }
+          if (finalContentType === 'simple' && !topic.trim()) {
+              setShowTopicError(true);
+              throw new Error("Scrivi o seleziona un messaggio.");
+          }
       }
 
-      if (!recipientName.trim()) throw new Error("Inserisci il nome del festeggiato.");
+      if (!recipientName.trim()) {
+          setShowNameError(true);
+          throw new Error("Inserisci il nome del festeggiato.");
+      }
 
       const cleanSolution = hiddenSolution.trim().toUpperCase();
       const finalDate = eventDate.trim() || DEFAULT_DATES[theme] || 'Oggi';
@@ -437,8 +470,8 @@ export const Creator: React.FC<CreatorProps> = ({ onCreated, initialData }) => {
 
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div>
-                    <label className="block text-xs font-bold text-gray-400 mb-2 uppercase">Per chi è? *</label>
-                    <input required type="text" placeholder="Nome" className={`w-full p-3 border-2 rounded-xl font-bold outline-none ${!recipientName && error ? 'border-red-400 bg-red-50' : 'border-gray-200 focus:border-blue-400'}`} value={recipientName} onChange={(e) => setRecipientName(e.target.value)} />
+                    <label className={`block text-xs font-bold mb-2 uppercase ${showNameError ? 'text-red-500' : 'text-gray-400'}`}>Per chi è? *</label>
+                    <input required type="text" placeholder="Nome" className={`w-full p-3 border-2 rounded-xl font-bold outline-none transition-colors ${showNameError ? 'border-red-500 bg-red-50 animate-pulse' : (!recipientName && error ? 'border-red-400 bg-red-50' : 'border-gray-200 focus:border-blue-400')}`} value={recipientName} onChange={(e) => setRecipientName(e.target.value)} />
                 </div>
                 <div>
                     <label className="block text-xs font-bold text-gray-400 mb-2 uppercase">Data Evento</label>
@@ -475,17 +508,18 @@ export const Creator: React.FC<CreatorProps> = ({ onCreated, initialData }) => {
                     </div>
 
                     <div className="relative">
-                        <label className="block text-xs font-bold text-gray-400 mb-2 uppercase">
+                        <label className={`block text-xs font-bold mb-2 uppercase ${showTopicError ? 'text-red-500' : 'text-gray-400'}`}>
                             {selectedActivity === 'crossword' ? "Argomento del Cruciverba * (es. Calcio, Cucina):" : "Messaggio o Istruzioni *:"}
                         </label>
                         <textarea
                             rows={3}
-                            className={`w-full p-3 border rounded-xl focus:ring-2 outline-none resize-none bg-white ${!topic && error ? 'border-red-400 bg-red-50' : 'border-gray-200 focus:ring-blue-500'}`}
+                            className={`w-full p-3 border rounded-xl focus:ring-2 outline-none resize-none bg-white transition-all ${showTopicError ? 'border-red-500 ring-2 ring-red-200' : (!topic && error ? 'border-red-400 bg-red-50' : 'border-gray-200 focus:ring-blue-500')}`}
                             placeholder={selectedActivity === 'crossword' ? "Es: Zio Mario, ama il calcio, la pizza e dormire..." : "Es: Auguri per i 50 anni, ringrazia per la festa..."}
                             value={topic}
                             onChange={(e) => setTopic(e.target.value)}
                         />
-                        <button type="button" onClick={handleGenerateSuggestions} disabled={isGeneratingSuggestions || !recipientName} className={`absolute right-2 bottom-2 text-xs bg-blue-100 text-blue-600 hover:bg-blue-200 px-3 py-1.5 rounded-full font-bold flex items-center gap-1 transition-all ${isGeneratingSuggestions ? 'opacity-70 cursor-wait' : ''}`} title="Genera idee">
+                        {showTopicError && <p className="text-[10px] text-red-500 font-bold mt-1 text-right">Compila questo campo per generare</p>}
+                        <button type="button" onClick={handleGenerateSuggestions} disabled={isGeneratingSuggestions} className={`absolute right-2 bottom-2 text-xs bg-blue-100 text-blue-600 hover:bg-blue-200 px-3 py-1.5 rounded-full font-bold flex items-center gap-1 transition-all ${isGeneratingSuggestions ? 'opacity-70 cursor-wait' : ''}`} title="Genera idee">
                             {isGeneratingSuggestions ? <Loader2 size={12} className="animate-spin"/> : <Sparkles size={12}/>} Suggerimenti
                         </button>
                     </div>
@@ -510,7 +544,8 @@ export const Creator: React.FC<CreatorProps> = ({ onCreated, initialData }) => {
                         <label className="text-sm font-bold text-purple-900">Istruzioni Libere (Prompt)</label>
                     </div>
                     <p className="text-xs text-purple-700 mb-3">Scrivi qui esattamente cosa vuoi che faccia l'IA.</p>
-                    <textarea rows={5} className={`w-full p-4 border-2 bg-white rounded-xl outline-none resize-none text-purple-900 placeholder-purple-300 font-medium ${!topic && error ? 'border-red-400 bg-red-50' : 'border-purple-200 focus:ring-2 focus:ring-purple-400'}`} placeholder="Es: Crea un cruciverba per Mario..." value={topic} onChange={(e) => setTopic(e.target.value)}/>
+                    <textarea rows={5} className={`w-full p-4 border-2 bg-white rounded-xl outline-none resize-none text-purple-900 placeholder-purple-300 font-medium ${showTopicError ? 'border-red-500 ring-2 ring-red-200' : (!topic && error ? 'border-red-400 bg-red-50' : 'border-purple-200 focus:ring-2 focus:ring-purple-400')}`} placeholder="Es: Crea un cruciverba per Mario..." value={topic} onChange={(e) => setTopic(e.target.value)}/>
+                    {showTopicError && <p className="text-[10px] text-red-500 font-bold mt-1 text-right">Compila questo campo per generare</p>}
                 </div>
             )}
 
@@ -537,7 +572,8 @@ export const Creator: React.FC<CreatorProps> = ({ onCreated, initialData }) => {
                     ) : (
                         <div>
                             <label className="block text-xs font-bold text-orange-400 mb-2 uppercase">Scrivi il tuo messaggio:</label>
-                            <textarea rows={4} className={`w-full p-3 border rounded-xl outline-none resize-none bg-white ${!topic && error ? 'border-red-400 bg-red-50' : 'border-orange-200 focus:ring-2 focus:ring-orange-500'}`} placeholder="Scrivi qui i tuoi auguri..." value={topic} onChange={(e) => setTopic(e.target.value)}/>
+                            <textarea rows={4} className={`w-full p-3 border rounded-xl outline-none resize-none bg-white ${showTopicError ? 'border-red-500 ring-2 ring-red-200' : (!topic && error ? 'border-red-400 bg-red-50' : 'border-orange-200 focus:ring-2 focus:ring-orange-500')}`} placeholder="Scrivi qui i tuoi auguri..." value={topic} onChange={(e) => setTopic(e.target.value)}/>
+                            {showTopicError && <p className="text-[10px] text-red-500 font-bold mt-1 text-right">Compila questo campo per generare</p>}
                         </div>
                     )}
                     </div>
