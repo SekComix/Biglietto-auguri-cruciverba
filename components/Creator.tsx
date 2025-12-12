@@ -70,7 +70,7 @@ export const Creator: React.FC<CreatorProps> = ({ onCreated, initialData }) => {
   
   const [tone, setTone] = useState<ToneType>('surprise');
   const [theme, setTheme] = useState<ThemeType>('christmas');
-  const [hasWatermark, setHasWatermark] = useState(false); // NEW
+  const [hasWatermark, setHasWatermark] = useState(false);
   
   const [topic, setTopic] = useState('');
   
@@ -105,7 +105,7 @@ export const Creator: React.FC<CreatorProps> = ({ onCreated, initialData }) => {
         setRecipientName(initialData.recipientName);
         setEventDate(initialData.eventDate);
         setTheme(initialData.theme);
-        setHasWatermark(!!initialData.hasWatermark); // RESTORE
+        setHasWatermark(!!initialData.hasWatermark);
         setExtraImage(initialData.images?.extraImage);
         setPhotos(initialData.images?.photos || []);
         setBrandLogo(initialData.images?.brandLogo);
@@ -143,6 +143,14 @@ export const Creator: React.FC<CreatorProps> = ({ onCreated, initialData }) => {
         setHasWatermark(false);
     }
   }, [initialData]);
+
+  // Gestione Errore Dinamico (Toast a tempo)
+  useEffect(() => {
+      if (error) {
+          const timer = setTimeout(() => setError(null), 5000);
+          return () => clearTimeout(timer);
+      }
+  }, [error]);
 
   const handleImageUpload = (e: React.ChangeEvent<HTMLInputElement>, type: 'extra' | 'photo' | 'brand') => {
     const files = e.target.files;
@@ -310,7 +318,7 @@ export const Creator: React.FC<CreatorProps> = ({ onCreated, initialData }) => {
           contentType: finalContentType,
           tone: finalMode === 'ai' ? finalTone : undefined,
           customTone: finalCustomTone,
-          hasWatermark: hasWatermark // PASSING PARAM
+          hasWatermark: hasWatermark
         },
         (msg) => setStatusMsg(msg)
       );
@@ -367,6 +375,19 @@ export const Creator: React.FC<CreatorProps> = ({ onCreated, initialData }) => {
   return (
     <form onSubmit={handleGenerate} className={`max-w-3xl mx-auto bg-white/95 backdrop-blur p-6 md:p-8 rounded-3xl shadow-2xl border-2 border-white/50 relative overflow-hidden transition-all`}>
       
+      {/* ERROR TOAST - DYNAMIC ALERT */}
+      {error && (
+        <div 
+            onClick={() => setError(null)}
+            className="fixed top-4 left-1/2 -translate-x-1/2 z-[100] bg-red-600 text-white px-6 py-4 rounded-full shadow-2xl flex items-center gap-3 animate-in fade-in slide-in-from-top-5 cursor-pointer hover:bg-red-700 transition-colors max-w-[90vw] md:max-w-md"
+            style={{ animation: 'shake 0.5s cubic-bezier(.36,.07,.19,.97) both' }}
+        >
+            <AlertCircle size={24} className="shrink-0" />
+            <span className="font-bold text-sm">{error}</span>
+            <X size={16} className="ml-auto opacity-70" />
+        </div>
+      )}
+
       {loading && (
         <div className="absolute inset-0 bg-white/95 z-50 flex items-center justify-center backdrop-blur-sm cursor-wait">
              <div className="text-center p-8 bg-white rounded-3xl shadow-xl border-4 border-blue-100 max-w-sm mx-4 animate-in fade-in zoom-in duration-300">
@@ -381,6 +402,7 @@ export const Creator: React.FC<CreatorProps> = ({ onCreated, initialData }) => {
       )}
 
       <div className={`transition-opacity duration-500 ${loading ? 'opacity-20 pointer-events-none' : 'opacity-100'}`}>
+          {/* ... (Header and other form elements unchanged) ... */}
           <div className="text-center mb-8 relative">
             <h2 className="font-bold text-3xl md:text-4xl text-gray-800 mb-2 font-body">Crea il Tuo Biglietto</h2>
             <button 
@@ -403,7 +425,6 @@ export const Creator: React.FC<CreatorProps> = ({ onCreated, initialData }) => {
               ))}
             </div>
             
-            {/* WATERMARK TOGGLE */}
             <div className="flex justify-center mb-4">
                  <button 
                     type="button"
@@ -416,8 +437,8 @@ export const Creator: React.FC<CreatorProps> = ({ onCreated, initialData }) => {
 
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div>
-                    <label className="block text-xs font-bold text-gray-400 mb-2 uppercase">Per chi è?</label>
-                    <input required type="text" placeholder="Nome" className="w-full p-3 border-2 border-gray-200 rounded-xl font-bold focus:border-blue-400 outline-none" value={recipientName} onChange={(e) => setRecipientName(e.target.value)} />
+                    <label className="block text-xs font-bold text-gray-400 mb-2 uppercase">Per chi è? *</label>
+                    <input required type="text" placeholder="Nome" className={`w-full p-3 border-2 rounded-xl font-bold outline-none ${!recipientName && error ? 'border-red-400 bg-red-50' : 'border-gray-200 focus:border-blue-400'}`} value={recipientName} onChange={(e) => setRecipientName(e.target.value)} />
                 </div>
                 <div>
                     <label className="block text-xs font-bold text-gray-400 mb-2 uppercase">Data Evento</label>
@@ -426,32 +447,14 @@ export const Creator: React.FC<CreatorProps> = ({ onCreated, initialData }) => {
             </div>
           </div>
 
-          {/* STEP 2: CONTENT CONFIGURATION (TABS + ACTIVITY SELECTOR) */}
+          {/* STEP 2: CONTENT CONFIGURATION */}
           <div className="mb-6">
             <label className="block text-xs font-bold text-gray-400 mb-3 uppercase tracking-wider text-center">2. Personalizza Contenuto</label>
             
             <div className="bg-gray-100 p-1 rounded-xl flex mb-4 text-sm font-bold text-gray-600 shadow-inner">
-                <button 
-                    type="button" 
-                    onClick={() => setCreationMode('guided')}
-                    className={`flex-1 py-3 rounded-lg flex items-center justify-center gap-2 transition-all ${creationMode === 'guided' ? 'bg-white text-blue-600 shadow-sm' : 'hover:bg-gray-200'}`}
-                >
-                    <Wand2 size={16}/> Assistente
-                </button>
-                <button 
-                    type="button" 
-                    onClick={() => setCreationMode('freestyle')}
-                    className={`flex-1 py-3 rounded-lg flex items-center justify-center gap-2 transition-all ${creationMode === 'freestyle' ? 'bg-white text-purple-600 shadow-sm' : 'hover:bg-gray-200'}`}
-                >
-                    <BrainCircuit size={16}/> Prompt AI
-                </button>
-                <button 
-                    type="button" 
-                    onClick={() => setCreationMode('manual')}
-                    className={`flex-1 py-3 rounded-lg flex items-center justify-center gap-2 transition-all ${creationMode === 'manual' ? 'bg-white text-orange-600 shadow-sm' : 'hover:bg-gray-200'}`}
-                >
-                    <Edit size={16}/> Manuale
-                </button>
+                <button type="button" onClick={() => setCreationMode('guided')} className={`flex-1 py-3 rounded-lg flex items-center justify-center gap-2 transition-all ${creationMode === 'guided' ? 'bg-white text-blue-600 shadow-sm' : 'hover:bg-gray-200'}`}><Wand2 size={16}/> Assistente</button>
+                <button type="button" onClick={() => setCreationMode('freestyle')} className={`flex-1 py-3 rounded-lg flex items-center justify-center gap-2 transition-all ${creationMode === 'freestyle' ? 'bg-white text-purple-600 shadow-sm' : 'hover:bg-gray-200'}`}><BrainCircuit size={16}/> Prompt AI</button>
+                <button type="button" onClick={() => setCreationMode('manual')} className={`flex-1 py-3 rounded-lg flex items-center justify-center gap-2 transition-all ${creationMode === 'manual' ? 'bg-white text-orange-600 shadow-sm' : 'hover:bg-gray-200'}`}><Edit size={16}/> Manuale</button>
             </div>
 
             {/* TAB CONTENT: GUIDED */}
@@ -463,12 +466,7 @@ export const Creator: React.FC<CreatorProps> = ({ onCreated, initialData }) => {
                     <label className="block text-xs font-bold text-blue-400 mb-2 uppercase border-t border-blue-200 pt-3">Stile e Tono:</label>
                     <div className="grid grid-cols-2 md:grid-cols-4 gap-2 mb-4">
                         {AI_TONES.map((t) => (
-                            <button
-                                key={t.id}
-                                type="button"
-                                onClick={() => setTone(t.id as ToneType)}
-                                className={`flex flex-col items-center justify-center p-3 rounded-xl border transition-all h-20 ${tone === t.id ? 'bg-white border-blue-500 shadow-md text-blue-600 ring-2 ring-blue-100' : 'bg-white/50 border-gray-200 hover:border-blue-300 text-gray-600 hover:bg-white'}`}
-                            >
+                            <button key={t.id} type="button" onClick={() => setTone(t.id as ToneType)} className={`flex flex-col items-center justify-center p-3 rounded-xl border transition-all h-20 ${tone === t.id ? 'bg-white border-blue-500 shadow-md text-blue-600 ring-2 ring-blue-100' : 'bg-white/50 border-gray-200 hover:border-blue-300 text-gray-600 hover:bg-white'}`}>
                                 <t.icon size={20} className="mb-1" />
                                 <span className="text-xs font-bold">{t.label}</span>
                                 <span className="text-[9px] opacity-70 leading-tight hidden md:block">{t.desc}</span>
@@ -478,38 +476,25 @@ export const Creator: React.FC<CreatorProps> = ({ onCreated, initialData }) => {
 
                     <div className="relative">
                         <label className="block text-xs font-bold text-gray-400 mb-2 uppercase">
-                            {selectedActivity === 'crossword' ? "Argomento del Cruciverba (es. Calcio, Cucina):" : "Messaggio o Istruzioni per la Dedica:"}
+                            {selectedActivity === 'crossword' ? "Argomento del Cruciverba * (es. Calcio, Cucina):" : "Messaggio o Istruzioni *:"}
                         </label>
                         <textarea
                             rows={3}
-                            className="w-full p-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-blue-500 outline-none resize-none bg-white"
+                            className={`w-full p-3 border rounded-xl focus:ring-2 outline-none resize-none bg-white ${!topic && error ? 'border-red-400 bg-red-50' : 'border-gray-200 focus:ring-blue-500'}`}
                             placeholder={selectedActivity === 'crossword' ? "Es: Zio Mario, ama il calcio, la pizza e dormire..." : "Es: Auguri per i 50 anni, ringrazia per la festa..."}
                             value={topic}
                             onChange={(e) => setTopic(e.target.value)}
                         />
-                        <button 
-                            type="button" 
-                            onClick={handleGenerateSuggestions}
-                            disabled={isGeneratingSuggestions || !recipientName}
-                            className={`absolute right-2 bottom-2 text-xs bg-blue-100 text-blue-600 hover:bg-blue-200 px-3 py-1.5 rounded-full font-bold flex items-center gap-1 transition-all ${isGeneratingSuggestions ? 'opacity-70 cursor-wait' : ''}`}
-                            title="Genera idee"
-                        >
-                            {isGeneratingSuggestions ? <Loader2 size={12} className="animate-spin"/> : <Sparkles size={12}/>} 
-                            Suggerimenti
+                        <button type="button" onClick={handleGenerateSuggestions} disabled={isGeneratingSuggestions || !recipientName} className={`absolute right-2 bottom-2 text-xs bg-blue-100 text-blue-600 hover:bg-blue-200 px-3 py-1.5 rounded-full font-bold flex items-center gap-1 transition-all ${isGeneratingSuggestions ? 'opacity-70 cursor-wait' : ''}`} title="Genera idee">
+                            {isGeneratingSuggestions ? <Loader2 size={12} className="animate-spin"/> : <Sparkles size={12}/>} Suggerimenti
                         </button>
                     </div>
                     {suggestedPhrases.length > 0 && (
                              <div className="mt-3 grid gap-2 animate-in slide-in-from-top-2">
                                  <p className="text-xs font-bold text-gray-400 uppercase">Idee per te:</p>
                                  {suggestedPhrases.map((phrase, i) => (
-                                     <button 
-                                        key={i}
-                                        type="button"
-                                        onClick={() => { setTopic(phrase); setSuggestedPhrases([]); }}
-                                        className="text-left text-xs p-2 bg-white border border-gray-200 rounded-lg hover:border-blue-400 hover:bg-blue-50 transition-colors flex gap-2 group"
-                                     >
-                                        <span className="mt-0.5 text-blue-500 opacity-0 group-hover:opacity-100 transition-opacity"><Check size={12}/></span>
-                                        {phrase}
+                                     <button key={i} type="button" onClick={() => { setTopic(phrase); setSuggestedPhrases([]); }} className="text-left text-xs p-2 bg-white border border-gray-200 rounded-lg hover:border-blue-400 hover:bg-blue-50 transition-colors flex gap-2 group">
+                                        <span className="mt-0.5 text-blue-500 opacity-0 group-hover:opacity-100 transition-opacity"><Check size={12}/></span>{phrase}
                                      </button>
                                  ))}
                              </div>
@@ -524,16 +509,8 @@ export const Creator: React.FC<CreatorProps> = ({ onCreated, initialData }) => {
                         <Bot className="text-purple-600" size={20}/>
                         <label className="text-sm font-bold text-purple-900">Istruzioni Libere (Prompt)</label>
                     </div>
-                    <p className="text-xs text-purple-700 mb-3">
-                        Scrivi qui esattamente cosa vuoi che faccia l'IA. Definisci sia lo <b>stile</b> che il <b>contenuto</b>.
-                    </p>
-                    <textarea
-                        rows={5}
-                        className="w-full p-4 border-2 border-purple-200 bg-white rounded-xl focus:ring-2 focus:ring-purple-400 outline-none resize-none text-purple-900 placeholder-purple-300 font-medium"
-                        placeholder="Es: Crea un cruciverba per Mario. Usa un tono sarcastico sui suoi 40 anni. Le parole devono riguardare il tennis e la cucina romana..."
-                        value={topic}
-                        onChange={(e) => setTopic(e.target.value)}
-                    />
+                    <p className="text-xs text-purple-700 mb-3">Scrivi qui esattamente cosa vuoi che faccia l'IA.</p>
+                    <textarea rows={5} className={`w-full p-4 border-2 bg-white rounded-xl outline-none resize-none text-purple-900 placeholder-purple-300 font-medium ${!topic && error ? 'border-red-400 bg-red-50' : 'border-purple-200 focus:ring-2 focus:ring-purple-400'}`} placeholder="Es: Crea un cruciverba per Mario..." value={topic} onChange={(e) => setTopic(e.target.value)}/>
                 </div>
             )}
 
@@ -542,25 +519,14 @@ export const Creator: React.FC<CreatorProps> = ({ onCreated, initialData }) => {
                 <div className="bg-orange-50/50 rounded-xl p-4 border border-orange-100 animate-in fade-in">
                     <label className="block text-xs font-bold text-orange-400 mb-2 uppercase">Cosa vuoi inserire?</label>
                     <ActivitySelector />
-                    
                     <div className="border-t border-orange-200 pt-3">
                     {selectedActivity === 'crossword' ? (
                         <>
-                             <div className="bg-orange-100 p-3 rounded-lg mb-4 flex gap-3 items-start">
-                                <div className="bg-white p-1 rounded-full text-orange-500 mt-0.5"><Edit size={14} /></div>
-                                <div>
-                                    <h4 className="text-xs font-bold text-orange-900 mb-1">Inserimento Parole</h4>
-                                    <p className="text-[10px] text-orange-800 leading-relaxed">
-                                        Tu scegli le parole e gli indizi, noi calcoliamo solo l'incastro.
-                                    </p>
-                                </div>
-                            </div>
+                             <div className="bg-orange-100 p-3 rounded-lg mb-4 flex gap-3 items-start"><div className="bg-white p-1 rounded-full text-orange-500 mt-0.5"><Edit size={14} /></div><div><h4 className="text-xs font-bold text-orange-900 mb-1">Inserimento Parole</h4><p className="text-[10px] text-orange-800 leading-relaxed">Tu scegli le parole e gli indizi, noi calcoliamo solo l'incastro.</p></div></div>
                             <div className="space-y-2">
                                 {manualWords.map((item, idx) => (
                                     <div key={idx} className="flex gap-2 relative">
-                                        <div className="relative w-1/3">
-                                            <input placeholder="PAROLA" value={item.word} onChange={(e) => handleManualChange(idx, 'word', e.target.value)} className="w-full p-2 border border-orange-200 bg-white rounded-lg font-bold uppercase focus:border-orange-400 outline-none text-sm" />
-                                        </div>
+                                        <div className="relative w-1/3"><input placeholder="PAROLA" value={item.word} onChange={(e) => handleManualChange(idx, 'word', e.target.value)} className="w-full p-2 border border-orange-200 bg-white rounded-lg font-bold uppercase focus:border-orange-400 outline-none text-sm" /></div>
                                         <input placeholder="Indizio (es. Il suo piatto preferito)" value={item.clue} onChange={(e) => handleManualChange(idx, 'clue', e.target.value)} className="flex-1 p-2 border border-orange-200 bg-white rounded-lg focus:border-orange-400 outline-none text-sm" />
                                         {manualWords.length > 2 && <button type="button" onClick={() => removeRow(idx)}><Trash2 size={16} className="text-gray-400 hover:text-red-500" /></button>}
                                     </div>
@@ -571,19 +537,12 @@ export const Creator: React.FC<CreatorProps> = ({ onCreated, initialData }) => {
                     ) : (
                         <div>
                             <label className="block text-xs font-bold text-orange-400 mb-2 uppercase">Scrivi il tuo messaggio:</label>
-                            <textarea
-                                rows={4}
-                                className="w-full p-3 border border-orange-200 rounded-xl focus:ring-2 focus:ring-orange-500 outline-none resize-none bg-white"
-                                placeholder="Scrivi qui i tuoi auguri..."
-                                value={topic}
-                                onChange={(e) => setTopic(e.target.value)}
-                            />
+                            <textarea rows={4} className={`w-full p-3 border rounded-xl outline-none resize-none bg-white ${!topic && error ? 'border-red-400 bg-red-50' : 'border-orange-200 focus:ring-2 focus:ring-orange-500'}`} placeholder="Scrivi qui i tuoi auguri..." value={topic} onChange={(e) => setTopic(e.target.value)}/>
                         </div>
                     )}
                     </div>
                 </div>
             )}
-
           </div>
 
           {selectedActivity === 'crossword' && (
@@ -597,100 +556,43 @@ export const Creator: React.FC<CreatorProps> = ({ onCreated, initialData }) => {
           <div className="mb-6">
             <label className="block text-xs font-bold text-gray-400 mb-3 uppercase tracking-wider text-center">3. Immagini e Foto</label>
             <div className="grid grid-cols-2 gap-4 mb-4">
-                
-                {/* BOX 1: COPERTINA */}
+                {/* COPERTINA */}
                 <div className="border-2 border-dashed border-gray-300 rounded-xl p-4 text-center hover:bg-gray-50 cursor-pointer relative transition-colors group overflow-hidden h-40 flex items-center justify-center bg-gray-50/50">
-                        <input type="file" accept="image/*" onChange={(e) => handleImageUpload(e, 'extra')} className="absolute inset-0 opacity-0 cursor-pointer z-10" />
-                        {processingImg === 'extra' ? (
-                        <div className="flex flex-col items-center text-blue-500"><Loader2 className="animate-spin mb-1"/><span className="text-[10px] font-bold">Elaborazione...</span></div>
-                        ) : extraImage ? (
-                            <div className="relative w-full h-full group-hover:scale-95 transition-transform">
-                                <img src={extraImage} className="h-full w-full object-contain mx-auto" />
-                                <div className="absolute bottom-0 inset-x-0 bg-black/50 text-white text-[10px] py-1 font-bold">COPERTINA</div>
-                                {/* FIX TRASH BUTTON */}
-                                <button type="button" onClick={(e) => { e.preventDefault(); e.stopPropagation(); removeImage('extra'); }} className="absolute top-1 right-1 bg-red-500 text-white rounded-full p-1 z-20 hover:bg-red-600"><Trash2 size={12}/></button>
-                            </div>
+                        {!extraImage && <input type="file" accept="image/*" onChange={(e) => handleImageUpload(e, 'extra')} className="absolute inset-0 opacity-0 cursor-pointer z-10" />}
+                        {processingImg === 'extra' ? <div className="flex flex-col items-center text-blue-500"><Loader2 className="animate-spin mb-1"/><span className="text-[10px] font-bold">Elaborazione...</span></div> : extraImage ? (
+                            <div className="relative w-full h-full group-hover:scale-95 transition-transform"><img src={extraImage} className="h-full w-full object-contain mx-auto" /><div className="absolute bottom-0 inset-x-0 bg-black/50 text-white text-[10px] py-1 font-bold">COPERTINA</div><button type="button" onClick={(e) => { e.preventDefault(); e.stopPropagation(); removeImage('extra'); }} className="absolute top-1 right-1 bg-red-500 text-white rounded-full p-1 z-20 hover:bg-red-600"><Trash2 size={12}/></button></div>
                         ) : (
-                            <div className="flex flex-col items-center group-hover:scale-105 transition-transform px-2">
-                                <div className="bg-white p-2 rounded-full shadow-sm mb-2"><ImageIcon className="text-blue-400" size={24}/></div>
-                                <span className="text-xs font-bold text-gray-600 uppercase">Immagine di Copertina</span>
-                                <span className="text-[9px] text-gray-400">(Logo, Disegno, etc.)</span>
-                            </div>
+                            <div className="flex flex-col items-center group-hover:scale-105 transition-transform px-2"><div className="bg-white p-2 rounded-full shadow-sm mb-2"><ImageIcon className="text-blue-400" size={24}/></div><span className="text-xs font-bold text-gray-600 uppercase">Immagine di Copertina</span><span className="text-[9px] text-gray-400">(Logo, Disegno, etc.)</span></div>
                         )}
                 </div>
-
-                {/* BOX 2: FOTO INTERNO */}
+                {/* FOTO INTERNO */}
                 <div className="border-2 border-dashed border-gray-300 rounded-xl p-0 text-center hover:bg-gray-50 cursor-pointer relative transition-colors group overflow-hidden h-40 flex items-center justify-center bg-gray-50/50">
-                        <input type="file" accept="image/*" multiple onChange={(e) => handleImageUpload(e, 'photo')} className="absolute inset-0 opacity-0 cursor-pointer z-10" />
-                        {processingImg === 'photo' ? (
-                        <div className="flex flex-col items-center text-blue-500"><Loader2 className="animate-spin mb-1"/><span className="text-[10px] font-bold">Collage...</span></div>
-                        ) : photos.length > 0 ? (
-                            <div className="relative w-full h-full">
-                                {renderPhotoPreview()} 
-                                <div className="absolute bottom-0 inset-x-0 bg-black/50 text-white text-[10px] py-1 font-bold">INTERNO</div>
-                                {/* FIX TRASH BUTTON */}
-                                <button type="button" onClick={(e) => { e.preventDefault(); e.stopPropagation(); removeImage('photo'); }} className="absolute top-1 right-1 bg-red-500 text-white rounded-full p-1 z-30 hover:bg-red-600"><Trash2 size={12}/></button>
-                            </div>
+                        {photos.length === 0 && <input type="file" accept="image/*" multiple onChange={(e) => handleImageUpload(e, 'photo')} className="absolute inset-0 opacity-0 cursor-pointer z-10" />}
+                        {processingImg === 'photo' ? <div className="flex flex-col items-center text-blue-500"><Loader2 className="animate-spin mb-1"/><span className="text-[10px] font-bold">Collage...</span></div> : photos.length > 0 ? (
+                            <div className="relative w-full h-full">{renderPhotoPreview()}<div className="absolute bottom-0 inset-x-0 bg-black/50 text-white text-[10px] py-1 font-bold">INTERNO</div><button type="button" onClick={(e) => { e.preventDefault(); e.stopPropagation(); removeImage('photo'); }} className="absolute top-1 right-1 bg-red-500 text-white rounded-full p-1 z-30 hover:bg-red-600"><Trash2 size={12}/></button></div>
                         ) : (
-                            <div className="flex flex-col items-center group-hover:scale-105 transition-transform px-2">
-                                <div className="bg-white p-2 rounded-full shadow-sm mb-2"><Images className="text-purple-400" size={24}/></div>
-                                <span className="text-xs font-bold text-gray-600 uppercase">Foto Ricordo</span>
-                                <span className="text-[9px] text-gray-400">(Per collage interno)</span>
-                            </div>
+                            <div className="flex flex-col items-center group-hover:scale-105 transition-transform px-2"><div className="bg-white p-2 rounded-full shadow-sm mb-2"><Images className="text-purple-400" size={24}/></div><span className="text-xs font-bold text-gray-600 uppercase">Foto Ricordo</span><span className="text-[9px] text-gray-400">(Per collage interno)</span></div>
                         )}
                 </div>
             </div>
 
-            {/* BOX 3: BRAND/LOGO AUTORE */}
+            {/* BRAND */}
             <div className="flex justify-center">
                  <div className="w-full max-w-xs border-2 border-dashed border-gray-200 rounded-lg p-2 flex items-center gap-3 relative hover:bg-gray-50 transition-colors">
-                     <input type="file" accept="image/*" onChange={(e) => handleImageUpload(e, 'brand')} className="absolute inset-0 opacity-0 cursor-pointer z-10" />
-                     <div className="bg-gray-100 p-2 rounded-full text-gray-500 shrink-0">
-                        {processingImg === 'brand' ? <Loader2 className="animate-spin" size={16}/> : <Stamp size={16}/>}
-                     </div>
-                     <div className="flex-1 text-left">
-                        <span className="block text-xs font-bold text-gray-600 uppercase">Firma Autore / Logo</span>
-                        <span className="block text-[9px] text-gray-400">Appare sul retro del biglietto</span>
-                     </div>
-                     {brandLogo && (
-                         <div className="relative w-10 h-10 border rounded bg-white">
-                             <img src={brandLogo} className="w-full h-full object-contain" />
-                             {/* FIX TRASH BUTTON */}
-                             <button type="button" onClick={(e) => { e.preventDefault(); e.stopPropagation(); removeImage('brand'); }} className="absolute -top-1 -right-1 bg-red-500 text-white rounded-full p-0.5 z-20 hover:bg-red-600"><X size={10}/></button>
-                         </div>
-                     )}
+                     {!brandLogo && <input type="file" accept="image/*" onChange={(e) => handleImageUpload(e, 'brand')} className="absolute inset-0 opacity-0 cursor-pointer z-10" />}
+                     <div className="bg-gray-100 p-2 rounded-full text-gray-500 shrink-0">{processingImg === 'brand' ? <Loader2 className="animate-spin" size={16}/> : <Stamp size={16}/>}</div>
+                     <div className="flex-1 text-left"><span className="block text-xs font-bold text-gray-600 uppercase">Firma Autore / Logo</span><span className="block text-[9px] text-gray-400">Appare sul retro del biglietto</span></div>
+                     {brandLogo && (<div className="relative w-10 h-10 border rounded bg-white"><img src={brandLogo} className="w-full h-full object-contain" /><button type="button" onClick={(e) => { e.preventDefault(); e.stopPropagation(); removeImage('brand'); }} className="absolute -top-1 -right-1 bg-red-500 text-white rounded-full p-0.5 z-20 hover:bg-red-600"><X size={10}/></button></div>)}
                  </div>
             </div>
           </div>
           
-          {/* ... (rest of the component) ... */}
-
           <div className="mb-6 bg-gray-50 p-3 rounded-xl border border-gray-100">
-             <div className="flex justify-between items-center mb-2">
-                <label className="text-xs font-bold text-gray-400 uppercase">Decorazioni</label>
-                <span className={`text-xs font-bold ${selectedStickers.length >= 5 ? 'text-red-500' : 'text-blue-500'}`}>{selectedStickers.length}/5</span>
-             </div>
-             {selectedStickers.length > 0 && (
-                <div className="flex gap-2 mb-3 bg-white p-2 rounded-lg border border-dashed border-gray-200 overflow-x-auto custom-scrollbar">
-                    <span className="text-[10px] text-gray-400 font-bold uppercase shrink-0 py-1">I tuoi sticker:</span>
-                    {selectedStickers.map((s, idx) => (
-                        <button key={idx} type="button" onClick={() => toggleSticker(s)} className="text-lg hover:bg-red-100 rounded-full px-1" title="Clicca per rimuovere">{s}</button>
-                    ))}
-                </div>
-             )}
-             <div className="flex gap-2 overflow-x-auto pb-2 mb-2 custom-scrollbar">
-                {Object.keys(STICKER_CATEGORIES).map(cat => (
-                    <button key={cat} type="button" onClick={() => setActiveStickerTab(cat)} className={`text-xs px-2 py-1 rounded-full whitespace-nowrap transition-colors ${activeStickerTab === cat ? 'bg-blue-600 text-white font-bold' : 'bg-white text-gray-600 hover:bg-gray-100 border'}`}>{cat}</button>
-                ))}
-             </div>
-             <div className="flex flex-wrap gap-2 justify-center max-h-32 overflow-y-auto p-1 custom-scrollbar bg-white rounded-lg border-inner shadow-inner">
-                {STICKER_CATEGORIES[activeStickerTab].map(s => (
-                    <button key={s} type="button" onClick={() => toggleSticker(s)} disabled={!selectedStickers.includes(s) && selectedStickers.length >= 5} className={`text-2xl p-2 rounded-full transition-all duration-300 ${selectedStickers.includes(s) ? 'bg-blue-50 shadow-md scale-110 ring-2 ring-blue-200' : 'opacity-60 hover:opacity-100 hover:scale-105'} ${!selectedStickers.includes(s) && selectedStickers.length >= 5 ? 'opacity-20 cursor-not-allowed' : ''}`}>{s}</button>
-                ))}
-            </div>
+             <div className="flex justify-between items-center mb-2"><label className="text-xs font-bold text-gray-400 uppercase">Decorazioni</label><span className={`text-xs font-bold ${selectedStickers.length >= 5 ? 'text-red-500' : 'text-blue-500'}`}>{selectedStickers.length}/5</span></div>
+             {selectedStickers.length > 0 && <div className="flex gap-2 mb-3 bg-white p-2 rounded-lg border border-dashed border-gray-200 overflow-x-auto custom-scrollbar"><span className="text-[10px] text-gray-400 font-bold uppercase shrink-0 py-1">I tuoi sticker:</span>{selectedStickers.map((s, idx) => <button key={idx} type="button" onClick={() => toggleSticker(s)} className="text-lg hover:bg-red-100 rounded-full px-1" title="Clicca per rimuovere">{s}</button>)}</div>}
+             <div className="flex gap-2 overflow-x-auto pb-2 mb-2 custom-scrollbar">{Object.keys(STICKER_CATEGORIES).map(cat => <button key={cat} type="button" onClick={() => setActiveStickerTab(cat)} className={`text-xs px-2 py-1 rounded-full whitespace-nowrap transition-colors ${activeStickerTab === cat ? 'bg-blue-600 text-white font-bold' : 'bg-white text-gray-600 hover:bg-gray-100 border'}`}>{cat}</button>)}</div>
+             <div className="flex flex-wrap gap-2 justify-center max-h-32 overflow-y-auto p-1 custom-scrollbar bg-white rounded-lg border-inner shadow-inner">{STICKER_CATEGORIES[activeStickerTab].map(s => <button key={s} type="button" onClick={() => toggleSticker(s)} disabled={!selectedStickers.includes(s) && selectedStickers.length >= 5} className={`text-2xl p-2 rounded-full transition-all duration-300 ${selectedStickers.includes(s) ? 'bg-blue-50 shadow-md scale-110 ring-2 ring-blue-200' : 'opacity-60 hover:opacity-100 hover:scale-105'} ${!selectedStickers.includes(s) && selectedStickers.length >= 5 ? 'opacity-20 cursor-not-allowed' : ''}`}>{s}</button>)}</div>
           </div>
-
-          {error && <div className="p-4 bg-red-50 text-red-700 rounded-xl text-sm mb-4 flex items-center gap-3 border border-red-200 font-bold"><AlertCircle size={24} className="shrink-0" />{error}</div>}
 
           <button type="submit" disabled={loading || !!processingImg} className={`w-full py-4 rounded-xl text-white font-bold text-lg shadow-xl flex items-center justify-center gap-2 transition-all active:scale-95 ${loading || !!processingImg ? 'bg-gray-400 cursor-not-allowed' : 'bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700'}`}>
               <Wand2 /> {initialData ? "RIGENERA BIGLIETTO" : "GENERA BIGLIETTO"}
