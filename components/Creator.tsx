@@ -1,7 +1,8 @@
+
 import React, { useState, useEffect } from 'react';
 import { generateCrossword, regenerateGreetingOptions } from '../services/geminiService';
 import { CrosswordData, ManualInput, ThemeType, ToneType, Direction } from '../types';
-import { Loader2, Wand2, Plus, Trash2, Gift, PartyPopper, CalendarHeart, Crown, KeyRound, Image as ImageIcon, Upload, Calendar, AlertCircle, Grid3X3, MailOpen, Images, Ghost, GraduationCap, ScrollText, HeartHandshake, BookOpen, Search, X, Smile, Heart, Music, Sparkles, Edit, PenTool, LayoutGrid, Zap, Check, MessageSquareDashed, Info, HelpCircle, Bot, BrainCircuit, Feather, Quote, Briefcase, GraduationCap as GradCap, Puzzle, Stamp } from 'lucide-react';
+import { Loader2, Wand2, Plus, Trash2, Gift, PartyPopper, CalendarHeart, Crown, KeyRound, Image as ImageIcon, Upload, Calendar, AlertCircle, Grid3X3, MailOpen, Images, Ghost, GraduationCap, ScrollText, HeartHandshake, BookOpen, Search, X, Smile, Heart, Music, Sparkles, Edit, PenTool, LayoutGrid, Zap, Check, MessageSquareDashed, Info, HelpCircle, Bot, BrainCircuit, Feather, Quote, Briefcase, GraduationCap as GradCap, Puzzle, Stamp, FileBadge } from 'lucide-react';
 
 interface CreatorProps {
   onCreated: (data: CrosswordData) => void;
@@ -45,11 +46,9 @@ const AI_TONES = [
     { id: 'formal', label: 'Formale', icon: Briefcase, desc: 'Classico e rispettoso' },
 ];
 
-// FUTURE-PROOFING: Activity Modules
 const ACTIVITY_MODULES = [
     { id: 'crossword', label: 'Cruciverba', icon: Grid3X3, desc: 'Parole incrociate personalizzate' },
     { id: 'simple', label: 'Solo Dedica', icon: MailOpen, desc: 'Nessun gioco, solo testo' },
-    // Future: { id: 'rebus', label: 'Rebus', icon: HelpCircle, desc: 'Coming soon...' }
 ];
 
 type CreationMode = 'guided' | 'freestyle' | 'manual';
@@ -67,10 +66,11 @@ export const Creator: React.FC<CreatorProps> = ({ onCreated, initialData }) => {
 
   // State
   const [creationMode, setCreationMode] = useState<CreationMode>('guided');
-  const [selectedActivity, setSelectedActivity] = useState<string>('crossword'); // 'crossword' | 'simple'
+  const [selectedActivity, setSelectedActivity] = useState<string>('crossword'); 
   
   const [tone, setTone] = useState<ToneType>('surprise');
   const [theme, setTheme] = useState<ThemeType>('christmas');
+  const [hasWatermark, setHasWatermark] = useState(false); // NEW
   
   const [topic, setTopic] = useState('');
   
@@ -101,23 +101,22 @@ export const Creator: React.FC<CreatorProps> = ({ onCreated, initialData }) => {
 
   useEffect(() => {
     if (initialData) {
-        setSelectedActivity(initialData.type); // Maps 'crossword' or 'simple'
+        setSelectedActivity(initialData.type); 
         setRecipientName(initialData.recipientName);
         setEventDate(initialData.eventDate);
         setTheme(initialData.theme);
+        setHasWatermark(!!initialData.hasWatermark); // RESTORE
         setExtraImage(initialData.images?.extraImage);
         setPhotos(initialData.images?.photos || []);
         setBrandLogo(initialData.images?.brandLogo);
         setSelectedStickers(initialData.stickers || []);
         
-        // Restore Logic based on stored Original Mode
         if (initialData.originalMode === 'manual') {
             setCreationMode('manual');
             if (Array.isArray(initialData.originalInput)) {
                 setManualWords(initialData.originalInput as ManualInput[]);
             }
         } else {
-            // It was AI
             if (initialData.originalTone === 'custom') {
                 setCreationMode('freestyle');
                 setTopic(initialData.originalCustomTone || (initialData.originalInput as string) || '');
@@ -141,6 +140,7 @@ export const Creator: React.FC<CreatorProps> = ({ onCreated, initialData }) => {
         setManualWords([{ word: '', clue: '' }, { word: '', clue: '' }, { word: '', clue: '' }]);
         setCreationMode('guided');
         setSelectedActivity('crossword');
+        setHasWatermark(false);
     }
   }, [initialData]);
 
@@ -262,7 +262,6 @@ export const Creator: React.FC<CreatorProps> = ({ onCreated, initialData }) => {
     e.preventDefault();
     if (loading || processingImg) return; 
     setLoading(true);
-    // Use selectedActivity directly as contentType if strictly 'crossword' or 'simple'
     const finalContentType = (selectedActivity === 'crossword' || selectedActivity === 'simple') ? selectedActivity : 'simple';
     
     setStatusMsg(finalContentType === 'crossword' ? "Costruisco la griglia..." : "Creo il biglietto...");
@@ -274,7 +273,6 @@ export const Creator: React.FC<CreatorProps> = ({ onCreated, initialData }) => {
       let finalCustomTone: string | undefined = undefined;
       let finalMode: 'ai' | 'manual' = 'ai';
 
-      // CONFIGURATION BASED ON MODE
       if (creationMode === 'manual') {
           finalMode = 'manual';
           if (finalContentType === 'crossword') {
@@ -290,7 +288,6 @@ export const Creator: React.FC<CreatorProps> = ({ onCreated, initialData }) => {
           finalCustomTone = topic; 
           inputData = topic; 
       } else {
-          // Guided logic
           if (finalContentType === 'crossword' && !topic.trim()) throw new Error("Inserisci un argomento (es. Zio Mario).");
           if (finalContentType === 'simple' && !topic.trim()) throw new Error("Scrivi o seleziona un messaggio.");
       }
@@ -312,7 +309,8 @@ export const Creator: React.FC<CreatorProps> = ({ onCreated, initialData }) => {
           stickers: selectedStickers,
           contentType: finalContentType,
           tone: finalMode === 'ai' ? finalTone : undefined,
-          customTone: finalCustomTone
+          customTone: finalCustomTone,
+          hasWatermark: hasWatermark // PASSING PARAM
         },
         (msg) => setStatusMsg(msg)
       );
@@ -366,7 +364,6 @@ export const Creator: React.FC<CreatorProps> = ({ onCreated, initialData }) => {
     </div>
   );
 
-  // --- RENDER ---
   return (
     <form onSubmit={handleGenerate} className={`max-w-3xl mx-auto bg-white/95 backdrop-blur p-6 md:p-8 rounded-3xl shadow-2xl border-2 border-white/50 relative overflow-hidden transition-all`}>
       
@@ -405,6 +402,18 @@ export const Creator: React.FC<CreatorProps> = ({ onCreated, initialData }) => {
                 </button>
               ))}
             </div>
+            
+            {/* WATERMARK TOGGLE */}
+            <div className="flex justify-center mb-4">
+                 <button 
+                    type="button"
+                    onClick={() => setHasWatermark(!hasWatermark)}
+                    className={`flex items-center gap-2 px-4 py-2 rounded-full border text-sm font-bold transition-all ${hasWatermark ? 'bg-blue-100 text-blue-700 border-blue-300' : 'bg-gray-50 text-gray-500 border-gray-200'}`}
+                 >
+                     <FileBadge size={16}/> {hasWatermark ? 'Filigrana Attiva' : 'Aggiungi Filigrana'}
+                 </button>
+            </div>
+
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div>
                     <label className="block text-xs font-bold text-gray-400 mb-2 uppercase">Per chi è?</label>
@@ -451,7 +460,6 @@ export const Creator: React.FC<CreatorProps> = ({ onCreated, initialData }) => {
                     <label className="block text-xs font-bold text-blue-400 mb-2 uppercase">Cosa vuoi inserire?</label>
                     <ActivitySelector />
 
-                    {/* Tone Selection */}
                     <label className="block text-xs font-bold text-blue-400 mb-2 uppercase border-t border-blue-200 pt-3">Stile e Tono:</label>
                     <div className="grid grid-cols-2 md:grid-cols-4 gap-2 mb-4">
                         {AI_TONES.map((t) => (
@@ -599,7 +607,8 @@ export const Creator: React.FC<CreatorProps> = ({ onCreated, initialData }) => {
                             <div className="relative w-full h-full group-hover:scale-95 transition-transform">
                                 <img src={extraImage} className="h-full w-full object-contain mx-auto" />
                                 <div className="absolute bottom-0 inset-x-0 bg-black/50 text-white text-[10px] py-1 font-bold">COPERTINA</div>
-                                <button type="button" onClick={(e) => { e.preventDefault(); removeImage('extra'); }} className="absolute top-1 right-1 bg-red-500 text-white rounded-full p-1 z-20 hover:bg-red-600"><Trash2 size={12}/></button>
+                                {/* FIX TRASH BUTTON */}
+                                <button type="button" onClick={(e) => { e.preventDefault(); e.stopPropagation(); removeImage('extra'); }} className="absolute top-1 right-1 bg-red-500 text-white rounded-full p-1 z-20 hover:bg-red-600"><Trash2 size={12}/></button>
                             </div>
                         ) : (
                             <div className="flex flex-col items-center group-hover:scale-105 transition-transform px-2">
@@ -619,7 +628,8 @@ export const Creator: React.FC<CreatorProps> = ({ onCreated, initialData }) => {
                             <div className="relative w-full h-full">
                                 {renderPhotoPreview()} 
                                 <div className="absolute bottom-0 inset-x-0 bg-black/50 text-white text-[10px] py-1 font-bold">INTERNO</div>
-                                <button type="button" onClick={(e) => { e.preventDefault(); removeImage('photo'); }} className="absolute top-1 right-1 bg-red-500 text-white rounded-full p-1 z-30 hover:bg-red-600"><Trash2 size={12}/></button>
+                                {/* FIX TRASH BUTTON */}
+                                <button type="button" onClick={(e) => { e.preventDefault(); e.stopPropagation(); removeImage('photo'); }} className="absolute top-1 right-1 bg-red-500 text-white rounded-full p-1 z-30 hover:bg-red-600"><Trash2 size={12}/></button>
                             </div>
                         ) : (
                             <div className="flex flex-col items-center group-hover:scale-105 transition-transform px-2">
@@ -645,12 +655,15 @@ export const Creator: React.FC<CreatorProps> = ({ onCreated, initialData }) => {
                      {brandLogo && (
                          <div className="relative w-10 h-10 border rounded bg-white">
                              <img src={brandLogo} className="w-full h-full object-contain" />
-                             <button type="button" onClick={(e) => { e.preventDefault(); removeImage('brand'); }} className="absolute -top-1 -right-1 bg-red-500 text-white rounded-full p-0.5 z-20 hover:bg-red-600"><X size={10}/></button>
+                             {/* FIX TRASH BUTTON */}
+                             <button type="button" onClick={(e) => { e.preventDefault(); e.stopPropagation(); removeImage('brand'); }} className="absolute -top-1 -right-1 bg-red-500 text-white rounded-full p-0.5 z-20 hover:bg-red-600"><X size={10}/></button>
                          </div>
                      )}
                  </div>
             </div>
           </div>
+          
+          {/* ... (rest of the component) ... */}
 
           <div className="mb-6 bg-gray-50 p-3 rounded-xl border border-gray-100">
              <div className="flex justify-between items-center mb-2">
