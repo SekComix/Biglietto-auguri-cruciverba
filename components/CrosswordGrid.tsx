@@ -48,7 +48,6 @@ const PhotoCollage: React.FC<{ photos: string[] }> = ({ photos }) => {
     );
 };
 
-// Item Types
 type ItemType = 'wm1' | 'wm2' | 'img1' | 'img2' | 'txt2' | 'stickerGroup' | 'customTxt';
 
 interface PositionableItem {
@@ -73,7 +72,6 @@ const CrosswordGrid: React.FC<CrosswordGridProps> = ({ data, onComplete, onEdit,
   // Graphical Assets State
   const [isEditingLayout, setIsEditingLayout] = useState(false);
   
-  // Standard Items
   const [wmSheet1, setWmSheet1] = useState({ scale: 1.5, x: 0, y: 0 });
   const [wmSheet2, setWmSheet2] = useState({ scale: 1.5, x: 0, y: 0 });
   
@@ -82,22 +80,20 @@ const CrosswordGrid: React.FC<CrosswordGridProps> = ({ data, onComplete, onEdit,
   
   const [txtSheet2, setTxtSheet2] = useState({ scale: 1, x: 0, y: 0 });
   
-  // Sticker Group (Single container for all stickers)
-  const [stickerGroup, setStickerGroup] = useState({ scale: 1, x: 0, y: 120 }); // Position default low
+  const [stickerGroup, setStickerGroup] = useState({ scale: 1, x: 0, y: 120 }); 
 
-  // Custom Texts Array
   const [customTexts, setCustomTexts] = useState<PositionableItem[]>([]);
 
   const [activeDrag, setActiveDrag] = useState<{id: string, startX: number, startY: number, initialX: number, initialY: number} | null>(null);
-  const [activeResize, setActiveResize] = useState<{id: string} | null>(null);
+  // NEW: Store initial scale and start Y for resize
+  const [activeResize, setActiveResize] = useState<{id: string, startY: number, initialScale: number} | null>(null);
 
-  // PDF Generation State
   const [isGeneratingPDF, setIsGeneratingPDF] = useState(false);
   const exportRef = useRef<HTMLDivElement>(null);
 
   const themeAssets = THEME_ASSETS[data.theme] || THEME_ASSETS.generic;
   const isCrossword = data.type === 'crossword';
-  const photos = data.images?.photos || (data.images?.photo ? [data.images.photo] : []);
+  const photos = data.images?.photos || [];
   const currentYear = new Date().getFullYear();
 
   useEffect(() => {
@@ -173,11 +169,15 @@ const CrosswordGrid: React.FC<CrosswordGridProps> = ({ data, onComplete, onEdit,
     const handleMouseMove = (e: MouseEvent) => {
         if (activeResize) {
             e.preventDefault(); 
-            const deltaY = e.movementY * 0.02; 
-            const current = getItemState(activeResize.id);
-            setItemState(activeResize.id, { scale: Math.max(0.1, Math.min(current.scale + deltaY, 6.0)) });
+            e.stopPropagation();
+            // Calculate delta from start position, not relative movement
+            const deltaY = e.clientY - activeResize.startY; 
+            const scaleChange = deltaY * 0.01; // Sensitivity
+            const newScale = Math.max(0.1, Math.min(activeResize.initialScale + scaleChange, 6.0));
+            setItemState(activeResize.id, { scale: newScale });
         } else if (activeDrag) {
             e.preventDefault();
+            e.stopPropagation();
             const dx = e.clientX - activeDrag.startX;
             const dy = e.clientY - activeDrag.startY;
             setItemState(activeDrag.id, { x: activeDrag.initialX + dx, y: activeDrag.initialY + dy });
@@ -216,9 +216,14 @@ const CrosswordGrid: React.FC<CrosswordGridProps> = ({ data, onComplete, onEdit,
 
   const startResize = (e: React.MouseEvent, id: string) => {
       if (!isEditingLayout) return;
-      e.stopPropagation(); // CRITICAL: Stop event from bubbling to drag handler
+      e.stopPropagation(); 
       e.preventDefault();
-      setActiveResize({ id });
+      const current = getItemState(id);
+      setActiveResize({ 
+          id, 
+          startY: e.clientY, 
+          initialScale: current.scale 
+      });
   };
 
   const addCustomText = () => {
@@ -362,31 +367,30 @@ const CrosswordGrid: React.FC<CrosswordGridProps> = ({ data, onComplete, onEdit,
        <div className="w-full max-w-5xl px-4 md:px-0">
             <h3 className="text-center text-white font-bold uppercase tracking-widest mb-4 flex items-center justify-center gap-2 drop-shadow-md"><FileText size={20}/> FOGLIO 1 (Esterno)</h3>
             <div className="bg-white w-full aspect-[297/210] shadow-2xl flex relative overflow-hidden rounded-sm select-none">
-                 {/* WATERMARK LAYER - Z=0 but interactive when Editing */}
-                 <div className={`absolute inset-0 flex items-center justify-center overflow-hidden z-0`}>
-                    <div className="relative group" style={{ transform: `translate(${wmSheet1.x}px, ${wmSheet1.y}px) scale(${wmSheet1.scale}) rotate(12deg)`, cursor: isEditingLayout ? 'move' : 'default', pointerEvents: isEditingLayout ? 'auto' : 'none' }} onMouseDown={isEditingLayout ? (e) => startDrag(e, 'wm1') : undefined}>
-                        <span className={`text-[100px] text-black transition-opacity duration-300 ${isEditingLayout ? 'opacity-30' : 'opacity-20'}`}>{themeAssets.watermark}</span>
-                        {isEditingLayout && <div onMouseDown={(e) => startResize(e, 'wm1')} className="absolute -bottom-6 -right-6 w-10 h-10 bg-blue-600 text-white rounded-full shadow-xl flex items-center justify-center cursor-nwse-resize z-50 pointer-events-auto hover:scale-110"><Maximize size={20} /></div>}
-                    </div>
-                 </div>
+                 {/* WATERMARK - OPTIONAL */}
+                 {data.hasWatermark && (
+                     <div className={`absolute inset-0 flex items-center justify-center overflow-hidden z-0`}>
+                        <div className="relative group" style={{ transform: `translate(${wmSheet1.x}px, ${wmSheet1.y}px) scale(${wmSheet1.scale}) rotate(12deg)`, cursor: isEditingLayout ? 'move' : 'default', pointerEvents: isEditingLayout ? 'auto' : 'none' }} onMouseDown={isEditingLayout ? (e) => startDrag(e, 'wm1') : undefined}>
+                            <span className={`text-[100px] text-black transition-opacity duration-300 ${isEditingLayout ? 'opacity-30' : 'opacity-20'}`}>{themeAssets.watermark}</span>
+                            {isEditingLayout && <div onMouseDown={(e) => startResize(e, 'wm1')} className="absolute -bottom-6 -right-6 w-10 h-10 bg-blue-600 text-white rounded-full shadow-xl flex items-center justify-center cursor-nwse-resize z-50 pointer-events-auto hover:scale-110"><Maximize size={20} /></div>}
+                        </div>
+                     </div>
+                 )}
                  <div className="absolute inset-y-0 left-1/2 w-px bg-gray-300 border-l border-dashed border-gray-400 opacity-50 z-10 pointer-events-none"></div>
 
-                 {/* CONTENT LAYER - Z=10, pointer-events-none on wrapper so clicks pass to watermark, but pointer-events-auto on Items */}
+                 {/* CONTENT LAYER */}
                  <div className={`absolute inset-0 flex z-10 transition-opacity duration-300 ${isEditingLayout ? 'opacity-90 pointer-events-none' : 'opacity-100 pointer-events-none'}`}>
                      <div className={`w-1/2 h-full p-8 flex flex-col items-center justify-center text-center ${themeAssets.printBorder} border-r-0 relative pointer-events-none`}>
                          <div className="text-6xl opacity-20 mb-4">{themeAssets.decoration}</div>
                          {data.images?.brandLogo && <div className="absolute bottom-8 left-1/2 -translate-x-1/2 flex flex-col items-center opacity-80"><img src={data.images.brandLogo} className="h-8 object-contain" /></div>}
                      </div>
-                     <div className={`w-1/2 h-full p-8 flex flex-col items-center justify-center text-center ${themeAssets.printBorder} border-l-0 relative`}>
-                         <h1 className={`text-4xl md:text-5xl ${themeAssets.fontTitle} mb-4 text-gray-900 leading-tight drop-shadow-sm`}>{data.title}</h1>
-                         <p className="text-sm md:text-base uppercase text-gray-500 mb-8 font-bold tracking-widest">{data.eventDate || "Data Speciale"} • {currentYear}</p>
+                     <div className={`w-1/2 h-full flex flex-col items-center justify-center text-center ${themeAssets.printBorder} border-l-0 relative`}>
+                         {/* COVER IMAGE - FULL SIZE */}
                          {data.images?.extraImage ? (
-                            <div className={`relative inline-block mb-4 group ${isEditingLayout ? 'cursor-move ring-2 ring-blue-500 ring-dashed pointer-events-auto' : 'pointer-events-auto'}`} style={{ transform: `translate(${imgSheet1.x}px, ${imgSheet1.y}px) scale(${imgSheet1.scale})` }} onMouseDown={isEditingLayout ? (e) => startDrag(e, 'img1') : undefined}>
-                                <img src={data.images.extraImage} className="h-32 md:h-48 object-contain drop-shadow-md pointer-events-none" />
-                                {isEditingLayout && <div onMouseDown={(e) => startResize(e, 'img1')} className="absolute -bottom-6 -right-6 w-10 h-10 bg-blue-600 text-white rounded-full shadow-xl flex items-center justify-center cursor-nwse-resize z-50 pointer-events-auto hover:scale-110"><Maximize size={20} /></div>}
+                            <div className="w-full h-full relative pointer-events-auto">
+                                <img src={data.images.extraImage} className="w-full h-full object-cover" />
                             </div>
                          ) : <div className="text-8xl opacity-80 drop-shadow-sm">{themeAssets.decoration}</div>}
-                         <div className="mt-auto"><p className="text-xs italic text-gray-400">"Apri per scoprire..."</p></div>
                      </div>
                  </div>
             </div>
@@ -396,13 +400,15 @@ const CrosswordGrid: React.FC<CrosswordGridProps> = ({ data, onComplete, onEdit,
        <div className="w-full max-w-5xl px-4 md:px-0">
            <h3 className="text-center text-white font-bold uppercase tracking-widest mb-4 flex items-center justify-center gap-2 drop-shadow-md"><BookOpen size={20}/> FOGLIO 2 (Interno)</h3>
            <div className="bg-white w-full aspect-[297/210] shadow-2xl flex relative overflow-hidden rounded-sm select-none">
-                {/* WATERMARK */}
-                <div className={`absolute inset-0 flex items-center justify-center overflow-hidden z-0`}>
-                    <div className="relative group" style={{ transform: `translate(${wmSheet2.x}px, ${wmSheet2.y}px) scale(${wmSheet2.scale}) rotate(12deg)`, cursor: isEditingLayout ? 'move' : 'default', pointerEvents: isEditingLayout ? 'auto' : 'none' }} onMouseDown={isEditingLayout ? (e) => startDrag(e, 'wm2') : undefined}>
-                        <span className={`text-[100px] text-black transition-opacity duration-300 ${isEditingLayout ? 'opacity-30' : 'opacity-20'}`}>{themeAssets.watermark}</span>
-                        {isEditingLayout && <div onMouseDown={(e) => startResize(e, 'wm2')} className="absolute -bottom-6 -right-6 w-10 h-10 bg-blue-600 text-white rounded-full shadow-xl flex items-center justify-center cursor-nwse-resize z-50 pointer-events-auto hover:scale-110"><Maximize size={20} /></div>}
+                {/* WATERMARK - OPTIONAL */}
+                {data.hasWatermark && (
+                    <div className={`absolute inset-0 flex items-center justify-center overflow-hidden z-0`}>
+                        <div className="relative group" style={{ transform: `translate(${wmSheet2.x}px, ${wmSheet2.y}px) scale(${wmSheet2.scale}) rotate(12deg)`, cursor: isEditingLayout ? 'move' : 'default', pointerEvents: isEditingLayout ? 'auto' : 'none' }} onMouseDown={isEditingLayout ? (e) => startDrag(e, 'wm2') : undefined}>
+                            <span className={`text-[100px] text-black transition-opacity duration-300 ${isEditingLayout ? 'opacity-30' : 'opacity-20'}`}>{themeAssets.watermark}</span>
+                            {isEditingLayout && <div onMouseDown={(e) => startResize(e, 'wm2')} className="absolute -bottom-6 -right-6 w-10 h-10 bg-blue-600 text-white rounded-full shadow-xl flex items-center justify-center cursor-nwse-resize z-50 pointer-events-auto hover:scale-110"><Maximize size={20} /></div>}
+                        </div>
                     </div>
-                </div>
+                )}
                 <div className="absolute inset-y-0 left-1/2 w-px bg-gray-300 border-l border-dashed border-gray-400 opacity-50 z-10 pointer-events-none"></div>
 
                 {/* CONTENT */}
@@ -410,6 +416,12 @@ const CrosswordGrid: React.FC<CrosswordGridProps> = ({ data, onComplete, onEdit,
                     {/* DEDICA (Left) */}
                     <div className={`w-1/2 h-full p-6 flex flex-col items-center justify-between text-center ${themeAssets.printBorder} border-r-0 relative`}>
                         <div className="flex-1 w-full flex flex-col items-center justify-center relative">
+                            {/* NEW HEADER: TITLE & DATE */}
+                            <div className="mb-4 pointer-events-auto">
+                                <h1 className={`text-2xl md:text-3xl ${themeAssets.fontTitle} text-gray-900 leading-tight drop-shadow-sm`}>{data.title}</h1>
+                                <p className="text-xs uppercase text-gray-500 font-bold tracking-widest mt-1">{data.eventDate || "Data Speciale"} • {currentYear}</p>
+                            </div>
+
                             {photos.length > 0 ? (
                                 <div className={`w-[70%] aspect-square mb-4 relative ${isEditingLayout ? 'cursor-move ring-2 ring-blue-500 ring-dashed pointer-events-auto' : 'pointer-events-auto'}`} style={{ transform: `translate(${imgSheet2.x}px, ${imgSheet2.y}px) scale(${imgSheet2.scale})` }} onMouseDown={isEditingLayout ? (e) => startDrag(e, 'img2') : undefined}>
                                     <div className="w-full h-full border-4 border-white shadow-lg overflow-hidden rounded-sm bg-gray-100 rotate-1 pointer-events-none"><PhotoCollage photos={photos} /></div>
@@ -500,24 +512,32 @@ const CrosswordGrid: React.FC<CrosswordGridProps> = ({ data, onComplete, onEdit,
        <div ref={exportRef} style={{ position: 'fixed', top: 0, left: '-9999px', width: '1123px', zIndex: -100 }}>
             {/* SHEET 1 */}
             <div id="pdf-sheet-1" style={{ width: '1123px', height: '794px', display: 'flex', position: 'relative', backgroundColor: 'white', overflow: 'hidden' }}>
-                 <div style={{ position: 'absolute', top: '50%', left: '50%', transform: `translate(-50%, -50%) translate(${wmSheet1.x}px, ${wmSheet1.y}px) scale(${wmSheet1.scale}) rotate(12deg)`, fontSize: '130px', opacity: 0.20, zIndex: 0, whiteSpace: 'nowrap' }}>{themeAssets.watermark}</div>
+                 {/* WATERMARK - OPTIONAL */}
+                 {data.hasWatermark && (
+                     <div style={{ position: 'absolute', top: '50%', left: '50%', transform: `translate(-50%, -50%) translate(${wmSheet1.x}px, ${wmSheet1.y}px) scale(${wmSheet1.scale}) rotate(12deg)`, fontSize: '130px', opacity: 0.20, zIndex: 0, whiteSpace: 'nowrap' }}>{themeAssets.watermark}</div>
+                 )}
                  <div className={themeAssets.printBorder} style={{ width: '50%', height: '100%', padding: '60px', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', textAlign: 'center', borderRight: 'none', position: 'relative', zIndex: 10, boxSizing: 'border-box' }}>
                     <div style={{ fontSize: '80px', opacity: 0.2, marginBottom: '20px' }}>{themeAssets.decoration}</div>
                     {data.images?.brandLogo && <div style={{ position: 'absolute', bottom: '40px', left: '50%', transform: 'translateX(-50%)', display: 'flex', flexDirection: 'column', alignItems: 'center', opacity: 0.8 }}><p style={{ fontSize: '10px', textTransform: 'uppercase', letterSpacing: '2px', color: '#9ca3af', marginBottom: '5px' }}>Created by</p><img src={data.images.brandLogo} style={{ height: '40px', objectFit: 'contain' }} /></div>}
                  </div>
-                 <div className={themeAssets.printBorder} style={{ width: '50%', height: '100%', padding: '60px', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', textAlign: 'center', borderLeft: 'none', position: 'relative', zIndex: 10, boxSizing: 'border-box' }}>
-                     <h1 className={themeAssets.fontTitle} style={{ fontSize: '50px', marginBottom: '10px', lineHeight: 1.2 }}>{data.title}</h1>
-                     <div style={{ width: '80px', height: '3px', background: '#333', marginBottom: '20px' }}></div>
-                     <p style={{ fontSize: '18px', textTransform: 'uppercase', color: '#666', letterSpacing: '2px', marginBottom: '40px' }}>{data.eventDate || "Data Speciale"} • {currentYear}</p>
-                     {data.images?.extraImage ? <img src={data.images.extraImage} style={{ maxHeight: '250px', objectFit: 'contain', transform: `translate(${imgSheet1.x}px, ${imgSheet1.y}px) scale(${imgSheet1.scale})` }} /> : <div style={{ fontSize: '120px', opacity: 0.8 }}>{themeAssets.decoration}</div>}
-                     <div style={{ marginTop: 'auto', fontSize: '12px', fontStyle: 'italic', color: '#999' }}>"Apri per scoprire..."</div>
+                 <div className={themeAssets.printBorder} style={{ width: '50%', height: '100%', padding: '0', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', textAlign: 'center', borderLeft: 'none', position: 'relative', zIndex: 10, boxSizing: 'border-box' }}>
+                     {/* COVER FULL SIZE */}
+                     {data.images?.extraImage ? <img src={data.images.extraImage} style={{ width: '100%', height: '100%', objectFit: 'cover' }} /> : <div style={{ fontSize: '120px', opacity: 0.8 }}>{themeAssets.decoration}</div>}
                  </div>
             </div>
             {/* SHEET 2 */}
             <div id="pdf-sheet-2" style={{ width: '1123px', height: '794px', display: 'flex', position: 'relative', backgroundColor: 'white', overflow: 'hidden' }}>
-                 <div style={{ position: 'absolute', top: '50%', left: '50%', transform: `translate(-50%, -50%) translate(${wmSheet2.x}px, ${wmSheet2.y}px) scale(${wmSheet2.scale}) rotate(12deg)`, fontSize: '130px', opacity: 0.20, zIndex: 0, whiteSpace: 'nowrap' }}>{themeAssets.watermark}</div>
+                 {/* WATERMARK - OPTIONAL */}
+                 {data.hasWatermark && (
+                    <div style={{ position: 'absolute', top: '50%', left: '50%', transform: `translate(-50%, -50%) translate(${wmSheet2.x}px, ${wmSheet2.y}px) scale(${wmSheet2.scale}) rotate(12deg)`, fontSize: '130px', opacity: 0.20, zIndex: 0, whiteSpace: 'nowrap' }}>{themeAssets.watermark}</div>
+                 )}
                  <div className={themeAssets.printBorder} style={{ width: '50%', height: '100%', padding: '40px', display: 'flex', flexDirection: 'column', alignItems: 'center', textAlign: 'center', borderRight: 'none', position: 'relative', zIndex: 10, boxSizing: 'border-box' }}>
                      <div style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', width: '100%', position: 'relative' }}>
+                        {/* TITLE & DATE HEADER INTERNAL */}
+                        <div style={{marginBottom: '20px'}}>
+                             <h1 className={themeAssets.fontTitle} style={{ fontSize: '40px', marginBottom: '5px', lineHeight: 1.2 }}>{data.title}</h1>
+                             <p style={{ fontSize: '14px', textTransform: 'uppercase', color: '#666', letterSpacing: '2px' }}>{data.eventDate || "Data Speciale"} • {currentYear}</p>
+                        </div>
                         {photos.length > 0 ? (
                             <div style={{ width: '80%', aspectRatio: '1/1', border: '5px solid white', boxShadow: '0 4px 6px rgba(0,0,0,0.1)', overflow: 'hidden', backgroundColor: '#f3f4f6', marginBottom: '20px', transform: `translate(${imgSheet2.x}px, ${imgSheet2.y}px) scale(${imgSheet2.scale})` }}>
                                 <PhotoCollage photos={photos} />
