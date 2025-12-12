@@ -48,6 +48,7 @@ export interface CrosswordData {
   solution?: SolutionData;
   images?: CustomImages;
   stickers?: string[];
+  hasWatermark?: boolean; // NEW: Controllo opzionale filigrana
   // Campi per la modifica
   originalInput?: string | ManualInput[];
   originalMode?: 'ai' | 'manual';
