@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect, useRef } from 'react';
 import { CrosswordData, CellData, Direction, ThemeType } from '../types';
 import { Printer, Edit, Eye, EyeOff, BookOpen, FileText, CheckCircle2, Palette, Download, Loader2, XCircle, RotateCw, Maximize, Move, Info, Type, Trash2, Grip, ArrowRightLeft } from 'lucide-react';
@@ -80,7 +81,7 @@ const CrosswordGrid: React.FC<CrosswordGridProps> = ({ data, onComplete, onEdit,
   
   const [txtSheet2, setTxtSheet2] = useState({ scale: 1, x: 0, y: 0 });
   
-  const [stickerGroup, setStickerGroup] = useState({ scale: 1, x: 0, y: 120 }); 
+  const [stickerGroup, setStickerGroup] = useState({ scale: 1, x: 0, y: 220 }); 
 
   const [customTexts, setCustomTexts] = useState<PositionableItem[]>([]);
 
@@ -268,7 +269,7 @@ const CrosswordGrid: React.FC<CrosswordGridProps> = ({ data, onComplete, onEdit,
       let letterIndexCounter = 0;
 
       return (
-        <div className="mb-2 p-1 text-center mx-auto inline-block">
+        <div className="mb-2 p-1 w-full flex justify-center">
             <div className="flex justify-center gap-1 flex-wrap">
                 {chars.map((char: string, i: number) => {
                     const isSpace = !/[A-Z]/i.test(char);
@@ -344,7 +345,15 @@ const CrosswordGrid: React.FC<CrosswordGridProps> = ({ data, onComplete, onEdit,
   };
 
   const renderGridCells = (isPrint = false) => (
-    <div className={`grid gap-[1px] bg-black/10 p-2 rounded-lg w-full h-full`} style={{ gridTemplateColumns: `repeat(${data.width}, minmax(0, 1fr))`, aspectRatio: `${data.width}/${data.height}` }}>
+    <div className={`grid gap-[1px] bg-black/10 p-2 rounded-lg`} style={{ 
+        gridTemplateColumns: `repeat(${data.width}, minmax(0, 1fr))`, 
+        aspectRatio: `${data.width}/${data.height}`,
+        width: 'auto',
+        height: 'auto',
+        maxHeight: '100%',
+        maxWidth: '100%',
+        margin: '0 auto' 
+    }}>
       {grid.map((row, y) => row.map((cell, x) => {
           const isSelected = !isPrint && selectedCell?.x === x && selectedCell?.y === y;
           const displayChar = isPrint ? '' : (revealAnswers ? cell.char : cell.userChar); 
@@ -414,7 +423,7 @@ const CrosswordGrid: React.FC<CrosswordGridProps> = ({ data, onComplete, onEdit,
            <div className="bg-white w-full aspect-[297/210] shadow-2xl flex relative overflow-hidden rounded-sm select-none">
                 {/* WATERMARK - OPTIONAL */}
                 {data.hasWatermark && (
-                    <div className={`absolute inset-0 flex items-center justify-center overflow-hidden z-0`}>
+                    <div className={`absolute inset-0 flex items-center justify-center overflow-hidden ${isEditingLayout ? 'z-30 pointer-events-auto' : 'z-0 pointer-events-none'}`}>
                         <div className="relative group" style={{ transform: `translate(${wmSheet2.x}px, ${wmSheet2.y}px) scale(${wmSheet2.scale}) rotate(12deg)`, cursor: isEditingLayout ? 'move' : 'default', pointerEvents: isEditingLayout ? 'auto' : 'none' }} onMouseDown={isEditingLayout ? (e) => startDrag(e, 'wm2') : undefined}>
                             <span className={`text-[100px] text-black transition-opacity duration-300 ${isEditingLayout ? 'opacity-30' : 'opacity-20'}`}>{themeAssets.watermark}</span>
                             {isEditingLayout && <div onMouseDown={(e) => startResize(e, 'wm2')} className="absolute -bottom-6 -right-6 w-10 h-10 bg-blue-600 text-white rounded-full shadow-xl flex items-center justify-center cursor-nwse-resize z-50 pointer-events-auto hover:scale-110"><Maximize size={20} /></div>}
