@@ -71,7 +71,7 @@ const CrosswordGrid: React.FC<CrosswordGridProps> = ({ data, onComplete, onEdit,
   const inputRefs = useRef<(HTMLInputElement | null)[][]>([]);
 
   // Graphical Assets State
-  const [isEditingLayout, setIsEditingLayout] = useState(false);
+  const [activeItemId, setActiveItemId] = useState<string | null>(null);
   
   const [wmSheet1, setWmSheet1] = useState({ scale: 1.5, x: 0, y: 0 });
   const [wmSheet2, setWmSheet2] = useState({ scale: 1.5, x: 0, y: 0 });
@@ -81,7 +81,7 @@ const CrosswordGrid: React.FC<CrosswordGridProps> = ({ data, onComplete, onEdit,
   
   const [txtSheet2, setTxtSheet2] = useState({ scale: 1, x: 0, y: 0 });
   
-  const [stickerGroup, setStickerGroup] = useState({ scale: 1, x: 0, y: 220 }); 
+  const [stickerGroup, setStickerGroup] = useState({ scale: 1, x: 0, y: 260 }); 
 
   const [customTexts, setCustomTexts] = useState<PositionableItem[]>([]);
 
@@ -208,7 +208,7 @@ const CrosswordGrid: React.FC<CrosswordGridProps> = ({ data, onComplete, onEdit,
   }, [activeResize, activeDrag, customTexts]);
 
   const startDrag = (e: React.MouseEvent, id: string) => {
-      if (!isEditingLayout) return;
+      if (activeItemId !== id) return;
       if ((e.target as HTMLElement).tagName === 'TEXTAREA') return; 
       if ((e.target as HTMLElement).tagName === 'INPUT') return; 
 
@@ -224,7 +224,7 @@ const CrosswordGrid: React.FC<CrosswordGridProps> = ({ data, onComplete, onEdit,
   };
 
   const startResize = (e: React.MouseEvent, id: string, mode: 'scale' | 'width' = 'scale') => {
-      if (!isEditingLayout) return;
+      if (activeItemId !== id) return;
       e.stopPropagation(); 
       e.preventDefault();
       const current = getItemState(id);
@@ -249,6 +249,7 @@ const CrosswordGrid: React.FC<CrosswordGridProps> = ({ data, onComplete, onEdit,
           width: 250, // Default width
           content: "Tuo Testo"
       }]);
+      setActiveItemId(newId);
   };
 
   const updateCustomTextContent = (id: string, newText: string) => {
@@ -257,10 +258,11 @@ const CrosswordGrid: React.FC<CrosswordGridProps> = ({ data, onComplete, onEdit,
   
   const removeCustomText = (id: string) => {
       setCustomTexts(prev => prev.filter(p => p.id !== id));
+      setActiveItemId(null);
   };
 
   // --- RENDER HELPERS ---
-  const renderSolution = () => {
+  const renderSolution = (isPrint = false) => {
       if (!data.solution) return null;
       // @ts-ignore
       const rawString = data.solution.original || data.solution.word;
@@ -281,13 +283,16 @@ const CrosswordGrid: React.FC<CrosswordGridProps> = ({ data, onComplete, onEdit,
                     return (
                         <div key={i} style={{ 
                             width: '25px', height: '25px', 
-                            backgroundColor: revealAnswers ? '#FEF08A' : 'white', 
+                            // FIX: isPrint -> Always White. View -> Yellow if revealed, White if not.
+                            backgroundColor: (!isPrint && revealAnswers) ? '#FEF08A' : 'white', 
                             border: '1px solid #EAB308', 
                             display: 'flex', alignItems: 'center', justifyContent: 'center', 
                             fontWeight: 'bold', fontSize: '14px', color: '#854D0E', 
                             position: 'relative'
                         }}>
-                            {revealAnswers && <span style={{zIndex: 2}}>{char}</span>}
+                            {/* In Print mode, never show char. In View, show if revealed. */}
+                            {!isPrint && revealAnswers && <span style={{zIndex: 2}}>{char}</span>}
+                            
                             <span style={{
                                 position: 'absolute', bottom: '1px', right: '1px', 
                                 fontSize: '8px', color: '#B45309', fontWeight: 'bold', lineHeight: 1
@@ -317,7 +322,9 @@ const CrosswordGrid: React.FC<CrosswordGridProps> = ({ data, onComplete, onEdit,
         const imgData2 = canvas2.toDataURL('image/jpeg', 0.95);
         const win = window.open('', '_blank');
         if (!win) { alert("Abilita i popup."); return; }
-        win.document.write(`<!DOCTYPE html><html><head><title>Anteprima Biglietto</title><meta name="viewport" content="width=device-width, initial-scale=1.0"><style>body{font-family:system-ui;background:#374151;margin:0;padding:0;display:flex;flex-direction:column;align-items:center;min-height:100vh}.toolbar{position:fixed;top:0;left:0;right:0;background:white;padding:12px;box-shadow:0 4px 6px rgba(0,0,0,0.1);display:flex;justify-content:center;gap:15px;z-index:1000}.btn{padding:10px 20px;border-radius:8px;font-weight:600;cursor:pointer;border:none}.btn-primary{background:#2563eb;color:white}.content{margin-top:80px;padding:20px;display:flex;flex-direction:column;align-items:center;gap:40px}.preview-img{max-width:95vw;max-height:85vh;border:1px solid #eee;background:white}.rotate-180{transform:rotate(180deg)}@media print{body{display:block;background:white}.toolbar{display:none}.content{margin:0;padding:0;display:block}.preview-img{width:297mm;height:210mm;max-width:none;page-break-after:always}}</style><script>function toggleRotation(){document.getElementById('sheet2-img').classList.toggle('rotate-180')}</script></head><body><div class="toolbar"><button class="btn" onclick="window.close()">❌ Chiudi</button><button class="btn" onclick="toggleRotation()">🔄 Ruota Retro</button><button class="btn btn-primary" onclick="window.print()">🖨️ STAMPA</button></div><div class="content"><img src="${imgData1}" class="preview-img"/><img id="sheet2-img" src="${imgData2}" class="preview-img"/></div></body></html>`);
+        
+        // CSS Aggiornato per Toolbar con pulsanti fissi grandi
+        win.document.write(`<!DOCTYPE html><html><head><title>Anteprima Biglietto</title><meta name="viewport" content="width=device-width, initial-scale=1.0"><style>body{font-family:system-ui;background:#374151;margin:0;padding:0;display:flex;flex-direction:column;align-items:center;min-height:100vh}.toolbar{position:fixed;top:0;left:0;width:100%;height:70px;background:white;box-shadow:0 4px 10px rgba(0,0,0,0.2);display:flex;align-items:center;justify-content:center;gap:20px;z-index:9999;min-width:600px;overflow-x:auto}.btn{padding:12px 24px;border-radius:30px;font-weight:700;cursor:pointer;border:2px solid #e5e7eb;white-space:nowrap;flex-shrink:0;font-size:16px;background:white;color:#374151;box-shadow:0 2px 5px rgba(0,0,0,0.05);transition:all 0.2s}.btn:hover{background:#f9fafb;border-color:#d1d5db;transform:translateY(-1px)}.btn-primary{background:#2563eb;color:white;border-color:#2563eb}.btn-primary:hover{background:#1d4ed8}.content{margin-top:90px;padding:20px;display:flex;flex-direction:column;align-items:center;gap:40px}.preview-img{max-width:95vw;max-height:85vh;border:1px solid #eee;background:white;box-shadow:0 20px 25px -5px rgba(0,0,0,0.1)}.rotate-180{transform:rotate(180deg)}@media print{body{display:block;background:white}.toolbar{display:none}.content{margin:0;padding:0;display:block}.preview-img{width:297mm;height:210mm;max-width:none;page-break-after:always;box-shadow:none;border:none}}</style><script>function toggleRotation(){document.getElementById('sheet2-img').classList.toggle('rotate-180')}</script></head><body><div class="toolbar"><button class="btn" onclick="window.close()">❌ Chiudi</button><button class="btn" onclick="toggleRotation()">🔄 Ruota Retro</button><button class="btn btn-primary" onclick="window.print()">🖨️ STAMPA</button></div><div class="content"><img src="${imgData1}" class="preview-img"/><img id="sheet2-img" src="${imgData2}" class="preview-img"/></div></body></html>`);
         win.document.close();
       } catch (e) { console.error("PDF Error", e); alert("Errore PDF."); } finally { setIsGeneratingPDF(false); }
   };
@@ -348,7 +355,7 @@ const CrosswordGrid: React.FC<CrosswordGridProps> = ({ data, onComplete, onEdit,
     <div className={`grid gap-[1px] bg-black/10 p-2 rounded-lg`} style={{ 
         gridTemplateColumns: `repeat(${data.width}, minmax(0, 1fr))`, 
         aspectRatio: `${data.width}/${data.height}`,
-        width: 'auto',
+        width: '100%', 
         height: 'auto',
         maxHeight: '100%',
         maxWidth: '100%',
@@ -370,16 +377,11 @@ const CrosswordGrid: React.FC<CrosswordGridProps> = ({ data, onComplete, onEdit,
   );
 
   return (
-    <div className="flex flex-col items-center gap-8 w-full pb-20">
+    <div className="flex flex-col items-center gap-8 w-full pb-20" onClick={() => setActiveItemId(null)}>
        
-       <div className="flex flex-wrap gap-2 justify-center z-20 sticky top-2 p-2 bg-black/5 rounded-full backdrop-blur-sm shadow-xl border border-white/10">
+       <div className="flex flex-wrap gap-2 justify-center z-20 sticky top-2 p-2 bg-black/5 rounded-full backdrop-blur-sm shadow-xl border border-white/10" onClick={(e) => e.stopPropagation()}>
             <button onClick={onEdit} className="bg-white px-4 py-2 rounded-full shadow border text-sm flex items-center gap-2 font-bold hover:bg-gray-50 text-gray-700 active:scale-95"><Edit size={16} /> Modifica Dati</button>
-            <button onClick={() => setIsEditingLayout(!isEditingLayout)} className={`px-4 py-2 rounded-full shadow border text-sm flex items-center gap-2 font-bold active:scale-95 ${isEditingLayout ? 'bg-blue-600 text-white shadow-blue-500/30' : 'bg-white text-gray-700'}`}>
-                {isEditingLayout ? <CheckCircle2 size={16}/> : <Palette size={16}/>} {isEditingLayout ? 'Fatto' : 'Modifica Layout'}
-            </button>
-            {isEditingLayout && (
-                 <button onClick={addCustomText} className="bg-white px-3 py-2 rounded-full shadow border text-sm flex items-center gap-2 font-bold hover:bg-purple-50 text-purple-700 active:scale-95 border-purple-200"><Type size={16}/> Aggiungi Testo</button>
-            )}
+            <button onClick={addCustomText} className="bg-white px-3 py-2 rounded-full shadow border text-sm flex items-center gap-2 font-bold hover:bg-purple-50 text-purple-700 active:scale-95 border-purple-200"><Type size={16}/> Aggiungi Testo</button>
             <button onClick={() => setRevealAnswers(!revealAnswers)} className={`px-4 py-2 rounded-full shadow border text-sm flex items-center gap-2 font-bold active:scale-95 ${revealAnswers ? 'bg-yellow-100 text-yellow-800' : 'bg-white text-gray-700'}`}>{revealAnswers ? <EyeOff size={16}/> : <Eye size={16}/>} {revealAnswers ? 'Nascondi' : 'Soluzione'}</button>
             <button onClick={handleDownloadPDF} disabled={isGeneratingPDF} className={`text-white px-6 py-2 rounded-full shadow-lg text-sm flex items-center gap-2 font-bold active:scale-95 ${isGeneratingPDF ? 'bg-gray-400' : 'bg-gradient-to-r from-green-600 to-emerald-600'}`}>{isGeneratingPDF ? <Loader2 size={16} className="animate-spin"/> : <Printer size={16} />} ANTEPRIMA STAMPA</button>
        </div>
@@ -390,17 +392,21 @@ const CrosswordGrid: React.FC<CrosswordGridProps> = ({ data, onComplete, onEdit,
             <div className="bg-white w-full aspect-[297/210] shadow-2xl flex relative overflow-hidden rounded-sm select-none">
                  {/* WATERMARK - OPTIONAL */}
                  {data.hasWatermark && (
-                     <div className={`absolute inset-0 flex items-center justify-center overflow-hidden z-0`}>
-                        <div className="relative group" style={{ transform: `translate(${wmSheet1.x}px, ${wmSheet1.y}px) scale(${wmSheet1.scale}) rotate(12deg)`, cursor: isEditingLayout ? 'move' : 'default', pointerEvents: isEditingLayout ? 'auto' : 'none' }} onMouseDown={isEditingLayout ? (e) => startDrag(e, 'wm1') : undefined}>
-                            <span className={`text-[100px] text-black transition-opacity duration-300 ${isEditingLayout ? 'opacity-30' : 'opacity-20'}`}>{themeAssets.watermark}</span>
-                            {isEditingLayout && <div onMouseDown={(e) => startResize(e, 'wm1')} className="absolute -bottom-6 -right-6 w-10 h-10 bg-blue-600 text-white rounded-full shadow-xl flex items-center justify-center cursor-nwse-resize z-50 pointer-events-auto hover:scale-110"><Maximize size={20} /></div>}
+                     <div className={`absolute inset-0 flex items-center justify-center overflow-hidden ${activeItemId === 'wm1' ? 'z-20' : 'z-0'}`}>
+                        <div className="relative group" 
+                            style={{ transform: `translate(${wmSheet1.x}px, ${wmSheet1.y}px) scale(${wmSheet1.scale}) rotate(12deg)`, cursor: activeItemId === 'wm1' ? 'move' : 'default', pointerEvents: activeItemId === 'wm1' ? 'auto' : 'none' }} 
+                            onMouseDown={(e) => startDrag(e, 'wm1')}
+                            onDoubleClick={(e) => { e.stopPropagation(); setActiveItemId('wm1'); }}
+                        >
+                            <span className={`text-[100px] text-black transition-opacity duration-300 ${activeItemId === 'wm1' ? 'opacity-30' : 'opacity-20'}`}>{themeAssets.watermark}</span>
+                            {activeItemId === 'wm1' && <div onMouseDown={(e) => startResize(e, 'wm1')} className="absolute -bottom-6 -right-6 w-10 h-10 bg-blue-600 text-white rounded-full shadow-xl flex items-center justify-center cursor-nwse-resize z-50 pointer-events-auto hover:scale-110"><Maximize size={20} /></div>}
                         </div>
                      </div>
                  )}
                  <div className="absolute inset-y-0 left-1/2 w-px bg-gray-300 border-l border-dashed border-gray-400 opacity-50 z-10 pointer-events-none"></div>
 
                  {/* CONTENT LAYER */}
-                 <div className={`absolute inset-0 flex z-10 transition-opacity duration-300 ${isEditingLayout ? 'opacity-90 pointer-events-none' : 'opacity-100 pointer-events-none'}`}>
+                 <div className={`absolute inset-0 flex z-10 transition-opacity duration-300 pointer-events-none`}>
                      <div className={`w-1/2 h-full p-8 flex flex-col items-center justify-center text-center ${themeAssets.printBorder} border-r-0 relative pointer-events-none`}>
                          <div className="text-6xl opacity-20 mb-4">{themeAssets.decoration}</div>
                          {data.images?.brandLogo && <div className="absolute bottom-8 left-1/2 -translate-x-1/2 flex flex-col items-center opacity-80"><img src={data.images.brandLogo} className="h-8 object-contain" /></div>}
@@ -408,7 +414,7 @@ const CrosswordGrid: React.FC<CrosswordGridProps> = ({ data, onComplete, onEdit,
                      <div className={`w-1/2 h-full flex flex-col items-center justify-center text-center ${themeAssets.printBorder} border-l-0 relative`}>
                          {/* COVER IMAGE - FULL SIZE */}
                          {data.images?.extraImage ? (
-                            <div className="w-full h-full relative pointer-events-auto">
+                            <div className={`w-full h-full relative`}>
                                 <img src={data.images.extraImage} className="w-full h-full object-cover" />
                             </div>
                          ) : <div className="text-8xl opacity-80 drop-shadow-sm">{themeAssets.decoration}</div>}
@@ -423,17 +429,21 @@ const CrosswordGrid: React.FC<CrosswordGridProps> = ({ data, onComplete, onEdit,
            <div className="bg-white w-full aspect-[297/210] shadow-2xl flex relative overflow-hidden rounded-sm select-none">
                 {/* WATERMARK - OPTIONAL */}
                 {data.hasWatermark && (
-                    <div className={`absolute inset-0 flex items-center justify-center overflow-hidden ${isEditingLayout ? 'z-30 pointer-events-auto' : 'z-0 pointer-events-none'}`}>
-                        <div className="relative group" style={{ transform: `translate(${wmSheet2.x}px, ${wmSheet2.y}px) scale(${wmSheet2.scale}) rotate(12deg)`, cursor: isEditingLayout ? 'move' : 'default', pointerEvents: isEditingLayout ? 'auto' : 'none' }} onMouseDown={isEditingLayout ? (e) => startDrag(e, 'wm2') : undefined}>
-                            <span className={`text-[100px] text-black transition-opacity duration-300 ${isEditingLayout ? 'opacity-30' : 'opacity-20'}`}>{themeAssets.watermark}</span>
-                            {isEditingLayout && <div onMouseDown={(e) => startResize(e, 'wm2')} className="absolute -bottom-6 -right-6 w-10 h-10 bg-blue-600 text-white rounded-full shadow-xl flex items-center justify-center cursor-nwse-resize z-50 pointer-events-auto hover:scale-110"><Maximize size={20} /></div>}
+                    <div className={`absolute inset-0 flex items-center justify-center overflow-hidden ${activeItemId === 'wm2' ? 'z-20 pointer-events-auto' : 'z-0 pointer-events-none'}`}>
+                        <div className="relative group" 
+                            style={{ transform: `translate(${wmSheet2.x}px, ${wmSheet2.y}px) scale(${wmSheet2.scale}) rotate(12deg)`, cursor: activeItemId === 'wm2' ? 'move' : 'default', pointerEvents: activeItemId === 'wm2' ? 'auto' : 'none' }} 
+                            onMouseDown={(e) => startDrag(e, 'wm2')}
+                            onDoubleClick={(e) => { e.stopPropagation(); setActiveItemId('wm2'); }}
+                        >
+                            <span className={`text-[100px] text-black transition-opacity duration-300 ${activeItemId === 'wm2' ? 'opacity-30' : 'opacity-20'}`}>{themeAssets.watermark}</span>
+                            {activeItemId === 'wm2' && <div onMouseDown={(e) => startResize(e, 'wm2')} className="absolute -bottom-6 -right-6 w-10 h-10 bg-blue-600 text-white rounded-full shadow-xl flex items-center justify-center cursor-nwse-resize z-50 pointer-events-auto hover:scale-110"><Maximize size={20} /></div>}
                         </div>
                     </div>
                 )}
                 <div className="absolute inset-y-0 left-1/2 w-px bg-gray-300 border-l border-dashed border-gray-400 opacity-50 z-10 pointer-events-none"></div>
 
                 {/* CONTENT */}
-                <div className={`absolute inset-0 flex z-10 transition-opacity duration-300 ${isEditingLayout ? 'opacity-90 pointer-events-none' : 'opacity-100 pointer-events-none'}`}>
+                <div className={`absolute inset-0 flex z-10`}>
                     {/* DEDICA (Left) - HEADER MOVED TO TOP */}
                     <div className={`w-1/2 h-full p-6 flex flex-col text-center ${themeAssets.printBorder} border-r-0 relative`}>
                         {/* HEADER: TITLE & DATE - MOVED UP HERE */}
@@ -444,43 +454,60 @@ const CrosswordGrid: React.FC<CrosswordGridProps> = ({ data, onComplete, onEdit,
                         
                         <div className="flex-1 w-full flex flex-col items-center justify-center relative">
                             {photos.length > 0 ? (
-                                <div className={`w-[70%] aspect-square mb-4 relative ${isEditingLayout ? 'cursor-move ring-2 ring-blue-500 ring-dashed pointer-events-auto' : 'pointer-events-auto'}`} style={{ transform: `translate(${imgSheet2.x}px, ${imgSheet2.y}px) scale(${imgSheet2.scale})` }} onMouseDown={isEditingLayout ? (e) => startDrag(e, 'img2') : undefined}>
+                                <div className={`w-[70%] aspect-square mb-4 relative ${activeItemId === 'img2' ? 'cursor-move ring-2 ring-blue-500 ring-dashed pointer-events-auto z-50' : 'pointer-events-auto'}`} 
+                                    style={{ transform: `translate(${imgSheet2.x}px, ${imgSheet2.y}px) scale(${imgSheet2.scale})` }} 
+                                    onMouseDown={(e) => startDrag(e, 'img2')}
+                                    onDoubleClick={(e) => { e.stopPropagation(); setActiveItemId('img2'); }}
+                                >
                                     <div className="w-full h-full border-4 border-white shadow-lg overflow-hidden rounded-sm bg-gray-100 rotate-1 pointer-events-none"><PhotoCollage photos={photos} /></div>
-                                    {isEditingLayout && <div onMouseDown={(e) => startResize(e, 'img2')} className="absolute -bottom-6 -right-6 w-10 h-10 bg-blue-600 text-white rounded-full shadow-xl flex items-center justify-center cursor-nwse-resize z-50 pointer-events-auto hover:scale-110"><Maximize size={20} /></div>}
+                                    {activeItemId === 'img2' && <div onMouseDown={(e) => startResize(e, 'img2')} className="absolute -bottom-6 -right-6 w-10 h-10 bg-blue-600 text-white rounded-full shadow-xl flex items-center justify-center cursor-nwse-resize z-50 pointer-events-auto hover:scale-110"><Maximize size={20} /></div>}
                                 </div>
                             ) : data.images?.extraImage ? (
-                                <div className={`relative inline-block mb-4 ${isEditingLayout ? 'cursor-move ring-2 ring-blue-500 ring-dashed pointer-events-auto' : 'pointer-events-auto'}`} style={{ transform: `translate(${imgSheet2.x}px, ${imgSheet2.y}px) scale(${imgSheet2.scale})` }} onMouseDown={isEditingLayout ? (e) => startDrag(e, 'img2') : undefined}>
+                                <div className={`relative inline-block mb-4 ${activeItemId === 'img2' ? 'cursor-move ring-2 ring-blue-500 ring-dashed pointer-events-auto z-50' : 'pointer-events-auto'}`} 
+                                    style={{ transform: `translate(${imgSheet2.x}px, ${imgSheet2.y}px) scale(${imgSheet2.scale})` }} 
+                                    onMouseDown={(e) => startDrag(e, 'img2')}
+                                    onDoubleClick={(e) => { e.stopPropagation(); setActiveItemId('img2'); }}
+                                >
                                     <img src={data.images.extraImage} className="h-32 object-contain drop-shadow-md pointer-events-none" />
-                                    {isEditingLayout && <div onMouseDown={(e) => startResize(e, 'img2')} className="absolute -bottom-6 -right-6 w-10 h-10 bg-blue-600 text-white rounded-full shadow-xl flex items-center justify-center cursor-nwse-resize z-50 pointer-events-auto hover:scale-110"><Maximize size={20} /></div>}
+                                    {activeItemId === 'img2' && <div onMouseDown={(e) => startResize(e, 'img2')} className="absolute -bottom-6 -right-6 w-10 h-10 bg-blue-600 text-white rounded-full shadow-xl flex items-center justify-center cursor-nwse-resize z-50 pointer-events-auto hover:scale-110"><Maximize size={20} /></div>}
                                 </div>
                             ) : null}
 
-                            <div className={`w-full relative group ${isEditingLayout ? 'cursor-move ring-2 ring-blue-500 ring-dashed pointer-events-auto' : 'pointer-events-auto'}`} style={{ transform: `translate(${txtSheet2.x}px, ${txtSheet2.y}px) scale(${txtSheet2.scale})` }} onMouseDown={isEditingLayout ? (e) => startDrag(e, 'txt2') : undefined}>
+                            <div className={`w-full relative group ${activeItemId === 'txt2' ? 'cursor-move ring-2 ring-blue-500 ring-dashed pointer-events-auto z-50' : 'pointer-events-auto'}`} 
+                                style={{ transform: `translate(${txtSheet2.x}px, ${txtSheet2.y}px) scale(${txtSheet2.scale})` }} 
+                                onMouseDown={(e) => startDrag(e, 'txt2')}
+                                onDoubleClick={(e) => { e.stopPropagation(); setActiveItemId('txt2'); }}
+                            >
                                 {isEditingMsg ? (
                                     <div className="w-full bg-white p-2 rounded-xl shadow-lg border border-blue-200 z-20 absolute top-[-50px] left-0 pointer-events-auto"><textarea className="w-full p-2 bg-gray-50 border border-blue-200 rounded-lg text-center text-sm font-hand" rows={4} value={editableMessage} onChange={(e) => setEditableMessage(e.target.value)}/><button onClick={() => setIsEditingMsg(false)} className="bg-green-500 text-white text-xs px-3 py-1 rounded-full font-bold mt-2">Fatto</button></div>
                                 ) : (
-                                    <div className="relative cursor-pointer hover:bg-yellow-50/50 rounded-xl p-2 transition-colors border border-transparent hover:border-yellow-200" onClick={() => !isEditingLayout && setIsEditingMsg(true)}>
+                                    <div className="relative cursor-pointer hover:bg-yellow-50/50 rounded-xl p-2 transition-colors border border-transparent hover:border-yellow-200" onClick={() => !activeItemId && setIsEditingMsg(true)}>
                                         <p className={`text-xl md:text-2xl leading-relaxed ${themeAssets.fontTitle} text-gray-800 drop-shadow-sm`}>"{editableMessage}"</p>
                                         <span className="absolute -top-2 -right-2 opacity-0 group-hover:opacity-100 text-gray-400 bg-white rounded-full p-1 shadow-md pointer-events-none"><Edit size={12}/></span>
                                     </div>
                                 )}
-                                {isEditingLayout && <div onMouseDown={(e) => startResize(e, 'txt2')} className="absolute -bottom-6 -right-6 w-10 h-10 bg-blue-600 text-white rounded-full shadow-xl flex items-center justify-center cursor-nwse-resize z-50 pointer-events-auto hover:scale-110"><Maximize size={20} /></div>}
+                                {activeItemId === 'txt2' && <div onMouseDown={(e) => startResize(e, 'txt2')} className="absolute -bottom-6 -right-6 w-10 h-10 bg-blue-600 text-white rounded-full shadow-xl flex items-center justify-center cursor-nwse-resize z-50 pointer-events-auto hover:scale-110"><Maximize size={20} /></div>}
                             </div>
                         </div>
                         
                         {/* STICKER CONTAINER - Single Group */}
-                        <div className={`absolute left-1/2 top-1/2 ${isEditingLayout ? 'cursor-move ring-2 ring-green-400 ring-dashed bg-green-50/30 rounded-lg pointer-events-auto' : 'pointer-events-auto'}`} style={{ transform: `translate(-50%, -50%) translate(${stickerGroup.x}px, ${stickerGroup.y}px) scale(${stickerGroup.scale})` }} onMouseDown={isEditingLayout ? (e) => startDrag(e, 'stickerGroup') : undefined}>
+                        <div className={`absolute left-1/2 top-1/2 ${activeItemId === 'stickerGroup' ? 'cursor-move ring-2 ring-green-400 ring-dashed bg-green-50/30 rounded-lg pointer-events-auto z-50' : 'pointer-events-auto'}`} 
+                            style={{ transform: `translate(-50%, -50%) translate(${stickerGroup.x}px, ${stickerGroup.y}px) scale(${stickerGroup.scale})` }} 
+                            onMouseDown={(e) => startDrag(e, 'stickerGroup')}
+                            onDoubleClick={(e) => { e.stopPropagation(); setActiveItemId('stickerGroup'); }}
+                        >
                             <div className="flex gap-2 text-3xl drop-shadow-sm">{data.stickers?.slice(0,5).map((s,i) => <span key={i}>{s}</span>)}</div>
-                            {isEditingLayout && <div onMouseDown={(e) => startResize(e, 'stickerGroup')} className="absolute -bottom-6 -right-6 w-10 h-10 bg-blue-600 text-white rounded-full shadow-xl flex items-center justify-center cursor-nwse-resize z-50 pointer-events-auto hover:scale-110"><Maximize size={20} /></div>}
+                            {activeItemId === 'stickerGroup' && <div onMouseDown={(e) => startResize(e, 'stickerGroup')} className="absolute -bottom-6 -right-6 w-10 h-10 bg-blue-600 text-white rounded-full shadow-xl flex items-center justify-center cursor-nwse-resize z-50 pointer-events-auto hover:scale-110"><Maximize size={20} /></div>}
                         </div>
 
                          {/* Custom Texts */}
                          {customTexts.map(t => (
-                            <div key={t.id} className={`absolute left-1/2 top-1/2 flex items-center justify-center ${isEditingLayout ? 'pointer-events-auto cursor-move ring-1 ring-purple-300 ring-dashed bg-white/80 rounded-lg shadow-sm z-50' : 'pointer-events-auto'}`} 
+                            <div key={t.id} className={`absolute left-1/2 top-1/2 flex items-center justify-center ${activeItemId === t.id ? 'pointer-events-auto cursor-move ring-1 ring-purple-300 ring-dashed bg-white/80 rounded-lg shadow-sm z-50' : 'pointer-events-auto'}`} 
                                 style={{ transform: `translate(-50%, -50%) translate(${t.x}px, ${t.y}px)` }} 
-                                onMouseDown={isEditingLayout ? (e) => startDrag(e, t.id) : undefined}
+                                onMouseDown={(e) => startDrag(e, t.id)}
+                                onDoubleClick={(e) => { e.stopPropagation(); setActiveItemId(t.id); }}
                             >
-                                {isEditingLayout ? (
+                                {activeItemId === t.id ? (
                                     <div className="relative group p-2 border-2 border-purple-300 border-dashed rounded-lg" style={{ width: `${t.width || 250}px` }}>
                                         <textarea 
                                             value={t.content} 
@@ -542,7 +569,7 @@ const CrosswordGrid: React.FC<CrosswordGridProps> = ({ data, onComplete, onEdit,
                  {data.hasWatermark && (
                      <div style={{ position: 'absolute', top: '50%', left: '50%', transform: `translate(-50%, -50%) translate(${wmSheet1.x}px, ${wmSheet1.y}px) scale(${wmSheet1.scale}) rotate(12deg)`, fontSize: '130px', opacity: 0.20, zIndex: 0, whiteSpace: 'nowrap' }}>{themeAssets.watermark}</div>
                  )}
-                 <div className={themeAssets.printBorder} style={{ width: '50%', height: '100%', padding: '60px', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', textAlign: 'center', borderRight: 'none', position: 'relative', zIndex: 10, boxSizing: 'border-box' }}>
+                 <div className={themeAssets.printBorder} style={{ width: '50%', height: '100%', padding: '30px', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', textAlign: 'center', borderRight: 'none', position: 'relative', zIndex: 10, boxSizing: 'border-box' }}>
                     <div style={{ fontSize: '80px', opacity: 0.2, marginBottom: '20px' }}>{themeAssets.decoration}</div>
                     {data.images?.brandLogo && <div style={{ position: 'absolute', bottom: '40px', left: '50%', transform: 'translateX(-50%)', display: 'flex', flexDirection: 'column', alignItems: 'center', opacity: 0.8 }}><p style={{ fontSize: '10px', textTransform: 'uppercase', letterSpacing: '2px', color: '#9ca3af', marginBottom: '5px' }}>Created by</p><img src={data.images.brandLogo} style={{ height: '40px', objectFit: 'contain' }} /></div>}
                  </div>
@@ -552,12 +579,12 @@ const CrosswordGrid: React.FC<CrosswordGridProps> = ({ data, onComplete, onEdit,
                  </div>
             </div>
             {/* SHEET 2 */}
-            <div id="pdf-sheet-2" style={{ width: '1123px', height: '794px', display: 'flex', position: 'relative', backgroundColor: 'white', overflow: 'hidden' }}>
+            <div id="pdf-sheet-2" style={{ width: '1123px', height: '794px', display: 'flex', position: 'relative', backgroundColor: 'white', overflow: 'hidden', boxSizing: 'border-box', padding: '30px' }}>
                  {/* WATERMARK - OPTIONAL */}
                  {data.hasWatermark && (
                     <div style={{ position: 'absolute', top: '50%', left: '50%', transform: `translate(-50%, -50%) translate(${wmSheet2.x}px, ${wmSheet2.y}px) scale(${wmSheet2.scale}) rotate(12deg)`, fontSize: '130px', opacity: 0.20, zIndex: 0, whiteSpace: 'nowrap' }}>{themeAssets.watermark}</div>
                  )}
-                 <div className={themeAssets.printBorder} style={{ width: '50%', height: '100%', padding: '40px', display: 'flex', flexDirection: 'column', alignItems: 'center', textAlign: 'center', borderRight: 'none', position: 'relative', zIndex: 10, boxSizing: 'border-box' }}>
+                 <div className={themeAssets.printBorder} style={{ flex: '1 0 0', width: '0', height: '100%', padding: '30px', display: 'flex', flexDirection: 'column', alignItems: 'center', textAlign: 'center', borderRight: 'none', position: 'relative', zIndex: 10, boxSizing: 'border-box' }}>
                      {/* TITLE & DATE HEADER INTERNAL PDF */}
                      <div style={{marginBottom: '20px', width: '100%'}}>
                           <h1 className={themeAssets.fontTitle} style={{ fontSize: '40px', marginBottom: '5px', lineHeight: 1.2 }}>{data.title}</h1>
@@ -583,14 +610,14 @@ const CrosswordGrid: React.FC<CrosswordGridProps> = ({ data, onComplete, onEdit,
                         ))}
                      </div>
                  </div>
-                 <div className={themeAssets.printBorder} style={{ width: '50%', height: '100%', padding: '40px', display: 'flex', flexDirection: 'column', borderLeft: 'none', position: 'relative', zIndex: 10, boxSizing: 'border-box' }}>
+                 <div className={themeAssets.printBorder} style={{ flex: '1 0 0', width: '0', height: '100%', padding: '30px', display: 'flex', flexDirection: 'column', borderLeft: 'none', position: 'relative', zIndex: 10, boxSizing: 'border-box' }}>
                     {isCrossword ? (
-                       <div style={{ flex: 1, display: 'flex', flexDirection: 'column', height: '100%' }}>
+                       <div style={{ flex: 1, display: 'flex', flexDirection: 'column', height: '100%', overflow: 'hidden' }}>
                            <div style={{ flexShrink: 0 }}>
                                 <h2 style={{ fontSize: '20px', fontWeight: 'bold', textTransform: 'uppercase', borderBottom: '2px solid black', marginBottom: '10px', paddingBottom: '5px', textAlign: 'center', letterSpacing: '2px' }}>Cruciverba</h2>
-                                {renderSolution()}
+                                {renderSolution(true)}
                            </div>
-                           <div style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '10px 0' }}>
+                           <div style={{ flexShrink: 1, minHeight: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '10px 0', overflow: 'hidden' }}>
                                <div style={{ width: '100%', height: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
                                    {renderGridCells(true)}
                                </div>
