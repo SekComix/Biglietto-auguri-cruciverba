@@ -1,7 +1,7 @@
 
 import React, { useState, useEffect, useRef } from 'react';
 import { CrosswordData, CellData, Direction, ThemeType } from '../types';
-import { Printer, Edit, Eye, EyeOff, BookOpen, FileText, CheckCircle2, Palette, Download, Loader2, XCircle, RotateCw, Maximize, Move, Info, Type, Trash2, Grip, ArrowRightLeft } from 'lucide-react';
+import { Printer, Edit, Eye, EyeOff, BookOpen, FileText, CheckCircle2, Palette, Download, Loader2, XCircle, RotateCw, Maximize, Move, Info, Type, Trash2, Grip, ArrowRightLeft, Pencil } from 'lucide-react';
 import html2canvas from 'html2canvas';
 import { jsPDF } from 'jspdf';
 
@@ -66,12 +66,12 @@ const CrosswordGrid: React.FC<CrosswordGridProps> = ({ data, onComplete, onEdit,
   const [currentDirection, setCurrentDirection] = useState<Direction>(Direction.ACROSS);
   const [editableMessage, setEditableMessage] = useState(data.message);
   
-  const [isEditingMsg, setIsEditingMsg] = useState(false);
   const [revealAnswers, setRevealAnswers] = useState(false);
   const inputRefs = useRef<(HTMLInputElement | null)[][]>([]);
 
   // Graphical Assets State
   const [activeItemId, setActiveItemId] = useState<string | null>(null);
+  const [editingItemId, setEditingItemId] = useState<string | null>(null); // NEW: Separate editing state
   
   const [wmSheet1, setWmSheet1] = useState({ scale: 1.5, x: 0, y: 0 });
   const [wmSheet2, setWmSheet2] = useState({ scale: 1.5, x: 0, y: 0 });
@@ -208,11 +208,14 @@ const CrosswordGrid: React.FC<CrosswordGridProps> = ({ data, onComplete, onEdit,
   }, [activeResize, activeDrag, customTexts]);
 
   const startDrag = (e: React.MouseEvent, id: string) => {
-      if (activeItemId !== id) return;
-      if ((e.target as HTMLElement).tagName === 'TEXTAREA') return; 
-      if ((e.target as HTMLElement).tagName === 'INPUT') return; 
+      // If we are currently editing text, DO NOT start drag (allow text selection/cursor move)
+      if (editingItemId === id) return;
 
       e.stopPropagation();
+      
+      // Select the item immediately on mouse down so we can drag it
+      setActiveItemId(id);
+
       const current = getItemState(id);
       setActiveDrag({
           id,
@@ -259,6 +262,12 @@ const CrosswordGrid: React.FC<CrosswordGridProps> = ({ data, onComplete, onEdit,
   const removeCustomText = (id: string) => {
       setCustomTexts(prev => prev.filter(p => p.id !== id));
       setActiveItemId(null);
+      setEditingItemId(null);
+  };
+
+  const handleGlobalClick = () => {
+      setActiveItemId(null);
+      setEditingItemId(null);
   };
 
   // --- RENDER HELPERS ---
@@ -377,7 +386,7 @@ const CrosswordGrid: React.FC<CrosswordGridProps> = ({ data, onComplete, onEdit,
   );
 
   return (
-    <div className="flex flex-col items-center gap-8 w-full pb-20" onClick={() => setActiveItemId(null)}>
+    <div className="flex flex-col items-center gap-8 w-full pb-20" onClick={handleGlobalClick}>
        
        <div className="flex flex-wrap gap-2 justify-center z-20 sticky top-2 p-2 bg-black/5 rounded-full backdrop-blur-sm shadow-xl border border-white/10" onClick={(e) => e.stopPropagation()}>
             <button onClick={onEdit} className="bg-white px-4 py-2 rounded-full shadow border text-sm flex items-center gap-2 font-bold hover:bg-gray-50 text-gray-700 active:scale-95"><Edit size={16} /> Modifica Dati</button>
@@ -396,6 +405,7 @@ const CrosswordGrid: React.FC<CrosswordGridProps> = ({ data, onComplete, onEdit,
                         <div className="relative group" 
                             style={{ transform: `translate(${wmSheet1.x}px, ${wmSheet1.y}px) scale(${wmSheet1.scale}) rotate(12deg)`, cursor: activeItemId === 'wm1' ? 'move' : 'default', pointerEvents: activeItemId === 'wm1' ? 'auto' : 'none' }} 
                             onMouseDown={(e) => startDrag(e, 'wm1')}
+                            onClick={(e) => e.stopPropagation()} // STOP PROPAGATION
                             onDoubleClick={(e) => { e.stopPropagation(); setActiveItemId('wm1'); }}
                         >
                             <span className={`text-[100px] text-black transition-opacity duration-300 ${activeItemId === 'wm1' ? 'opacity-30' : 'opacity-20'}`}>{themeAssets.watermark}</span>
@@ -433,6 +443,7 @@ const CrosswordGrid: React.FC<CrosswordGridProps> = ({ data, onComplete, onEdit,
                         <div className="relative group" 
                             style={{ transform: `translate(${wmSheet2.x}px, ${wmSheet2.y}px) scale(${wmSheet2.scale}) rotate(12deg)`, cursor: activeItemId === 'wm2' ? 'move' : 'default', pointerEvents: activeItemId === 'wm2' ? 'auto' : 'none' }} 
                             onMouseDown={(e) => startDrag(e, 'wm2')}
+                            onClick={(e) => e.stopPropagation()} // STOP PROPAGATION
                             onDoubleClick={(e) => { e.stopPropagation(); setActiveItemId('wm2'); }}
                         >
                             <span className={`text-[100px] text-black transition-opacity duration-300 ${activeItemId === 'wm2' ? 'opacity-30' : 'opacity-20'}`}>{themeAssets.watermark}</span>
@@ -457,6 +468,7 @@ const CrosswordGrid: React.FC<CrosswordGridProps> = ({ data, onComplete, onEdit,
                                 <div className={`w-[70%] aspect-square mb-4 relative ${activeItemId === 'img2' ? 'cursor-move ring-2 ring-blue-500 ring-dashed pointer-events-auto z-50' : 'pointer-events-auto'}`} 
                                     style={{ transform: `translate(${imgSheet2.x}px, ${imgSheet2.y}px) scale(${imgSheet2.scale})` }} 
                                     onMouseDown={(e) => startDrag(e, 'img2')}
+                                    onClick={(e) => e.stopPropagation()} // STOP PROPAGATION
                                     onDoubleClick={(e) => { e.stopPropagation(); setActiveItemId('img2'); }}
                                 >
                                     <div className="w-full h-full border-4 border-white shadow-lg overflow-hidden rounded-sm bg-gray-100 rotate-1 pointer-events-none"><PhotoCollage photos={photos} /></div>
@@ -466,6 +478,7 @@ const CrosswordGrid: React.FC<CrosswordGridProps> = ({ data, onComplete, onEdit,
                                 <div className={`relative inline-block mb-4 ${activeItemId === 'img2' ? 'cursor-move ring-2 ring-blue-500 ring-dashed pointer-events-auto z-50' : 'pointer-events-auto'}`} 
                                     style={{ transform: `translate(${imgSheet2.x}px, ${imgSheet2.y}px) scale(${imgSheet2.scale})` }} 
                                     onMouseDown={(e) => startDrag(e, 'img2')}
+                                    onClick={(e) => e.stopPropagation()} // STOP PROPAGATION
                                     onDoubleClick={(e) => { e.stopPropagation(); setActiveItemId('img2'); }}
                                 >
                                     <img src={data.images.extraImage} className="h-32 object-contain drop-shadow-md pointer-events-none" />
@@ -476,17 +489,34 @@ const CrosswordGrid: React.FC<CrosswordGridProps> = ({ data, onComplete, onEdit,
                             <div className={`w-full relative group ${activeItemId === 'txt2' ? 'cursor-move ring-2 ring-blue-500 ring-dashed pointer-events-auto z-50' : 'pointer-events-auto'}`} 
                                 style={{ transform: `translate(${txtSheet2.x}px, ${txtSheet2.y}px) scale(${txtSheet2.scale})` }} 
                                 onMouseDown={(e) => startDrag(e, 'txt2')}
-                                onDoubleClick={(e) => { e.stopPropagation(); setActiveItemId('txt2'); }}
+                                onClick={(e) => e.stopPropagation()} // STOP PROPAGATION
+                                onDoubleClick={(e) => { e.stopPropagation(); setEditingItemId('txt2'); }}
                             >
-                                {isEditingMsg ? (
-                                    <div className="w-full bg-white p-2 rounded-xl shadow-lg border border-blue-200 z-20 absolute top-[-50px] left-0 pointer-events-auto"><textarea className="w-full p-2 bg-gray-50 border border-blue-200 rounded-lg text-center text-sm font-hand" rows={4} value={editableMessage} onChange={(e) => setEditableMessage(e.target.value)}/><button onClick={() => setIsEditingMsg(false)} className="bg-green-500 text-white text-xs px-3 py-1 rounded-full font-bold mt-2">Fatto</button></div>
+                                {editingItemId === 'txt2' ? (
+                                    <div className="w-full bg-white p-2 rounded-xl shadow-lg border border-blue-200 z-20 absolute top-[-50px] left-0 pointer-events-auto" onMouseDown={(e) => e.stopPropagation()}>
+                                        <textarea 
+                                            autoFocus
+                                            className="w-full p-2 bg-gray-50 border border-blue-200 rounded-lg text-center text-sm font-hand" 
+                                            rows={4} 
+                                            value={editableMessage} 
+                                            onChange={(e) => setEditableMessage(e.target.value)}
+                                        />
+                                        <button onClick={() => setEditingItemId(null)} className="bg-green-500 text-white text-xs px-3 py-1 rounded-full font-bold mt-2">Fatto</button>
+                                    </div>
                                 ) : (
-                                    <div className="relative cursor-pointer hover:bg-yellow-50/50 rounded-xl p-2 transition-colors border border-transparent hover:border-yellow-200" onClick={() => !activeItemId && setIsEditingMsg(true)}>
+                                    <div className="relative p-2 transition-colors border border-transparent hover:border-yellow-200">
                                         <p className={`text-xl md:text-2xl leading-relaxed ${themeAssets.fontTitle} text-gray-800 drop-shadow-sm`}>"{editableMessage}"</p>
-                                        <span className="absolute -top-2 -right-2 opacity-0 group-hover:opacity-100 text-gray-400 bg-white rounded-full p-1 shadow-md pointer-events-none"><Edit size={12}/></span>
+                                        {activeItemId === 'txt2' && (
+                                            <button 
+                                                onClick={(e) => { e.stopPropagation(); setEditingItemId('txt2'); }} 
+                                                className="absolute -top-3 -right-3 bg-white text-blue-600 rounded-full p-1.5 shadow-md border border-blue-100 hover:bg-blue-50 z-50"
+                                            >
+                                                <Pencil size={12}/>
+                                            </button>
+                                        )}
                                     </div>
                                 )}
-                                {activeItemId === 'txt2' && <div onMouseDown={(e) => startResize(e, 'txt2')} className="absolute -bottom-6 -right-6 w-10 h-10 bg-blue-600 text-white rounded-full shadow-xl flex items-center justify-center cursor-nwse-resize z-50 pointer-events-auto hover:scale-110"><Maximize size={20} /></div>}
+                                {activeItemId === 'txt2' && !editingItemId && <div onMouseDown={(e) => startResize(e, 'txt2')} className="absolute -bottom-6 -right-6 w-10 h-10 bg-blue-600 text-white rounded-full shadow-xl flex items-center justify-center cursor-nwse-resize z-50 pointer-events-auto hover:scale-110"><Maximize size={20} /></div>}
                             </div>
                         </div>
                         
@@ -494,6 +524,7 @@ const CrosswordGrid: React.FC<CrosswordGridProps> = ({ data, onComplete, onEdit,
                         <div className={`absolute left-1/2 top-1/2 ${activeItemId === 'stickerGroup' ? 'cursor-move ring-2 ring-green-400 ring-dashed bg-green-50/30 rounded-lg pointer-events-auto z-50' : 'pointer-events-auto'}`} 
                             style={{ transform: `translate(-50%, -50%) translate(${stickerGroup.x}px, ${stickerGroup.y}px) scale(${stickerGroup.scale})` }} 
                             onMouseDown={(e) => startDrag(e, 'stickerGroup')}
+                            onClick={(e) => e.stopPropagation()} // STOP PROPAGATION
                             onDoubleClick={(e) => { e.stopPropagation(); setActiveItemId('stickerGroup'); }}
                         >
                             <div className="flex gap-2 text-3xl drop-shadow-sm">{data.stickers?.slice(0,5).map((s,i) => <span key={i}>{s}</span>)}</div>
@@ -502,21 +533,24 @@ const CrosswordGrid: React.FC<CrosswordGridProps> = ({ data, onComplete, onEdit,
 
                          {/* Custom Texts */}
                          {customTexts.map(t => (
-                            <div key={t.id} className={`absolute left-1/2 top-1/2 flex items-center justify-center ${activeItemId === t.id ? 'pointer-events-auto cursor-move ring-1 ring-purple-300 ring-dashed bg-white/80 rounded-lg shadow-sm z-50' : 'pointer-events-auto'}`} 
+                            <div key={t.id} className={`absolute left-1/2 top-1/2 flex items-center justify-center ${activeItemId === t.id ? 'pointer-events-auto cursor-move ring-1 ring-purple-300 ring-dashed bg-white/80 rounded-lg shadow-sm z-50' : 'pointer-events-auto z-40'}`} 
                                 style={{ transform: `translate(-50%, -50%) translate(${t.x}px, ${t.y}px)` }} 
                                 onMouseDown={(e) => startDrag(e, t.id)}
-                                onDoubleClick={(e) => { e.stopPropagation(); setActiveItemId(t.id); }}
+                                onClick={(e) => e.stopPropagation()} // STOP PROPAGATION
+                                onDoubleClick={(e) => { e.stopPropagation(); setEditingItemId(t.id); }}
                             >
-                                {activeItemId === t.id ? (
-                                    <div className="relative group p-2 border-2 border-purple-300 border-dashed rounded-lg" style={{ width: `${t.width || 250}px` }}>
+                                {editingItemId === t.id ? (
+                                    <div className="relative group p-2 border-2 border-purple-300 border-dashed rounded-lg bg-white shadow-xl z-50" style={{ width: `${t.width || 250}px` }} onMouseDown={(e) => e.stopPropagation()}>
                                         <textarea 
+                                            autoFocus
                                             value={t.content} 
                                             onChange={(e) => updateCustomTextContent(t.id, e.target.value)} 
                                             className="w-full bg-transparent text-center font-hand focus:outline-none text-purple-900 placeholder-purple-300 resize-none overflow-hidden"
                                             style={{ fontSize: `${(t.scale * 20)}px`, lineHeight: 1.2 }}
                                             rows={Math.max(1, (t.content?.split('\n').length || 1))}
                                         />
-                                        <button onClick={() => removeCustomText(t.id)} className="absolute -top-3 -left-3 bg-red-500 text-white rounded-full p-1 opacity-0 group-hover:opacity-100 transition-opacity pointer-events-auto"><Trash2 size={12}/></button>
+                                        <button onClick={() => setEditingItemId(null)} className="absolute -top-3 -right-3 bg-green-500 text-white rounded-full p-1 shadow-md hover:bg-green-600"><CheckCircle2 size={14}/></button>
+                                        <button onClick={() => removeCustomText(t.id)} className="absolute -top-3 -left-3 bg-red-500 text-white rounded-full p-1 hover:bg-red-600"><Trash2 size={14}/></button>
                                         
                                         {/* Scale Handle (Bottom Right) */}
                                         <div onMouseDown={(e) => startResize(e, t.id, 'scale')} className="absolute -bottom-3 -right-3 w-6 h-6 bg-purple-600 text-white rounded-full shadow-md flex items-center justify-center cursor-nwse-resize pointer-events-auto hover:scale-110 z-20"><Maximize size={12}/></div>
@@ -525,8 +559,16 @@ const CrosswordGrid: React.FC<CrosswordGridProps> = ({ data, onComplete, onEdit,
                                         <div onMouseDown={(e) => startResize(e, t.id, 'width')} className="absolute top-1/2 -right-3 -translate-y-1/2 w-4 h-8 bg-purple-400 text-white rounded-md shadow-md flex items-center justify-center cursor-ew-resize pointer-events-auto hover:scale-110 z-20"><ArrowRightLeft size={12}/></div>
                                     </div>
                                 ) : (
-                                    <div style={{ width: `${t.width || 250}px` }}>
+                                    <div style={{ width: `${t.width || 250}px` }} className="relative">
                                         <p className="font-hand text-purple-900 text-center px-2" style={{ fontSize: `${(t.scale * 20)}px`, lineHeight: 1.2, wordWrap: 'break-word' }}>{t.content}</p>
+                                        {activeItemId === t.id && (
+                                            <button 
+                                                onClick={(e) => { e.stopPropagation(); setEditingItemId(t.id); }} 
+                                                className="absolute -top-3 -right-3 bg-white text-purple-600 rounded-full p-1.5 shadow-md border border-purple-100 hover:bg-purple-50 z-50"
+                                            >
+                                                <Pencil size={12}/>
+                                            </button>
+                                        )}
                                     </div>
                                 )}
                             </div>
