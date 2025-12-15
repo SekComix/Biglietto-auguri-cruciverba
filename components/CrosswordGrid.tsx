@@ -1,4 +1,4 @@
-
+Il codice CrosswordGrid.tsx è stato aggiornatoIl codice CrosswordGrid.tsx è stato aggiornato
 import React, { useState, useEffect, useRef } from 'react';
 import { CrosswordData, CellData, Direction, ThemeType } from '../types';
 import { Printer, Edit, Eye, EyeOff, BookOpen, FileText, CheckCircle2, Palette, Download, Loader2, XCircle, RotateCw, Maximize, Move, Info, Type, Trash2, Grip, ArrowRightLeft, Pencil } from 'lucide-react';
@@ -98,6 +98,10 @@ const CrosswordGrid: React.FC<CrosswordGridProps> = ({ data, onComplete, onEdit,
   const isCrossword = data.type === 'crossword';
   const photos = data.images?.photos || [];
   const currentYear = new Date().getFullYear();
+
+  // Determine density for print layout scaling
+  const isHighDensity = data.words.length > 10;
+  const printFontSize = isHighDensity ? '7.5px' : '9px';
 
   useEffect(() => {
     if (editableMessage !== data.message) {
@@ -252,7 +256,7 @@ const CrosswordGrid: React.FC<CrosswordGridProps> = ({ data, onComplete, onEdit,
       const chars = rawString.split('');
       let letterIndexCounter = 0;
       return (
-        <div className="mb-2 p-1 w-full flex justify-center">
+        <div className="mb-2 p-1 w-full flex justify-center pointer-events-auto">
             <div className="flex justify-center gap-1 flex-wrap">
                 {chars.map((char: string, i: number) => {
                     const isSpace = !/[A-Z]/i.test(char);
@@ -327,7 +331,7 @@ const CrosswordGrid: React.FC<CrosswordGridProps> = ({ data, onComplete, onEdit,
   };
 
   const renderGridCells = (isPrint = false) => (
-    <div className={`grid gap-[1px] bg-black/10 p-2 rounded-lg`} style={{ 
+    <div className={`grid gap-[1px] bg-black/10 p-2 rounded-lg pointer-events-auto`} style={{ 
         gridTemplateColumns: `repeat(${data.width}, minmax(0, 1fr))`, aspectRatio: `${data.width}/${data.height}`,
         width: '100%', height: 'auto', maxHeight: '100%', maxWidth: '100%', margin: '0 auto' 
     }}>
@@ -364,14 +368,14 @@ const CrosswordGrid: React.FC<CrosswordGridProps> = ({ data, onComplete, onEdit,
 
                  {/* WATERMARK */}
                  {data.hasWatermark && (
-                     <div className={`absolute inset-0 flex items-center justify-center overflow-hidden pointer-events-none`}>
+                     <div className={`absolute inset-0 flex items-center justify-center overflow-hidden pointer-events-none z-50`}>
                         <div className="relative group pointer-events-auto" 
-                            style={{ transform: `translate(${wmSheet1.x}px, ${wmSheet1.y}px) scale(${wmSheet1.scale}) rotate(12deg)`, cursor: activeItemId === 'wm1' ? 'move' : 'default' }} 
+                            style={{ transform: `translate(${wmSheet1.x}px, ${wmSheet1.y}px) scale(${wmSheet1.scale}) rotate(12deg)`, cursor: activeItemId === 'wm1' ? 'move' : 'default', opacity: 0.2 }} 
                             onMouseDown={(e) => startDrag(e, 'wm1')}
                             onClick={(e) => e.stopPropagation()} 
                             onDoubleClick={(e) => { e.stopPropagation(); setActiveItemId('wm1'); }}
                         >
-                            <span className={`text-[100px] text-black transition-opacity duration-300 ${activeItemId === 'wm1' ? 'opacity-30' : 'opacity-20'}`}>{themeAssets.watermark}</span>
+                            <span className={`text-[100px] text-black transition-opacity duration-300 ${activeItemId === 'wm1' ? 'opacity-50' : 'opacity-100'}`}>{themeAssets.watermark}</span>
                             {activeItemId === 'wm1' && <div onMouseDown={(e) => startResize(e, 'wm1')} className="absolute -bottom-6 -right-6 w-10 h-10 bg-blue-600 text-white rounded-full shadow-xl flex items-center justify-center cursor-nwse-resize z-50 pointer-events-auto hover:scale-110"><Maximize size={20} /></div>}
                         </div>
                      </div>
@@ -403,21 +407,8 @@ const CrosswordGrid: React.FC<CrosswordGridProps> = ({ data, onComplete, onEdit,
                 
                 <div className="absolute inset-y-0 left-1/2 w-px bg-gray-300 border-l border-dashed border-gray-400 opacity-50 z-10 pointer-events-none"></div>
 
-                {/* WATERMARK - OPTIONAL - z-index issue fixed via pointer-events logic */}
-                {data.hasWatermark && (
-                    <div className={`absolute inset-0 flex items-center justify-center overflow-hidden pointer-events-none`}>
-                        <div className="relative group pointer-events-auto" 
-                            style={{ transform: `translate(${wmSheet2.x}px, ${wmSheet2.y}px) scale(${wmSheet2.scale}) rotate(12deg)`, cursor: activeItemId === 'wm2' ? 'move' : 'default' }} 
-                            onMouseDown={(e) => startDrag(e, 'wm2')}
-                            onClick={(e) => e.stopPropagation()} 
-                            onDoubleClick={(e) => { e.stopPropagation(); setActiveItemId('wm2'); }}
-                        >
-                            <span className={`text-[100px] text-black transition-opacity duration-300 ${activeItemId === 'wm2' ? 'opacity-30' : 'opacity-20'}`}>{themeAssets.watermark}</span>
-                            {activeItemId === 'wm2' && <div onMouseDown={(e) => startResize(e, 'wm2')} className="absolute -bottom-6 -right-6 w-10 h-10 bg-blue-600 text-white rounded-full shadow-xl flex items-center justify-center cursor-nwse-resize z-50 pointer-events-auto hover:scale-110"><Maximize size={20} /></div>}
-                        </div>
-                    </div>
-                )}
-
+                {/* WATERMARK - OPTIONAL - z-index fixed via Overlay */}
+                
                 {/* CONTENT LAYER - pointer-events-none on container, auto on children */}
                 <div className={`absolute inset-4 flex z-10 pointer-events-none`}>
                     {/* DEDICA (Left) */}
@@ -487,19 +478,19 @@ const CrosswordGrid: React.FC<CrosswordGridProps> = ({ data, onComplete, onEdit,
                     </div>
 
                     {/* GIOCO (Right) - Added padding p-6 to force content away from border */}
-                    <div className="w-1/2 h-full p-6 flex flex-col relative z-10 pointer-events-auto overflow-hidden box-border">
+                    <div className={`w-1/2 h-full p-6 flex flex-col relative z-10 pointer-events-none overflow-hidden box-border ${themeAssets.printBorder} border-l-0`}>
                         {isCrossword ? (
                             <div className="flex flex-col h-full w-full">
-                                <div className="shrink-0">
+                                <div className="shrink-0 pointer-events-auto">
                                     <h2 className="text-lg font-bold uppercase border-b-2 border-black mb-2 pb-1 text-center tracking-widest">Cruciverba</h2>
                                     {renderSolution()}
                                 </div>
-                                <div className="flex-1 min-h-0 flex items-center justify-center py-2 relative w-full">
-                                    <div className="w-full h-full flex items-center justify-center">
+                                <div className="flex-1 min-h-0 flex items-center justify-center py-2 relative w-full pointer-events-none">
+                                    <div className="w-full h-full flex items-center justify-center pointer-events-auto">
                                          {renderGridCells(false)}
                                     </div>
                                 </div>
-                                <div className="shrink-0 mt-2 text-[9px] md:text-[10px] grid grid-cols-2 gap-2 leading-tight w-full border-t border-black pt-2 overflow-y-auto max-h-[150px] custom-scrollbar">
+                                <div className="shrink-0 mt-2 text-[9px] md:text-[10px] grid grid-cols-2 gap-2 leading-tight w-full border-t border-black pt-2 overflow-y-auto max-h-[150px] custom-scrollbar pointer-events-auto">
                                     <div className="pr-1"><b className="block border-b border-gray-300 mb-1 pb-0.5 font-bold text-xs">Orizzontali</b>{data.words.filter(w=>w.direction===Direction.ACROSS).map(w=><div key={w.id} className="mb-0.5"><b className="mr-1">{w.number}.</b>{w.clue}</div>)}</div>
                                     <div className="pl-1 border-l border-gray-100"><b className="block border-b border-gray-300 mb-1 pb-0.5 font-bold text-xs">Verticali</b>{data.words.filter(w=>w.direction===Direction.DOWN).map(w=><div key={w.id} className="mb-0.5"><b className="mr-1">{w.number}.</b>{w.clue}</div>)}</div>
                                 </div>
@@ -512,6 +503,21 @@ const CrosswordGrid: React.FC<CrosswordGridProps> = ({ data, onComplete, onEdit,
 
                 {/* OVERLAY LAYER - Z-50 - Outside Content Layer */}
                 <div className="absolute inset-0 z-50 pointer-events-none">
+                     {/* WATERMARK - Moved here for Z-Index priority */}
+                     {data.hasWatermark && (
+                        <div className="relative w-full h-full overflow-hidden pointer-events-none">
+                            <div className="absolute top-1/2 left-1/2 group pointer-events-auto" 
+                                style={{ transform: `translate(-50%, -50%) translate(${wmSheet2.x}px, ${wmSheet2.y}px) scale(${wmSheet2.scale}) rotate(12deg)`, cursor: activeItemId === 'wm2' ? 'move' : 'default', opacity: 0.2 }} 
+                                onMouseDown={(e) => startDrag(e, 'wm2')}
+                                onClick={(e) => e.stopPropagation()} 
+                                onDoubleClick={(e) => { e.stopPropagation(); setActiveItemId('wm2'); }}
+                            >
+                                <span className={`text-[100px] text-black transition-opacity duration-300 ${activeItemId === 'wm2' ? 'opacity-50' : 'opacity-100'}`}>{themeAssets.watermark}</span>
+                                {activeItemId === 'wm2' && <div onMouseDown={(e) => startResize(e, 'wm2')} className="absolute -bottom-6 -right-6 w-10 h-10 bg-blue-600 text-white rounded-full shadow-xl flex items-center justify-center cursor-nwse-resize z-50 pointer-events-auto hover:scale-110"><Maximize size={20} /></div>}
+                            </div>
+                        </div>
+                     )}
+
                      {/* STICKER CONTAINER - Pointer events auto */}
                      <div className={`absolute left-1/2 top-1/2 pointer-events-auto ${activeItemId === 'stickerGroup' ? 'cursor-move ring-2 ring-green-400 ring-dashed bg-green-50/30 rounded-lg z-50' : ''}`} 
                          style={{ transform: `translate(-50%, -50%) translate(${stickerGroup.x}px, ${stickerGroup.y}px) scale(${stickerGroup.scale})` }} 
@@ -569,7 +575,7 @@ const CrosswordGrid: React.FC<CrosswordGridProps> = ({ data, onComplete, onEdit,
        {/* --- HIDDEN PDF EXPORT STAGE --- */}
        <div ref={exportRef} style={{ position: 'fixed', top: 0, left: '-9999px', width: '1123px', zIndex: -100 }}>
             {/* SHEET 1 */}
-            <div id="pdf-sheet-1" style={{ width: '1123px', height: '794px', display: 'flex', position: 'relative', backgroundColor: 'white', overflow: 'hidden' }}>
+            <div id="pdf-sheet-1" style={{ width: '1123px', height: '794px', display: 'flex', position: 'relative', backgroundColor: 'white', overflow: 'hidden', boxSizing: 'border-box', padding: '25px' }}>
                  {/* WATERMARK - OPTIONAL - APPLIED SCALE */}
                  {data.hasWatermark && (
                      <div style={{ position: 'absolute', top: '50%', left: '50%', transform: `translate(-50%, -50%) translate(${wmSheet1.x * pdfScaleFactor}px, ${wmSheet1.y * pdfScaleFactor}px) scale(${wmSheet1.scale}) rotate(12deg)`, fontSize: '130px', opacity: 0.20, zIndex: 0, whiteSpace: 'nowrap' }}>{themeAssets.watermark}</div>
@@ -628,14 +634,16 @@ const CrosswordGrid: React.FC<CrosswordGridProps> = ({ data, onComplete, onEdit,
                                     <h2 style={{ fontSize: '20px', fontWeight: 'bold', textTransform: 'uppercase', borderBottom: '2px solid black', marginBottom: '10px', paddingBottom: '5px', textAlign: 'center', letterSpacing: '2px' }}>Cruciverba</h2>
                                     {renderSolution(true)}
                                </div>
-                               <div style={{ flexShrink: 1, minHeight: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '10px 0', overflow: 'hidden' }}>
+                               {/* GRID CONTAINER - FLEX 1, MIN HEIGHT 0 to allow shrinking */}
+                               <div style={{ flex: '1 1 auto', minHeight: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '10px 0', overflow: 'hidden' }}>
                                    <div style={{ width: '100%', height: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
                                        {renderGridCells(true)}
                                    </div>
                                </div>
-                               <div style={{ flexShrink: 0, fontSize: '9px', display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '20px', lineHeight: 1.2, borderTop: '2px solid black', paddingTop: '15px' }}>
-                                    <div><b style={{ display: 'block', borderBottom: '1px solid #ccc', marginBottom: '5px', paddingBottom: '2px', textTransform: 'uppercase', fontWeight: 'bold' }}>Orizzontali</b>{data.words.filter(w=>w.direction===Direction.ACROSS).map(w=><div key={w.id} style={{ marginBottom: '4px', whiteSpace: 'normal' }}><b style={{ marginRight: '4px' }}>{w.number}.</b>{w.clue}</div>)}</div>
-                                    <div><b style={{ display: 'block', borderBottom: '1px solid #ccc', marginBottom: '5px', paddingBottom: '2px', textTransform: 'uppercase', fontWeight: 'bold' }}>Verticali</b>{data.words.filter(w=>w.direction===Direction.DOWN).map(w=><div key={w.id} style={{ marginBottom: '4px', whiteSpace: 'normal' }}><b style={{ marginRight: '4px' }}>{w.number}.</b>{w.clue}</div>)}</div>
+                               {/* CLUES CONTAINER - FLEX SHRINK 0 to FORCE space for text */}
+                               <div style={{ flexShrink: 0, fontSize: printFontSize, display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px', lineHeight: 1.1, borderTop: '2px solid black', paddingTop: '10px' }}>
+                                    <div><b style={{ display: 'block', borderBottom: '1px solid #ccc', marginBottom: '4px', paddingBottom: '2px', textTransform: 'uppercase', fontWeight: 'bold' }}>Orizzontali</b>{data.words.filter(w=>w.direction===Direction.ACROSS).map(w=><div key={w.id} style={{ marginBottom: '2px', whiteSpace: 'normal' }}><b style={{ marginRight: '4px' }}>{w.number}.</b>{w.clue}</div>)}</div>
+                                    <div><b style={{ display: 'block', borderBottom: '1px solid #ccc', marginBottom: '4px', paddingBottom: '2px', textTransform: 'uppercase', fontWeight: 'bold' }}>Verticali</b>{data.words.filter(w=>w.direction===Direction.DOWN).map(w=><div key={w.id} style={{ marginBottom: '2px', whiteSpace: 'normal' }}><b style={{ marginRight: '4px' }}>{w.number}.</b>{w.clue}</div>)}</div>
                                </div>
                            </div>
                        ) : <div style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', border: '2px dashed #ccc', borderRadius: '10px', opacity: 0.3 }}></div>}
