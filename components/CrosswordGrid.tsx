@@ -81,8 +81,8 @@ const CrosswordGrid: React.FC<CrosswordGridProps> = ({ data, onComplete, onEdit,
   
   const [txtSheet2, setTxtSheet2] = useState({ scale: 1, x: 0, y: 0 });
   
-  // Default Y pushed down to avoid overlapping text
-  const [stickerGroup, setStickerGroup] = useState({ scale: 0.8, x: 0, y: 350 }); 
+  // Default Y pushed down and X to left page
+  const [stickerGroup, setStickerGroup] = useState({ scale: 0.8, x: -200, y: 150 }); 
 
   const [customTexts, setCustomTexts] = useState<PositionableItem[]>([]);
 
@@ -226,7 +226,7 @@ const CrosswordGrid: React.FC<CrosswordGridProps> = ({ data, onComplete, onEdit,
 
   const addCustomText = () => {
       const newId = `custom-${Date.now()}`;
-      setCustomTexts([...customTexts, { id: newId, type: 'customTxt', x: 0, y: -100, scale: 1, width: 250, content: "Tuo Testo" }]);
+      setCustomTexts([...customTexts, { id: newId, type: 'customTxt', x: -200, y: -50, scale: 1, width: 250, content: "Tuo Testo" }]);
       setActiveItemId(newId);
   };
 
@@ -279,15 +279,13 @@ const CrosswordGrid: React.FC<CrosswordGridProps> = ({ data, onComplete, onEdit,
   const handleDownloadPDF = async () => {
       if (!exportRef.current) return;
       
-      // 1. Calculate and SET scale factor
       const currentEditorWidth = editorRef.current?.offsetWidth || 1123;
       const factor = 1123 / currentEditorWidth;
       setPdfScaleFactor(factor);
 
       setIsGeneratingPDF(true);
       try {
-        // 2. CRITICAL: Wait for React to re-render the hidden DOM with the new scale factor
-        await new Promise(resolve => setTimeout(resolve, 200));
+        await new Promise(resolve => setTimeout(resolve, 300));
 
         const sheet1 = exportRef.current.querySelector('#pdf-sheet-1') as HTMLElement;
         const sheet2 = exportRef.current.querySelector('#pdf-sheet-2') as HTMLElement;
@@ -364,7 +362,7 @@ const CrosswordGrid: React.FC<CrosswordGridProps> = ({ data, onComplete, onEdit,
             <div className="bg-white w-full aspect-[297/210] shadow-2xl flex relative overflow-hidden rounded-sm select-none p-4">
                  <div className="absolute inset-y-0 left-1/2 w-px bg-gray-300 border-l border-dashed border-gray-400 opacity-50 z-10 pointer-events-none"></div>
 
-                 {/* WATERMARK - OPTIONAL */}
+                 {/* WATERMARK */}
                  {data.hasWatermark && (
                      <div className={`absolute inset-0 flex items-center justify-center overflow-hidden pointer-events-none`}>
                         <div className="relative group pointer-events-auto" 
@@ -486,61 +484,10 @@ const CrosswordGrid: React.FC<CrosswordGridProps> = ({ data, onComplete, onEdit,
                                 {activeItemId === 'txt2' && !editingItemId && <div onMouseDown={(e) => startResize(e, 'txt2')} className="absolute -bottom-6 -right-6 w-10 h-10 bg-blue-600 text-white rounded-full shadow-xl flex items-center justify-center cursor-nwse-resize z-50 pointer-events-auto hover:scale-110"><Maximize size={20} /></div>}
                             </div>
                         </div>
-                        
-                        {/* STICKER CONTAINER - Pointer events auto */}
-                        <div className={`absolute left-1/2 top-1/2 pointer-events-auto ${activeItemId === 'stickerGroup' ? 'cursor-move ring-2 ring-green-400 ring-dashed bg-green-50/30 rounded-lg z-50' : ''}`} 
-                            style={{ transform: `translate(-50%, -50%) translate(${stickerGroup.x}px, ${stickerGroup.y}px) scale(${stickerGroup.scale})` }} 
-                            onMouseDown={(e) => startDrag(e, 'stickerGroup')}
-                            onClick={(e) => e.stopPropagation()} 
-                            onDoubleClick={(e) => { e.stopPropagation(); setActiveItemId('stickerGroup'); }}
-                        >
-                            <div className="flex gap-2 text-3xl drop-shadow-sm">{(data.stickers || []).slice(0,5).map((s,i) => <span key={i}>{s}</span>)}</div>
-                            {activeItemId === 'stickerGroup' && <div onMouseDown={(e) => startResize(e, 'stickerGroup')} className="absolute -bottom-6 -right-6 w-10 h-10 bg-blue-600 text-white rounded-full shadow-xl flex items-center justify-center cursor-nwse-resize z-50 pointer-events-auto hover:scale-110"><Maximize size={20} /></div>}
-                        </div>
-
-                         {/* Custom Texts - Pointer events auto */}
-                         {customTexts.map(t => (
-                            <div key={t.id} className={`absolute left-1/2 top-1/2 flex items-center justify-center pointer-events-auto ${activeItemId === t.id ? 'cursor-move ring-1 ring-purple-300 ring-dashed bg-white/80 rounded-lg shadow-sm z-50' : 'z-40'}`} 
-                                style={{ transform: `translate(-50%, -50%) translate(${t.x}px, ${t.y}px)` }} 
-                                onMouseDown={(e) => startDrag(e, t.id)}
-                                onClick={(e) => e.stopPropagation()} 
-                                onDoubleClick={(e) => { e.stopPropagation(); setEditingItemId(t.id); }}
-                            >
-                                {editingItemId === t.id ? (
-                                    <div className="relative group p-2 border-2 border-purple-300 border-dashed rounded-lg bg-white shadow-xl z-50" style={{ width: `${t.width || 250}px` }} onMouseDown={(e) => e.stopPropagation()}>
-                                        <textarea 
-                                            autoFocus
-                                            value={t.content} 
-                                            onChange={(e) => updateCustomTextContent(t.id, e.target.value)} 
-                                            className="w-full bg-transparent text-center font-hand focus:outline-none text-purple-900 placeholder-purple-300 resize-none overflow-hidden"
-                                            style={{ fontSize: `${(t.scale * 20)}px`, lineHeight: 1.2 }}
-                                            rows={Math.max(1, (t.content?.split('\n').length || 1))}
-                                        />
-                                        <button onClick={() => setEditingItemId(null)} className="absolute -top-3 -right-3 bg-green-500 text-white rounded-full p-1 shadow-md hover:bg-green-600"><CheckCircle2 size={14}/></button>
-                                        <button onClick={() => removeCustomText(t.id)} className="absolute -top-3 -left-3 bg-red-500 text-white rounded-full p-1 hover:bg-red-600"><Trash2 size={14}/></button>
-                                        
-                                        <div onMouseDown={(e) => startResize(e, t.id, 'scale')} className="absolute -bottom-3 -right-3 w-6 h-6 bg-purple-600 text-white rounded-full shadow-md flex items-center justify-center cursor-nwse-resize pointer-events-auto hover:scale-110 z-20"><Maximize size={12}/></div>
-                                        <div onMouseDown={(e) => startResize(e, t.id, 'width')} className="absolute top-1/2 -right-3 -translate-y-1/2 w-4 h-8 bg-purple-400 text-white rounded-md shadow-md flex items-center justify-center cursor-ew-resize pointer-events-auto hover:scale-110 z-20"><ArrowRightLeft size={12}/></div>
-                                    </div>
-                                ) : (
-                                    <div style={{ width: `${t.width || 250}px` }} className="relative">
-                                        <p className="font-hand text-purple-900 text-center px-2" style={{ fontSize: `${(t.scale * 20)}px`, lineHeight: 1.2, wordWrap: 'break-word' }}>{t.content}</p>
-                                        {activeItemId === t.id && (
-                                            <button 
-                                                onClick={(e) => { e.stopPropagation(); setEditingItemId(t.id); }} 
-                                                className="absolute -top-3 -right-3 bg-white text-purple-600 rounded-full p-1.5 shadow-md border border-purple-100 hover:bg-purple-50 z-50"
-                                            >
-                                                <Pencil size={12}/>
-                                            </button>
-                                        )}
-                                    </div>
-                                )}
-                            </div>
-                        ))}
                     </div>
 
-                    {/* GIOCO (Right) */}
-                    <div className="w-1/2 h-full p-4 md:p-6 flex flex-col relative z-10 pointer-events-auto overflow-hidden box-border">
+                    {/* GIOCO (Right) - Added padding p-6 to force content away from border */}
+                    <div className="w-1/2 h-full p-6 flex flex-col relative z-10 pointer-events-auto overflow-hidden box-border">
                         {isCrossword ? (
                             <div className="flex flex-col h-full w-full">
                                 <div className="shrink-0">
@@ -561,6 +508,60 @@ const CrosswordGrid: React.FC<CrosswordGridProps> = ({ data, onComplete, onEdit,
                             <div className="flex-1 flex items-center justify-center opacity-20 border-2 border-dashed border-gray-300 m-8 rounded-xl"><p className="text-xl font-hand rotate-[-5deg] text-center">Spazio per dedica<br/>scritta a mano...</p></div>
                         )}
                     </div>
+                </div>
+
+                {/* OVERLAY LAYER - Z-50 - Outside Content Layer */}
+                <div className="absolute inset-0 z-50 pointer-events-none">
+                     {/* STICKER CONTAINER - Pointer events auto */}
+                     <div className={`absolute left-1/2 top-1/2 pointer-events-auto ${activeItemId === 'stickerGroup' ? 'cursor-move ring-2 ring-green-400 ring-dashed bg-green-50/30 rounded-lg z-50' : ''}`} 
+                         style={{ transform: `translate(-50%, -50%) translate(${stickerGroup.x}px, ${stickerGroup.y}px) scale(${stickerGroup.scale})` }} 
+                         onMouseDown={(e) => startDrag(e, 'stickerGroup')}
+                         onClick={(e) => e.stopPropagation()} 
+                         onDoubleClick={(e) => { e.stopPropagation(); setActiveItemId('stickerGroup'); }}
+                     >
+                         <div className="flex gap-2 text-3xl drop-shadow-sm">{(data.stickers || []).slice(0,5).map((s,i) => <span key={i}>{s}</span>)}</div>
+                         {activeItemId === 'stickerGroup' && <div onMouseDown={(e) => startResize(e, 'stickerGroup')} className="absolute -bottom-6 -right-6 w-10 h-10 bg-blue-600 text-white rounded-full shadow-xl flex items-center justify-center cursor-nwse-resize z-50 pointer-events-auto hover:scale-110"><Maximize size={20} /></div>}
+                     </div>
+
+                      {/* Custom Texts - Pointer events auto */}
+                      {customTexts.map(t => (
+                         <div key={t.id} className={`absolute left-1/2 top-1/2 flex items-center justify-center pointer-events-auto ${activeItemId === t.id ? 'cursor-move ring-1 ring-purple-300 ring-dashed bg-white/80 rounded-lg shadow-sm z-50' : 'z-40'}`} 
+                             style={{ transform: `translate(-50%, -50%) translate(${t.x}px, ${t.y}px)` }} 
+                             onMouseDown={(e) => startDrag(e, t.id)}
+                             onClick={(e) => e.stopPropagation()} 
+                             onDoubleClick={(e) => { e.stopPropagation(); setEditingItemId(t.id); }}
+                         >
+                             {editingItemId === t.id ? (
+                                 <div className="relative group p-2 border-2 border-purple-300 border-dashed rounded-lg bg-white shadow-xl z-50" style={{ width: `${t.width || 250}px` }} onMouseDown={(e) => e.stopPropagation()}>
+                                     <textarea 
+                                         autoFocus
+                                         value={t.content} 
+                                         onChange={(e) => updateCustomTextContent(t.id, e.target.value)} 
+                                         className="w-full bg-transparent text-center font-hand focus:outline-none text-purple-900 placeholder-purple-300 resize-none overflow-hidden"
+                                         style={{ fontSize: `${(t.scale * 20)}px`, lineHeight: 1.2 }}
+                                         rows={Math.max(1, (t.content?.split('\n').length || 1))}
+                                     />
+                                     <button onClick={() => setEditingItemId(null)} className="absolute -top-3 -right-3 bg-green-500 text-white rounded-full p-1 shadow-md hover:bg-green-600"><CheckCircle2 size={14}/></button>
+                                     <button onClick={() => removeCustomText(t.id)} className="absolute -top-3 -left-3 bg-red-500 text-white rounded-full p-1 hover:bg-red-600"><Trash2 size={14}/></button>
+                                     
+                                     <div onMouseDown={(e) => startResize(e, t.id, 'scale')} className="absolute -bottom-3 -right-3 w-6 h-6 bg-purple-600 text-white rounded-full shadow-md flex items-center justify-center cursor-nwse-resize pointer-events-auto hover:scale-110 z-20"><Maximize size={12}/></div>
+                                     <div onMouseDown={(e) => startResize(e, t.id, 'width')} className="absolute top-1/2 -right-3 -translate-y-1/2 w-4 h-8 bg-purple-400 text-white rounded-md shadow-md flex items-center justify-center cursor-ew-resize pointer-events-auto hover:scale-110 z-20"><ArrowRightLeft size={12}/></div>
+                                 </div>
+                             ) : (
+                                 <div style={{ width: `${t.width || 250}px` }} className="relative">
+                                     <p className="font-hand text-purple-900 text-center px-2" style={{ fontSize: `${(t.scale * 20)}px`, lineHeight: 1.2, wordWrap: 'break-word' }}>{t.content}</p>
+                                     {activeItemId === t.id && (
+                                         <button 
+                                             onClick={(e) => { e.stopPropagation(); setEditingItemId(t.id); }} 
+                                             className="absolute -top-3 -right-3 bg-white text-purple-600 rounded-full p-1.5 shadow-md border border-purple-100 hover:bg-purple-50 z-50"
+                                         >
+                                             <Pencil size={12}/>
+                                         </button>
+                                     )}
+                                 </div>
+                             )}
+                         </div>
+                     ))}
                 </div>
            </div>
        </div>
@@ -588,8 +589,8 @@ const CrosswordGrid: React.FC<CrosswordGridProps> = ({ data, onComplete, onEdit,
                  </div>
             </div>
             
-            {/* SHEET 2 - RESTRUCTURED */}
-            <div id="pdf-sheet-2" style={{ width: '1123px', height: '794px', display: 'flex', position: 'relative', backgroundColor: 'white', overflow: 'hidden', boxSizing: 'border-box' }}>
+            {/* SHEET 2 - RESTRUCTURED FOR PDF - Added Padding 25px for Print Margin Safety */}
+            <div id="pdf-sheet-2" style={{ width: '1123px', height: '794px', display: 'flex', position: 'relative', backgroundColor: 'white', overflow: 'hidden', boxSizing: 'border-box', padding: '25px' }}>
                  {/* WATERMARK - OPTIONAL - APPLIED SCALE */}
                  {data.hasWatermark && (
                     <div style={{ position: 'absolute', top: '50%', left: '50%', transform: `translate(-50%, -50%) translate(${wmSheet2.x * pdfScaleFactor}px, ${wmSheet2.y * pdfScaleFactor}px) scale(${wmSheet2.scale}) rotate(12deg)`, fontSize: '130px', opacity: 0.20, zIndex: 0, whiteSpace: 'nowrap' }}>{themeAssets.watermark}</div>
@@ -614,18 +615,6 @@ const CrosswordGrid: React.FC<CrosswordGridProps> = ({ data, onComplete, onEdit,
                             <div style={{ transform: `translate(${txtSheet2.x * pdfScaleFactor}px, ${txtSheet2.y * pdfScaleFactor}px) scale(${txtSheet2.scale})` }}><p className={themeAssets.fontTitle} style={{ fontSize: '24px', lineHeight: 1.5, marginBottom: '20px' }}>"{editableMessage}"</p></div>
                          </div>
                      </div>
-
-                     {/* ABSOLUTE ELEMENTS - OUTSIDE PADDED WRAPPER, RELATIVE TO PAGE CENTER - APPLIED SCALE */}
-                     <div style={{ position: 'absolute', left: '50%', top: '50%', transform: `translate(-50%, -50%) translate(${stickerGroup.x * pdfScaleFactor}px, ${stickerGroup.y * pdfScaleFactor}px) scale(${stickerGroup.scale})`, pointerEvents: 'none' }}>
-                          <div style={{display:'flex', gap:'10px', fontSize:'50px'}}>{(data.stickers || []).slice(0,5).map((s,i) => <span key={i}>{s}</span>)}</div>
-                     </div>
-                     {customTexts.map(t => (
-                         <div key={t.id} style={{ position: 'absolute', left: '50%', top: '50%', transform: `translate(-50%, -50%) translate(${t.x * pdfScaleFactor}px, ${t.y * pdfScaleFactor}px)`, pointerEvents: 'none' }}>
-                             <div style={{ width: `${(t.width || 250) * pdfScaleFactor}px` }}>
-                                 <p className="font-hand" style={{ fontSize: `${(t.scale * 20) * pdfScaleFactor}px`, lineHeight: 1.2, color: '#581c87', textAlign: 'center', wordWrap: 'break-word' }}>{t.content}</p>
-                             </div>
-                         </div>
-                     ))}
 
                  </div>
                  
@@ -652,6 +641,18 @@ const CrosswordGrid: React.FC<CrosswordGridProps> = ({ data, onComplete, onEdit,
                        ) : <div style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', border: '2px dashed #ccc', borderRadius: '10px', opacity: 0.3 }}></div>}
                      </div>
                  </div>
+
+                 {/* ABSOLUTE ELEMENTS - OUTSIDE PADDED WRAPPER (Z-50 OVERLAY) - APPLIED SCALE */}
+                 <div style={{ position: 'absolute', left: '50%', top: '50%', transform: `translate(-50%, -50%) translate(${stickerGroup.x * pdfScaleFactor}px, ${stickerGroup.y * pdfScaleFactor}px) scale(${stickerGroup.scale})`, pointerEvents: 'none', zIndex: 50 }}>
+                      <div style={{display:'flex', gap:'10px', fontSize:'50px'}}>{(data.stickers || []).slice(0,5).map((s,i) => <span key={i}>{s}</span>)}</div>
+                 </div>
+                 {customTexts.map(t => (
+                     <div key={t.id} style={{ position: 'absolute', left: '50%', top: '50%', transform: `translate(-50%, -50%) translate(${t.x * pdfScaleFactor}px, ${t.y * pdfScaleFactor}px)`, pointerEvents: 'none', zIndex: 50 }}>
+                         <div style={{ width: `${(t.width || 250) * pdfScaleFactor}px` }}>
+                             <p className="font-hand" style={{ fontSize: `${(t.scale * 20) * pdfScaleFactor}px`, lineHeight: 1.2, color: '#581c87', textAlign: 'center', wordWrap: 'break-word' }}>{t.content}</p>
+                         </div>
+                     </div>
+                 ))}
             </div>
        </div>
     </div>
