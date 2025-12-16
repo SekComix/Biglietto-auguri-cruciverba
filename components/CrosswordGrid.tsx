@@ -1,7 +1,7 @@
 
 import React, { useState, useEffect, useRef } from 'react';
 import { CrosswordData, CellData, Direction, ThemeType } from '../types';
-import { Printer, Edit, Eye, EyeOff, BookOpen, FileText, CheckCircle2, Palette, Download, Loader2, XCircle, RotateCw, Maximize, Move, Info, Type, Trash2, Grip, ArrowRightLeft, Pencil } from 'lucide-react';
+import { Printer, Edit, Eye, EyeOff, BookOpen, FileText, CheckCircle2, Palette, Download, Loader2, XCircle, RotateCw, Maximize, Move, Info, Type, Trash2, Grip, ArrowRightLeft, Pencil, Frame } from 'lucide-react';
 import html2canvas from 'html2canvas';
 import { jsPDF } from 'jspdf';
 
@@ -67,6 +67,9 @@ const CrosswordGrid: React.FC<CrosswordGridProps> = ({ data, onComplete, onEdit,
   const [editableMessage, setEditableMessage] = useState(data.message);
   
   const [revealAnswers, setRevealAnswers] = useState(false);
+  const [showBorders, setShowBorders] = useState(true);
+  const [showPrintModal, setShowPrintModal] = useState(false);
+  
   const inputRefs = useRef<(HTMLInputElement | null)[][]>([]);
 
   // Graphical Assets State
@@ -257,21 +260,20 @@ const CrosswordGrid: React.FC<CrosswordGridProps> = ({ data, onComplete, onEdit,
       let letterIndexCounter = 0;
       
       const len = chars.length;
-      let boxSize = '25px';
-      let fontSize = '14px';
+      let boxSize = '20px'; // Reduced from 25px for editor
+      let fontSize = '12px'; // Reduced from 14px for editor
       let numFontSize = '8px';
       
-      if (len > 15) { boxSize = '16px'; fontSize = '10px'; numFontSize = '6px'; }
-      else if (len > 10) { boxSize = '20px'; fontSize = '12px'; numFontSize = '7px'; }
-      else if (len > 8) { boxSize = '22px'; fontSize = '13px'; }
+      if (len > 15) { boxSize = '14px'; fontSize = '9px'; numFontSize = '6px'; }
+      else if (len > 10) { boxSize = '18px'; fontSize = '11px'; numFontSize = '7px'; }
 
       if (isPrint) {
-           boxSize = String(parseInt(boxSize) * 0.8) + 'px';
-           fontSize = String(parseInt(fontSize) * 0.8) + 'px';
+           boxSize = len > 15 ? '14px' : (len > 10 ? '16px' : '20px');
+           fontSize = len > 15 ? '8px' : (len > 10 ? '10px' : '12px');
       }
 
       return (
-        <div className="mb-2 p-1 w-full flex justify-center pointer-events-auto">
+        <div className={`mb-1 p-1 w-full flex justify-center pointer-events-auto ${!isPrint ? 'bg-white/80 backdrop-blur-sm rounded-lg shadow-sm z-20 relative' : ''}`}>
             <div className="flex justify-center gap-1 flex-wrap items-center">
                 {chars.map((char: string, i: number) => {
                     const isSpace = !/[A-Z]/i.test(char);
@@ -297,6 +299,7 @@ const CrosswordGrid: React.FC<CrosswordGridProps> = ({ data, onComplete, onEdit,
   };
 
   const handleDownloadPDF = async () => {
+      setShowPrintModal(false);
       if (!exportRef.current) return;
       
       const currentEditorWidth = editorRef.current?.offsetWidth || 1123;
@@ -377,8 +380,35 @@ const CrosswordGrid: React.FC<CrosswordGridProps> = ({ data, onComplete, onEdit,
             <button onClick={onEdit} className="bg-white px-4 py-2 rounded-full shadow border text-sm flex items-center gap-2 font-bold hover:bg-gray-50 text-gray-700 active:scale-95"><Edit size={16} /> Modifica Dati</button>
             <button onClick={addCustomText} className="bg-white px-3 py-2 rounded-full shadow border text-sm flex items-center gap-2 font-bold hover:bg-purple-50 text-purple-700 active:scale-95 border-purple-200"><Type size={16}/> Aggiungi Testo</button>
             <button onClick={() => setRevealAnswers(!revealAnswers)} className={`px-4 py-2 rounded-full shadow border text-sm flex items-center gap-2 font-bold active:scale-95 ${revealAnswers ? 'bg-yellow-100 text-yellow-800' : 'bg-white text-gray-700'}`}>{revealAnswers ? <EyeOff size={16}/> : <Eye size={16}/>} {revealAnswers ? 'Nascondi' : 'Soluzione'}</button>
-            <button onClick={handleDownloadPDF} disabled={isGeneratingPDF} className={`text-white px-6 py-2 rounded-full shadow-lg text-sm flex items-center gap-2 font-bold active:scale-95 ${isGeneratingPDF ? 'bg-gray-400' : 'bg-gradient-to-r from-green-600 to-emerald-600'}`}>{isGeneratingPDF ? <Loader2 size={16} className="animate-spin"/> : <Printer size={16} />} ANTEPRIMA STAMPA</button>
+            <button onClick={() => setShowPrintModal(true)} disabled={isGeneratingPDF} className={`text-white px-6 py-2 rounded-full shadow-lg text-sm flex items-center gap-2 font-bold active:scale-95 ${isGeneratingPDF ? 'bg-gray-400' : 'bg-gradient-to-r from-green-600 to-emerald-600'}`}>{isGeneratingPDF ? <Loader2 size={16} className="animate-spin"/> : <Printer size={16} />} ANTEPRIMA STAMPA</button>
        </div>
+
+       {/* MODALE OPZIONI STAMPA */}
+       {showPrintModal && (
+          <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/60 backdrop-blur-sm p-4 animate-in fade-in" onClick={() => setShowPrintModal(false)}>
+            <div className="bg-white rounded-2xl shadow-2xl p-6 w-full max-w-md border-4 border-blue-100 scale-100 animate-in zoom-in-95" onClick={e => e.stopPropagation()}>
+               <div className="flex justify-between items-center mb-4 border-b pb-2">
+                   <h3 className="text-xl font-bold text-gray-800 flex items-center gap-2"><Printer className="text-blue-600"/> Opzioni di Stampa</h3>
+                   <button onClick={() => setShowPrintModal(false)} className="text-gray-400 hover:text-gray-600"><XCircle size={24}/></button>
+               </div>
+               
+               <div className="space-y-4 mb-6">
+                  <button onClick={() => setShowBorders(!showBorders)} className={`w-full p-4 rounded-xl border-2 flex items-center justify-between font-bold transition-all ${showBorders ? 'border-blue-500 bg-blue-50 text-blue-700 shadow-sm' : 'border-gray-200 text-gray-500 hover:bg-gray-50'}`}>
+                      <span className="flex items-center gap-3"><Frame size={20}/> Cornice Decorativa</span>
+                      {showBorders ? <CheckCircle2 size={24} className="text-blue-600"/> : <div className="w-6 h-6 rounded-full border-2 border-gray-300"/>}
+                  </button>
+                  <p className="text-xs text-gray-400 text-center px-4">Scegli se includere i bordi colorati nel PDF finale.</p>
+               </div>
+        
+               <div className="flex gap-3 pt-2">
+                  <button onClick={() => setShowPrintModal(false)} className="flex-1 py-3 rounded-xl font-bold text-gray-500 hover:bg-gray-100 border border-transparent hover:border-gray-200 transition-colors">Annulla</button>
+                  <button onClick={handleDownloadPDF} className="flex-1 py-3 rounded-xl font-bold bg-gradient-to-r from-blue-600 to-indigo-600 text-white shadow-lg hover:shadow-xl hover:scale-[1.02] transition-all flex items-center justify-center gap-2">
+                     <Download size={18}/> Genera PDF
+                  </button>
+               </div>
+            </div>
+          </div>
+       )}
        
        {/* FOGLIO 1: ESTERNO */}
        <div className="w-full max-w-5xl px-4 md:px-0">
@@ -403,11 +433,11 @@ const CrosswordGrid: React.FC<CrosswordGridProps> = ({ data, onComplete, onEdit,
                  
                  {/* CONTENT LAYER */}
                  <div className={`absolute inset-4 flex z-10 transition-opacity duration-300 pointer-events-none`}>
-                     <div className={`w-1/2 h-full p-8 flex flex-col items-center justify-center text-center ${themeAssets.printBorder} border-r-0 relative pointer-events-none box-border`}>
+                     <div className={`w-1/2 h-full p-8 flex flex-col items-center justify-center text-center ${showBorders ? themeAssets.printBorder : 'border-none'} border-r-0 relative pointer-events-none box-border`}>
                          <div className="text-6xl opacity-20 mb-4">{themeAssets.decoration}</div>
                          {data.images?.brandLogo && <div className="absolute bottom-8 left-1/2 -translate-x-1/2 flex flex-col items-center opacity-80"><img src={data.images.brandLogo} className="h-8 object-contain" /></div>}
                      </div>
-                     <div className={`w-1/2 h-full flex flex-col items-center justify-center text-center ${themeAssets.printBorder} border-l-0 relative box-border overflow-hidden`}>
+                     <div className={`w-1/2 h-full flex flex-col items-center justify-center text-center ${showBorders ? themeAssets.printBorder : 'border-none'} border-l-0 relative box-border overflow-hidden`}>
                          {/* COVER IMAGE - FULL SIZE */}
                          {data.images?.extraImage ? (
                             <div className={`w-full h-full relative`}>
@@ -432,16 +462,17 @@ const CrosswordGrid: React.FC<CrosswordGridProps> = ({ data, onComplete, onEdit,
                 {/* CONTENT LAYER - pointer-events-none on container, auto on children */}
                 <div className={`absolute inset-4 flex z-10 pointer-events-none`}>
                     {/* DEDICA (Left) */}
-                    <div className={`w-1/2 h-full p-6 flex flex-col text-center ${themeAssets.printBorder} border-r-0 relative box-border pointer-events-none`}>
+                    <div className={`w-1/2 h-full p-6 flex flex-col text-center ${showBorders ? themeAssets.printBorder : 'border-none'} border-r-0 relative box-border pointer-events-none`}>
                         {/* HEADER: TITLE & DATE */}
-                        <div className="mb-4 pointer-events-auto shrink-0 z-20">
+                        <div className="mb-2 pointer-events-auto shrink-0 z-20">
                             <h1 className={`text-2xl md:text-3xl ${themeAssets.fontTitle} text-gray-900 leading-tight drop-shadow-sm`}>{data.title}</h1>
                             <p className="text-xs uppercase text-gray-500 font-bold tracking-widest mt-1">{data.eventDate || "Data Speciale"} • {currentYear}</p>
                         </div>
                         
-                        <div className="flex-1 w-full flex flex-col items-center justify-center relative">
+                        {/* IMAGE CONTAINER FIX - FLEXIBLE HEIGHT */}
+                        <div className="flex-1 w-full min-h-0 flex items-center justify-center relative my-2">
                             {photos.length > 0 ? (
-                                <div className={`w-[70%] aspect-square mb-4 relative pointer-events-auto ${activeItemId === 'img2' ? 'cursor-move ring-2 ring-blue-500 ring-dashed z-50' : ''}`} 
+                                <div className={`aspect-square h-auto max-h-full w-auto max-w-[90%] relative pointer-events-auto ${activeItemId === 'img2' ? 'cursor-move ring-2 ring-blue-500 ring-dashed z-50' : ''}`} 
                                     style={{ transform: `translate(${imgSheet2.x}px, ${imgSheet2.y}px) scale(${imgSheet2.scale})` }} 
                                     onMouseDown={(e) => startDrag(e, 'img2')}
                                     onClick={(e) => e.stopPropagation()} 
@@ -451,66 +482,67 @@ const CrosswordGrid: React.FC<CrosswordGridProps> = ({ data, onComplete, onEdit,
                                     {activeItemId === 'img2' && <div onMouseDown={(e) => startResize(e, 'img2')} className="absolute -bottom-6 -right-6 w-10 h-10 bg-blue-600 text-white rounded-full shadow-xl flex items-center justify-center cursor-nwse-resize z-50 pointer-events-auto hover:scale-110"><Maximize size={20} /></div>}
                                 </div>
                             ) : data.images?.extraImage ? (
-                                <div className={`relative inline-block mb-4 pointer-events-auto ${activeItemId === 'img2' ? 'cursor-move ring-2 ring-blue-500 ring-dashed z-50' : ''}`} 
+                                <div className={`relative inline-block h-auto max-h-full w-auto max-w-full pointer-events-auto ${activeItemId === 'img2' ? 'cursor-move ring-2 ring-blue-500 ring-dashed z-50' : ''}`} 
                                     style={{ transform: `translate(${imgSheet2.x}px, ${imgSheet2.y}px) scale(${imgSheet2.scale})` }} 
                                     onMouseDown={(e) => startDrag(e, 'img2')}
                                     onClick={(e) => e.stopPropagation()} 
                                     onDoubleClick={(e) => { e.stopPropagation(); setActiveItemId('img2'); }}
                                 >
-                                    <img src={data.images.extraImage} className="h-32 object-contain drop-shadow-md pointer-events-none" />
+                                    <img src={data.images.extraImage} className="max-h-full max-w-full object-contain drop-shadow-md pointer-events-none" style={{ maxHeight: '250px' }} />
                                     {activeItemId === 'img2' && <div onMouseDown={(e) => startResize(e, 'img2')} className="absolute -bottom-6 -right-6 w-10 h-10 bg-blue-600 text-white rounded-full shadow-xl flex items-center justify-center cursor-nwse-resize z-50 pointer-events-auto hover:scale-110"><Maximize size={20} /></div>}
                                 </div>
-                            ) : null}
+                            ) : <div className="flex-1 w-full"></div>}
+                        </div>
 
-                            <div className={`w-full relative group pointer-events-auto ${activeItemId === 'txt2' ? 'cursor-move ring-2 ring-blue-500 ring-dashed z-50' : ''}`} 
-                                style={{ transform: `translate(${txtSheet2.x}px, ${txtSheet2.y}px) scale(${txtSheet2.scale})` }} 
-                                onMouseDown={(e) => startDrag(e, 'txt2')}
-                                onClick={(e) => e.stopPropagation()} 
-                                onDoubleClick={(e) => { e.stopPropagation(); setEditingItemId('txt2'); }}
-                            >
-                                {editingItemId === 'txt2' ? (
-                                    <div className="w-full bg-white p-2 rounded-xl shadow-lg border border-blue-200 z-20 absolute top-[-50px] left-0 pointer-events-auto" onMouseDown={(e) => e.stopPropagation()}>
-                                        <textarea 
-                                            autoFocus
-                                            className="w-full p-2 bg-gray-50 border border-blue-200 rounded-lg text-center text-sm font-hand" 
-                                            rows={4} 
-                                            value={editableMessage} 
-                                            onChange={(e) => setEditableMessage(e.target.value)}
-                                        />
-                                        <button onClick={() => setEditingItemId(null)} className="bg-green-500 text-white text-xs px-3 py-1 rounded-full font-bold mt-2">Fatto</button>
-                                    </div>
-                                ) : (
-                                    <div className="relative p-2 transition-colors border border-transparent hover:border-yellow-200">
-                                        <p className={`text-xl md:text-2xl leading-relaxed ${themeAssets.fontTitle} text-gray-800 drop-shadow-sm`}>"{editableMessage}"</p>
-                                        {activeItemId === 'txt2' && (
-                                            <button 
-                                                onClick={(e) => { e.stopPropagation(); setEditingItemId('txt2'); }} 
-                                                className="absolute -top-3 -right-3 bg-white text-blue-600 rounded-full p-1.5 shadow-md border border-blue-100 hover:bg-blue-50 z-50"
-                                            >
-                                                <Pencil size={12}/>
-                                            </button>
-                                        )}
-                                    </div>
-                                )}
-                                {activeItemId === 'txt2' && !editingItemId && <div onMouseDown={(e) => startResize(e, 'txt2')} className="absolute -bottom-6 -right-6 w-10 h-10 bg-blue-600 text-white rounded-full shadow-xl flex items-center justify-center cursor-nwse-resize z-50 pointer-events-auto hover:scale-110"><Maximize size={20} /></div>}
-                            </div>
+                        {/* MESSAGE CONTAINER - Shrinkable if needed but prefers auto */}
+                        <div className={`w-full relative group pointer-events-auto shrink-0 ${activeItemId === 'txt2' ? 'cursor-move ring-2 ring-blue-500 ring-dashed z-50' : ''}`} 
+                            style={{ transform: `translate(${txtSheet2.x}px, ${txtSheet2.y}px) scale(${txtSheet2.scale})` }} 
+                            onMouseDown={(e) => startDrag(e, 'txt2')}
+                            onClick={(e) => e.stopPropagation()} 
+                            onDoubleClick={(e) => { e.stopPropagation(); setEditingItemId('txt2'); }}
+                        >
+                            {editingItemId === 'txt2' ? (
+                                <div className="w-full bg-white p-2 rounded-xl shadow-lg border border-blue-200 z-20 absolute top-[-50px] left-0 pointer-events-auto" onMouseDown={(e) => e.stopPropagation()}>
+                                    <textarea 
+                                        autoFocus
+                                        className="w-full p-2 bg-gray-50 border border-blue-200 rounded-lg text-center text-sm font-hand" 
+                                        rows={4} 
+                                        value={editableMessage} 
+                                        onChange={(e) => setEditableMessage(e.target.value)}
+                                    />
+                                    <button onClick={() => setEditingItemId(null)} className="bg-green-500 text-white text-xs px-3 py-1 rounded-full font-bold mt-2">Fatto</button>
+                                </div>
+                            ) : (
+                                <div className="relative p-2 transition-colors border border-transparent hover:border-yellow-200">
+                                    <p className={`text-xl md:text-2xl leading-relaxed ${themeAssets.fontTitle} text-gray-800 drop-shadow-sm`}>"{editableMessage}"</p>
+                                    {activeItemId === 'txt2' && (
+                                        <button 
+                                            onClick={(e) => { e.stopPropagation(); setEditingItemId('txt2'); }} 
+                                            className="absolute -top-3 -right-3 bg-white text-blue-600 rounded-full p-1.5 shadow-md border border-blue-100 hover:bg-blue-50 z-50"
+                                        >
+                                            <Pencil size={12}/>
+                                        </button>
+                                    )}
+                                </div>
+                            )}
+                            {activeItemId === 'txt2' && !editingItemId && <div onMouseDown={(e) => startResize(e, 'txt2')} className="absolute -bottom-6 -right-6 w-10 h-10 bg-blue-600 text-white rounded-full shadow-xl flex items-center justify-center cursor-nwse-resize z-50 pointer-events-auto hover:scale-110"><Maximize size={20} /></div>}
                         </div>
                     </div>
 
                     {/* GIOCO (Right) - Added padding p-6 to force content away from border */}
-                    <div className={`w-1/2 h-full p-6 flex flex-col relative z-10 pointer-events-none overflow-hidden box-border ${themeAssets.printBorder} border-l-0`}>
+                    <div className={`w-1/2 h-full p-6 flex flex-col relative z-10 pointer-events-none overflow-hidden box-border ${showBorders ? themeAssets.printBorder : 'border-none'} border-l-0`}>
                         {isCrossword ? (
-                            <div className="flex flex-col h-full w-full">
+                            <div className="flex flex-col h-full w-full justify-between">
                                 <div className="shrink-0 pointer-events-auto">
-                                    <h2 className="text-lg font-bold uppercase border-b-2 border-black mb-2 pb-1 text-center tracking-widest">Cruciverba</h2>
+                                    <h2 className="text-lg font-bold uppercase border-b-2 border-black mb-1 pb-1 text-center tracking-widest">Cruciverba</h2>
                                     {renderSolution()}
                                 </div>
-                                <div className="flex-1 min-h-0 flex items-center justify-center py-2 relative w-full pointer-events-none">
-                                    <div className="w-full h-full flex items-center justify-center pointer-events-auto">
+                                <div className="flex-grow min-h-0 flex items-center justify-center py-1 relative w-full pointer-events-none">
+                                    <div className="w-full h-full max-h-full flex items-center justify-center pointer-events-auto" style={{ maxHeight: '100%' }}>
                                          {renderGridCells(false)}
                                     </div>
                                 </div>
-                                <div className="shrink-0 mt-2 text-[9px] md:text-[10px] grid grid-cols-2 gap-2 leading-tight w-full border-t border-black pt-2 overflow-y-auto max-h-[150px] pointer-events-auto" style={{ scrollbarWidth: 'none', msOverflowStyle: 'none' }}>
+                                <div className="shrink-0 mt-1 text-[9px] md:text-[10px] grid grid-cols-2 gap-2 leading-tight w-full border-t border-black pt-1 overflow-y-auto max-h-[140px] pointer-events-auto" style={{ scrollbarWidth: 'none', msOverflowStyle: 'none' }}>
                                     <div className="pr-1"><b className="block border-b border-gray-300 mb-1 pb-0.5 font-bold text-xs">Orizzontali</b>{data.words.filter(w=>w.direction===Direction.ACROSS).map(w=><div key={w.id} className="mb-0.5"><b className="mr-1">{w.number}.</b>{w.clue}</div>)}</div>
                                     <div className="pl-1 border-l border-gray-100"><b className="block border-b border-gray-300 mb-1 pb-0.5 font-bold text-xs">Verticali</b>{data.words.filter(w=>w.direction===Direction.DOWN).map(w=><div key={w.id} className="mb-0.5"><b className="mr-1">{w.number}.</b>{w.clue}</div>)}</div>
                                 </div>
@@ -601,12 +633,12 @@ const CrosswordGrid: React.FC<CrosswordGridProps> = ({ data, onComplete, onEdit,
                  {data.hasWatermark && (
                      <div style={{ position: 'absolute', top: '50%', left: '50%', transform: `translate(-50%, -50%) translate(${wmSheet1.x * pdfScaleFactor}px, ${wmSheet1.y * pdfScaleFactor}px) scale(${wmSheet1.scale}) rotate(12deg)`, fontSize: '130px', opacity: 0.20, zIndex: 0, whiteSpace: 'nowrap' }}>{themeAssets.watermark}</div>
                  )}
-                 <div className={themeAssets.printBorder} style={{ width: '49%', marginRight: '1%', height: '100%', padding: '30px', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', textAlign: 'center', borderRight: 'none', position: 'relative', zIndex: 10, boxSizing: 'border-box' }}>
+                 <div className={showBorders ? themeAssets.printBorder : 'border-none'} style={{ width: '49%', marginRight: '1%', height: '100%', padding: '30px', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', textAlign: 'center', borderRight: 'none', position: 'relative', zIndex: 10, boxSizing: 'border-box' }}>
                     <div style={{ fontSize: '80px', opacity: 0.2, marginBottom: '20px' }}>{themeAssets.decoration}</div>
                     {data.images?.brandLogo && <div style={{ position: 'absolute', bottom: '40px', left: '50%', transform: 'translateX(-50%)', display: 'flex', flexDirection: 'column', alignItems: 'center', opacity: 0.8 }}><p style={{ fontSize: '10px', textTransform: 'uppercase', letterSpacing: '2px', color: '#9ca3af', marginBottom: '5px' }}>Created by</p><img src={data.images.brandLogo} style={{ height: '40px', objectFit: 'contain' }} /></div>}
                  </div>
                  
-                 <div className={themeAssets.printBorder} style={{ width: '49%', marginLeft: '1%', height: '100%', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', textAlign: 'center', borderLeft: 'none', position: 'relative', zIndex: 10, boxSizing: 'border-box' }}>
+                 <div className={showBorders ? themeAssets.printBorder : 'border-none'} style={{ width: '49%', marginLeft: '1%', height: '100%', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', textAlign: 'center', borderLeft: 'none', position: 'relative', zIndex: 10, boxSizing: 'border-box' }}>
                      {/* COVER FULL SIZE - WITH INTERNAL PADDING TO PREVENT BORDER OVERLAP */}
                      {data.images?.extraImage ? (
                          <div style={{ width: '100%', height: '100%', padding: '40px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
@@ -624,7 +656,7 @@ const CrosswordGrid: React.FC<CrosswordGridProps> = ({ data, onComplete, onEdit,
                  )}
                  
                  {/* LEFT PAGE (DEDICA) - Reduced width to avoid print cutoff, added marginRight */}
-                 <div className={themeAssets.printBorder} style={{ width: '49%', marginRight: '1%', height: '100%', borderRight: 'none', position: 'relative', zIndex: 10, boxSizing: 'border-box', overflow: 'hidden' }}>
+                 <div className={showBorders ? themeAssets.printBorder : 'border-none'} style={{ width: '49%', marginRight: '1%', height: '100%', borderRight: 'none', position: 'relative', zIndex: 10, boxSizing: 'border-box', overflow: 'hidden' }}>
                      
                      {/* CONTENT WRAPPER WITH PADDING - Keeps static text safe */}
                      <div style={{ width: '100%', height: '100%', padding: '30px', display: 'flex', flexDirection: 'column', alignItems: 'center', textAlign: 'center' }}>
@@ -633,12 +665,13 @@ const CrosswordGrid: React.FC<CrosswordGridProps> = ({ data, onComplete, onEdit,
                               <h1 className={themeAssets.fontTitle} style={{ fontSize: '40px', marginBottom: '5px', lineHeight: 1.2 }}>{data.title}</h1>
                               <p style={{ fontSize: '14px', textTransform: 'uppercase', color: '#666', letterSpacing: '2px' }}>{data.eventDate || "Data Speciale"} • {currentYear}</p>
                          </div>
+                         {/* PDF IMAGE CONTAINER */}
                          <div style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', width: '100%', position: 'relative' }}>
                             {photos.length > 0 ? (
-                                <div style={{ width: '80%', aspectRatio: '1/1', border: '5px solid white', boxShadow: '0 4px 6px rgba(0,0,0,0.1)', overflow: 'hidden', backgroundColor: '#f3f4f6', marginBottom: '20px', transform: `translate(${imgSheet2.x * pdfScaleFactor}px, ${imgSheet2.y * pdfScaleFactor}px) scale(${imgSheet2.scale})` }}>
+                                <div style={{ width: 'auto', maxWidth: '80%', maxHeight: '300px', aspectRatio: '1/1', border: '5px solid white', boxShadow: '0 4px 6px rgba(0,0,0,0.1)', overflow: 'hidden', backgroundColor: '#f3f4f6', marginBottom: '20px', transform: `translate(${imgSheet2.x * pdfScaleFactor}px, ${imgSheet2.y * pdfScaleFactor}px) scale(${imgSheet2.scale})` }}>
                                     <PhotoCollage photos={photos} />
                                 </div>
-                            ) : data.images?.extraImage ? <img src={data.images.extraImage} style={{ maxHeight: '150px', marginBottom: '20px', transform: `translate(${imgSheet2.x * pdfScaleFactor}px, ${imgSheet2.y * pdfScaleFactor}px) scale(${imgSheet2.scale})` }} /> : null}
+                            ) : data.images?.extraImage ? <img src={data.images.extraImage} style={{ maxHeight: '250px', maxWidth: '100%', objectFit: 'contain', marginBottom: '20px', transform: `translate(${imgSheet2.x * pdfScaleFactor}px, ${imgSheet2.y * pdfScaleFactor}px) scale(${imgSheet2.scale})` }} /> : null}
                             <div style={{ transform: `translate(${txtSheet2.x * pdfScaleFactor}px, ${txtSheet2.y * pdfScaleFactor}px) scale(${txtSheet2.scale})` }}><p className={themeAssets.fontTitle} style={{ fontSize: '24px', lineHeight: 1.5, marginBottom: '20px' }}>"{editableMessage}"</p></div>
                          </div>
                      </div>
@@ -646,7 +679,7 @@ const CrosswordGrid: React.FC<CrosswordGridProps> = ({ data, onComplete, onEdit,
                  </div>
                  
                  {/* RIGHT PAGE (CROSSWORD) - Reduced width, added marginLeft, extra padding for safety */}
-                 <div className={themeAssets.printBorder} style={{ width: '49%', marginLeft: '1%', height: '100%', borderLeft: 'none', position: 'relative', zIndex: 10, boxSizing: 'border-box', overflow: 'hidden' }}>
+                 <div className={showBorders ? themeAssets.printBorder : 'border-none'} style={{ width: '49%', marginLeft: '1%', height: '100%', borderLeft: 'none', position: 'relative', zIndex: 10, boxSizing: 'border-box', overflow: 'hidden' }}>
                      {/* Added inner padding 40px to safely distance content from border */}
                      <div style={{ width: '100%', height: '100%', padding: '40px', paddingRight: '50px', display: 'flex', flexDirection: 'column' }}>
                         {isCrossword ? (
