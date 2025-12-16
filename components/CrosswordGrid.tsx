@@ -1,7 +1,7 @@
 
 import React, { useState, useEffect, useRef } from 'react';
 import { CrosswordData, CellData, Direction, ThemeType, CardFormat } from '../types';
-import { Printer, Edit, Eye, EyeOff, BookOpen, FileText, CheckCircle2, Palette, Download, Loader2, XCircle, RotateCw, Maximize, Move, Info, Type, Trash2, Grip, ArrowRightLeft, Pencil, Frame, RefreshCcw, BoxSelect, ImagePlus, SmilePlus, ChevronLeft, ChevronRight, LayoutTemplate, Camera, Shuffle } from 'lucide-react';
+import { Printer, Edit, Eye, EyeOff, BookOpen, FileText, CheckCircle2, Palette, Download, Loader2, XCircle, RotateCw, Maximize, Move, Info, Type, Trash2, Grip, ArrowRightLeft, Pencil, Frame, RefreshCcw, BoxSelect, ImagePlus, SmilePlus, ChevronLeft, ChevronRight, LayoutTemplate, Camera, Shuffle, FolderInput, Save, Upload, HelpCircle, Check } from 'lucide-react';
 import html2canvas from 'html2canvas';
 import { jsPDF } from 'jspdf';
 
@@ -25,70 +25,34 @@ const THEME_ASSETS: Record<ThemeType, any> = {
   generic: { fontTitle: 'font-body', printBorder: 'border-solid border-2 border-gray-300', pdfBorder: '2px solid #d1d5db', decoration: '🎁', watermark: '🎁' }
 };
 
-// Immagini di default
-const THEME_TAG_IMAGES: Record<ThemeType, string[]> = {
-    christmas: [
-        "https://images.unsplash.com/photo-1607344645830-6e84163475ad?auto=format&fit=crop&w=400&q=80", 
-        "https://images.unsplash.com/photo-1543589077-47d81606c1bf?auto=format&fit=crop&w=400&q=80", 
-        "https://images.unsplash.com/photo-1512909006721-3d6018887383?auto=format&fit=crop&w=400&q=80", 
-        "https://images.unsplash.com/photo-1605007662972-e56593dc3ac1?auto=format&fit=crop&w=400&q=80", 
-        "https://images.unsplash.com/photo-1576692131265-4395025b6d33?auto=format&fit=crop&w=400&q=80", 
-        "https://images.unsplash.com/photo-1512389142860-9c449e58a543?auto=format&fit=crop&w=400&q=80", 
-        "https://images.unsplash.com/photo-1482517967863-00e15c9b4499?auto=format&fit=crop&w=400&q=80",
-        "https://images.unsplash.com/photo-1575549591388-f640483c6dfa?auto=format&fit=crop&w=400&q=80",
-        "https://images.unsplash.com/photo-1543258103-a62bdc069871?auto=format&fit=crop&w=400&q=80",
-        "https://images.unsplash.com/photo-1511516412963-801b050c92aa?auto=format&fit=crop&w=400&q=80",
-        "https://images.unsplash.com/photo-1602936357413-5a7a72384775?auto=format&fit=crop&w=400&q=80",
-        "https://images.unsplash.com/photo-1512474932049-78ea69616019?auto=format&fit=crop&w=400&q=80",
-        "https://images.unsplash.com/photo-1576088279457-3c3b0185e33d?auto=format&fit=crop&w=400&q=80",
-        "https://images.unsplash.com/photo-1545622783-b3e021430fee?auto=format&fit=crop&w=400&q=80"
-    ],
-    birthday: [
-        "https://images.unsplash.com/photo-1530103862676-de3c9a59af38?auto=format&fit=crop&w=400&q=80", 
-        "https://images.unsplash.com/photo-1558636508-e0db3814bd1d?auto=format&fit=crop&w=400&q=80",
-        "https://images.unsplash.com/photo-1464349153735-7db50ed83c84?auto=format&fit=crop&w=400&q=80",
-        "https://images.unsplash.com/photo-1527481138388-31827a7c94d5?auto=format&fit=crop&w=400&q=80",
-        "https://images.unsplash.com/photo-1513151233558-d860c5398176?auto=format&fit=crop&w=400&q=80",
-        "https://images.unsplash.com/photo-1563725581894-3cb182885935?auto=format&fit=crop&w=400&q=80",
-        "https://images.unsplash.com/photo-1608681288289-53e77f09312c?auto=format&fit=crop&w=400&q=80",
-        "https://images.unsplash.com/photo-1588107931388-e21626c927c8?auto=format&fit=crop&w=400&q=80"
-    ],
-    easter: [
-        "https://images.unsplash.com/photo-1521911527092-23c26780c942?auto=format&fit=crop&w=400&q=80",
-        "https://images.unsplash.com/photo-1616496350917-0c75c87a2a07?auto=format&fit=crop&w=400&q=80",
-        "https://images.unsplash.com/photo-1584307374776-9c426336338e?auto=format&fit=crop&w=400&q=80",
-        "https://images.unsplash.com/photo-1520111166311-53644f123f8b?auto=format&fit=crop&w=400&q=80"
-    ],
-    halloween: ["https://images.unsplash.com/photo-1508361001413-7a9dca21d08a?auto=format&fit=crop&w=400&q=80"],
-    graduation: ["https://images.unsplash.com/photo-1523050854058-8df90110c9f1?auto=format&fit=crop&w=400&q=80"],
-    confirmation: ["https://images.unsplash.com/photo-1519817914152-22d216bb9170?auto=format&fit=crop&w=400&q=80"],
-    communion: ["https://images.unsplash.com/photo-1515934751635-c81c6bc9a2d8?auto=format&fit=crop&w=400&q=80"],
-    wedding: ["https://images.unsplash.com/photo-1515934751635-c81c6bc9a2d8?auto=format&fit=crop&w=400&q=80"],
-    elegant: ["https://images.unsplash.com/photo-1496293455970-f8581aae0e3c?auto=format&fit=crop&w=400&q=80"],
-    generic: [
-        "https://images.unsplash.com/photo-1513201099705-a9746e1e201f?auto=format&fit=crop&w=400&q=80",
-        "https://images.unsplash.com/photo-1549465220-1a8b9238cd48?auto=format&fit=crop&w=400&q=80",
-        "https://images.unsplash.com/photo-1507608616759-54f48f0af0ee?auto=format&fit=crop&w=400&q=80"
-    ]
-};
-
+// MASSIVE EXPANSION OF MESSAGES FOR VARIETY
 const TAG_MESSAGES_DB: Record<string, string[]> = {
     christmas: [
-        "Ti auguro un Natale pieno di gioia.",
-        "Che la magia delle feste illumini i tuoi giorni.",
-        "Un piccolo dono per un grande sorriso.",
-        "Pace, amore e felicità.",
-        "Che il nuovo anno ti porti gioia.",
-        "Brindiamo a nuovi inizi!",
-        "Un pensiero speciale per te.",
-        "Buone Feste!",
-        "Auguri di cuore.",
-        "Serenità e amore.",
-        "Buon Natale!",
-        "Felice Anno Nuovo"
+        "Ti auguro un Natale pieno di gioia.", "Che la magia delle feste illumini i tuoi giorni.", "Un piccolo dono per un grande sorriso.",
+        "Pace, amore e felicità.", "Che il nuovo anno ti porti gioia.", "Brindiamo a nuovi inizi!", "Un pensiero speciale per te.",
+        "Buone Feste!", "Auguri di cuore.", "Serenità e amore.", "Buon Natale!", "Felice Anno Nuovo",
+        "Sotto l'albero tanta felicità.", "Che sia un Natale indimenticabile.", "Sorrisi e abbracci per te.", "Calore, luci e magia.",
+        "Un dolce pensiero natalizio.", "A te che sei speciale, Buon Natale.", "Giorni felici e luminosi.", "Brilla come una stella di Natale.",
+        "Possa questo dono portarti gioia.", "Auguri scintillanti!", "Con tutto il mio affetto.", "Magia pura per questo Natale.",
+        "Che i tuoi sogni si avverino.", "Un abbraccio festoso.", "Cin cin alla felicità!", "Ricordi felici e futuri radiosi.",
+        "Biscotti, amore e fantasia.", "Un regalo fatto col cuore.", "La gioia è nel donare.", "Per un Natale meraviglioso.",
+        "Pace in terra e nel tuo cuore.", "Scarta la felicità!", "Auguri di buone vacanze.", "Riposo, relax e regali.",
+        "Che la festa abbia inizio!", "Un pensiero solo per te.", "Sei nella mia lista dei buoni.", "Auguri grandissimi!",
+        "Felicità formato regalo.", "Sorprese sotto l'albero.", "Un Natale da favola.", "Momenti preziosi.",
+        "Luci, colori e allegria.", "Il regalo più bello sei tu.", "Grazie di esserci sempre.", "Buon Natale e felice anno!"
     ],
-    birthday: ["Buon Compleanno!", "Tanti auguri di felicità.", "Un anno in più, sempre fantastico!", "Festeggia alla grande.", "Sorprese bellissime in arrivo.", "Dolce come la torta.", "Cento di questi giorni.", "Un regalo speciale per te."],
-    generic: ["Un pensiero per te.", "Con i migliori auguri.", "Spero ti piaccia!", "Tanta felicità.", "Auguri sinceri.", "Giorno indimenticabile.", "Con affetto.", "Auguri!"]
+    birthday: [
+        "Buon Compleanno!", "Tanti auguri di felicità.", "Un anno in più, sempre fantastico!", "Festeggia alla grande.",
+        "Sorprese bellissime in arrivo.", "Dolce come la torta.", "Cento di questi giorni.", "Un regalo speciale per te.",
+        "Oggi è il tuo giorno!", "Brilla come non mai.", "Esprimi un desiderio.", "Auguri al festeggiato!",
+        "Che la festa cominci!", "Un anno di successi.", "Sei speciale, auguri!", "Divertiti un mondo."
+    ],
+    generic: [
+        "Un pensiero per te.", "Con i migliori auguri.", "Spero ti piaccia!", "Tanta felicità.", "Auguri sinceri.",
+        "Giorno indimenticabile.", "Con affetto.", "Auguri!", "Per te, con il cuore.", "Un piccolo gesto.",
+        "Che sia un giorno speciale.", "Ti auguro il meglio.", "Sorridi sempre!", "Un abbraccio forte.",
+        "Con stima e affetto.", "Tante belle cose."
+    ]
 };
 
 const STICKER_OPTIONS = ['🎅', '🎄', '🎁', '❄️', '⛄', '🎂', '🎈', '🎉', '🕯️', '🍰', '💍', '❤️', '💐', '🎃', '👻', '🎓', '🏆', '⚽', '🐶', '🐱', '⭐', '✨'];
@@ -142,12 +106,15 @@ const CrosswordGrid: React.FC<CrosswordGridProps> = ({ data, onComplete, onEdit,
   const [revealAnswers, setRevealAnswers] = useState(false);
   const [showBorders, setShowBorders] = useState(true);
   const [showPrintModal, setShowPrintModal] = useState(false);
-  const [showGraphicsModal, setShowGraphicsModal] = useState(false); 
+  const [showGraphicsModal, setShowGraphicsModal] = useState(false);
+  const [showHelpModal, setShowHelpModal] = useState(false);
   
   const [viewMode, setViewMode] = useState<'single' | 'sheets'>('single');
 
   const inputRefs = useRef<(HTMLInputElement | null)[][]>([]);
   const singleTagFileInputRef = useRef<HTMLInputElement>(null);
+  const folderInputRef = useRef<HTMLInputElement>(null);
+  const albumUploadRef = useRef<HTMLInputElement>(null);
 
   const [activeItemId, setActiveItemId] = useState<string | null>(null);
   const [editingItemId, setEditingItemId] = useState<string | null>(null); 
@@ -165,6 +132,12 @@ const CrosswordGrid: React.FC<CrosswordGridProps> = ({ data, onComplete, onEdit,
   const [customTexts, setCustomTexts] = useState<PositionableItem[]>([]);
 
   // State for Tags
+  const [allTagImages, setAllTagImages] = useState<string[]>([]);
+  const [currentSheetPage, setCurrentSheetPage] = useState(0); // 0-indexed page of tags (0 = 1-8, 1 = 9-16)
+  
+  // NEW: SELECTIVE PRINTING STATE
+  const [sheetsToPrint, setSheetsToPrint] = useState<number[]>([]);
+
   const [tagVariations, setTagVariations] = useState<Array<{img: string, title: string}>>([]);
   const [tagMessages, setTagMessages] = useState<string[]>([]);
   const [currentTagIndex, setCurrentTagIndex] = useState(0);
@@ -193,62 +166,79 @@ const CrosswordGrid: React.FC<CrosswordGridProps> = ({ data, onComplete, onEdit,
   const isHighDensity = data.words.length > 10;
   const printFontSize = isHighDensity ? '7.5px' : '9px';
 
-  // SET TAG VARIATIONS & MESSAGES (WITH ROBUST RANDOMIZATION)
+  const totalPages = Math.ceil(Math.max(allTagImages.length, 8) / 8);
+
+  // INIT / RESET LOGIC
   useEffect(() => {
-      // RESET LOGIC: If theme or format changed, wipe state to force fresh generation
       const hasThemeChanged = prevDataRef.current.theme !== data.theme;
       const hasFormatChanged = prevDataRef.current.format !== data.format;
       
       if (hasThemeChanged || hasFormatChanged) {
-          setTagVariations([]);
+          setAllTagImages([]); // Reset images on theme change
+          setCurrentSheetPage(0);
           setTagMessages([]);
           prevDataRef.current = data;
-          return; // Skip the rest, next render will handle init
       }
-
-      if (data.format === 'tags') {
-          // 1. MESSAGES (Always init if empty or insufficient)
-          if (tagMessages.length < 8) {
-              const themeMessages = TAG_MESSAGES_DB[data.theme] || TAG_MESSAGES_DB.generic;
-              let msgPool = [...themeMessages];
-              // Fill strictly up to 8 using modulo to ensure NO HOLES
-              const currentMsgs = [...tagMessages];
-              for (let i = currentMsgs.length; i < 8; i++) {
-                  currentMsgs.push(msgPool[i % msgPool.length]);
-              }
-              setTagMessages(currentMsgs);
-          }
-
-          // 2. IMAGES (Strict 8 items logic)
-          if (tagVariations.length < 8) {
-              let defaults = THEME_TAG_IMAGES[data.theme] || THEME_TAG_IMAGES.generic;
-              if (!defaults || defaults.length === 0) defaults = THEME_TAG_IMAGES.generic;
-
-              setTagVariations(prev => {
-                  const newVars = [...prev];
-                  // Strictly fill up to 8
-                  while (newVars.length < 8) {
-                      const i = newVars.length;
-                      // Safe modulo access
-                      const img = defaults[i % defaults.length] || ""; // Allow empty string if defaults fail, ensures item exists
-
-                      let title = "Auguri!";
-                      if (data.theme === 'christmas') {
-                          title = i < 4 ? "Buon Natale" : "Buone Feste";
-                      } else {
-                          title = data.title || "Auguri";
-                      }
-                      newVars.push({ img, title });
-                  }
-                  return newVars;
-              });
-          }
-      } else {
-          setViewMode('single'); // Reset to single for non-tag formats
-          setTagVariations([]); 
-          setTagMessages([]);
+      
+      // Initialize if empty in Tags mode
+      if (data.format === 'tags' && allTagImages.length === 0) {
+           setAllTagImages(Array(8).fill("")); // Start with 8 empty slots
       }
-  }, [data.format, data.theme, data.title, tagVariations.length, tagMessages.length]);
+  }, [data.format, data.theme]);
+
+
+  // SYNC VISIBLE TAGS WITH CURRENT PAGE
+  useEffect(() => {
+      if (data.format !== 'tags') {
+          setViewMode('single');
+          return;
+      }
+      
+      // LOGIC UPGRADE: Fill tagMessages to match total image count if needed
+      // This ensures we have unique messages for ALL 96 images, not just repeating 12
+      if (allTagImages.length > 0 && tagMessages.length < allTagImages.length) {
+          const themeMessages = TAG_MESSAGES_DB[data.theme] || TAG_MESSAGES_DB.generic;
+          const newMessages = [...tagMessages];
+          
+          // Fill up to total image count
+          for (let i = tagMessages.length; i < Math.max(8, allTagImages.length); i++) {
+              // Pick random message to avoid sequential repetition
+              const randomMsg = themeMessages[Math.floor(Math.random() * themeMessages.length)];
+              newMessages.push(randomMsg);
+          }
+          setTagMessages(newMessages);
+      } else if (tagMessages.length === 0) {
+          // Initial population
+          const themeMessages = TAG_MESSAGES_DB[data.theme] || TAG_MESSAGES_DB.generic;
+          const initialMsgs: string[] = [];
+           for (let i = 0; i < Math.max(8, allTagImages.length); i++) {
+              const randomMsg = themeMessages[Math.floor(Math.random() * themeMessages.length)];
+              initialMsgs.push(randomMsg);
+          }
+          setTagMessages(initialMsgs);
+      }
+      
+      // Calculate which 8 images to show based on page
+      const startIdx = currentSheetPage * 8;
+      const pageImages = allTagImages.slice(startIdx, startIdx + 8);
+      
+      // Pad with empty strings if last page is incomplete
+      while(pageImages.length < 8) pageImages.push("");
+
+      const newVars = pageImages.map((img, i) => {
+          let title = "Auguri!";
+          const absoluteIndex = startIdx + i;
+          if (data.theme === 'christmas') {
+              title = (absoluteIndex % 8) < 4 ? "Buon Natale" : "Buone Feste";
+          } else {
+              title = data.title || "Auguri";
+          }
+          return { img, title };
+      });
+      setTagVariations(newVars);
+
+  }, [allTagImages, currentSheetPage, data.format, data.theme, data.title, tagMessages.length]); // Added dependency to re-run if length mismatches
+
 
   useEffect(() => {
     if (editableMessage !== data.message) {
@@ -258,35 +248,95 @@ const CrosswordGrid: React.FC<CrosswordGridProps> = ({ data, onComplete, onEdit,
 
   const handleTagMessageChange = (newMsg: string) => {
       const newMessages = [...tagMessages];
-      newMessages[currentTagIndex] = newMsg;
+      const globalIndex = (currentSheetPage * 8) + currentTagIndex;
+      newMessages[globalIndex] = newMsg;
       setTagMessages(newMessages);
-  };
-
-  // --- NEW TAG IMAGE CONTROLS ---
-  const handleSingleTagRandomize = () => {
-      const pool = THEME_TAG_IMAGES[data.theme] || THEME_TAG_IMAGES.generic;
-      if (!pool || pool.length === 0) return;
-
-      const currentImg = tagVariations[currentTagIndex]?.img;
-      
-      // Filter out the current image to force a change, but prevent empty list
-      let availablePool = pool.filter(img => img !== currentImg);
-      if (availablePool.length === 0) availablePool = pool;
-      
-      const randomImg = availablePool[Math.floor(Math.random() * availablePool.length)];
-      if (!randomImg) return; 
-
-      setTagVariations(prev => {
-          const clone = [...prev];
-          // Ensure object exists
-          if (!clone[currentTagIndex]) clone[currentTagIndex] = { title: "Auguri", img: randomImg };
-          else clone[currentTagIndex] = { ...clone[currentTagIndex], img: randomImg };
-          return clone;
-      });
   };
 
   const handleSingleTagUploadTrigger = () => {
       singleTagFileInputRef.current?.click();
+  };
+
+  const handleFolderUploadTrigger = () => {
+      folderInputRef.current?.click();
+  };
+  
+  const handleAlbumSave = () => {
+      if (allTagImages.length === 0 || allTagImages.every(img => !img)) {
+          alert("Nessuna immagine da salvare.");
+          return;
+      }
+      const blob = new Blob([JSON.stringify({ images: allTagImages })], { type: 'application/json' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `album_${data.theme}_${allTagImages.length}foto.json`;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      URL.revokeObjectURL(url);
+  };
+
+  const handleAlbumLoadTrigger = () => {
+      albumUploadRef.current?.click();
+  };
+
+  const handleAlbumLoad = (e: React.ChangeEvent<HTMLInputElement>) => {
+      const file = e.target.files?.[0];
+      if (!file) return;
+      const reader = new FileReader();
+      reader.onload = (ev) => {
+          try {
+              const json = JSON.parse(ev.target?.result as string);
+              if (json.images && Array.isArray(json.images)) {
+                  setAllTagImages(json.images);
+                  setTagMessages([]); // Force regenerate messages
+                  setCurrentSheetPage(0);
+                  alert(`Album caricato con successo! ${json.images.length} foto importate.`);
+              } else {
+                  alert("File album non valido.");
+              }
+          } catch (err) {
+              alert("Errore caricamento album.");
+          }
+      };
+      reader.readAsText(file);
+      e.target.value = ''; // Reset input
+  };
+
+  const handleFolderUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+      const files = e.target.files;
+      if (!files || files.length === 0) return;
+
+      const imageFiles = Array.from(files)
+        .filter(file => file.type.startsWith('image/'))
+        // Sort alphabetically to maintain folder order
+        .sort((a, b) => a.name.localeCompare(b.name, undefined, { numeric: true, sensitivity: 'base' }));
+
+      if (imageFiles.length === 0) {
+          alert("Nessuna immagine trovata.");
+          return;
+      }
+
+      const promises = imageFiles.map(file => {
+          return new Promise<string>((resolve) => {
+              const reader = new FileReader();
+              reader.onload = (ev) => resolve(ev.target?.result as string);
+              reader.onerror = () => resolve(""); 
+              reader.readAsDataURL(file);
+          });
+      });
+
+      Promise.all(promises).then(images => {
+          const validImages = images.filter(img => img !== "");
+          if (validImages.length === 0) return;
+
+          // Replace all images with new batch and RESET messages
+          setAllTagImages(validImages);
+          setTagMessages([]); // This triggers the useEffect to refill messages randomly
+          setCurrentSheetPage(0); // Go to start
+      });
+      e.target.value = ''; // Reset
   };
 
   const handleSingleTagFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -296,19 +346,25 @@ const CrosswordGrid: React.FC<CrosswordGridProps> = ({ data, onComplete, onEdit,
           reader.onload = (ev) => {
               const result = ev.target?.result as string;
               if (result) {
-                  setTagVariations(prev => {
+                  // Update specific image in global array
+                  const globalIndex = (currentSheetPage * 8) + currentTagIndex;
+                  setAllTagImages(prev => {
                       const clone = [...prev];
-                      if (!clone[currentTagIndex]) clone[currentTagIndex] = { title: "Auguri", img: result };
-                      else clone[currentTagIndex] = { ...clone[currentTagIndex], img: result };
+                      // Ensure array is long enough
+                      while(clone.length <= globalIndex) clone.push("");
+                      clone[globalIndex] = result;
                       return clone;
                   });
               }
           };
           reader.readAsDataURL(file);
       }
+      e.target.value = '';
   };
 
   const handleOpenPrintModal = () => {
+      // DEFAULT: Select current sheet only initially
+      setSheetsToPrint([currentSheetPage]);
       setPrintRenderKey(p => p + 1); // FORCE REFRESH
       setShowPrintModal(true);
   };
@@ -319,13 +375,14 @@ const CrosswordGrid: React.FC<CrosswordGridProps> = ({ data, onComplete, onEdit,
     } else {
         setPdfPreviews([]);
     }
-  }, [showPrintModal, showBorders, data, printRenderKey]);
+  }, [showPrintModal, showBorders, data, printRenderKey, currentSheetPage]);
 
   const generatePreviews = async () => {
     if (!exportRef.current) return;
     setIsGeneratingPreview(true);
     setPdfPreviews([]); 
     
+    // RENDER CURRENT PAGE PREVIEW
     const width = formatConfig.pdfWidth;
     exportRef.current.style.width = `${width}px`;
 
@@ -334,8 +391,7 @@ const CrosswordGrid: React.FC<CrosswordGridProps> = ({ data, onComplete, onEdit,
     setPdfScaleFactor(factor);
 
     try {
-        // Wait 2.5 seconds for images to load in the hidden div
-        await new Promise(resolve => setTimeout(resolve, 2500)); 
+        await new Promise(resolve => setTimeout(resolve, 1500)); 
         
         const sheet1 = exportRef.current.querySelector('#pdf-sheet-1') as HTMLElement;
         const sheet2 = exportRef.current.querySelector('#pdf-sheet-2') as HTMLElement;
@@ -502,33 +558,74 @@ const CrosswordGrid: React.FC<CrosswordGridProps> = ({ data, onComplete, onEdit,
       );
   };
 
-  const handleDownloadPDF = async () => {
+  const toggleSheetPrintSelection = (index: number) => {
+      setSheetsToPrint(prev => {
+          if (prev.includes(index)) return prev.filter(i => i !== index);
+          return [...prev, index].sort((a,b) => a-b);
+      });
+  };
+
+  // PDF GENERATION WITH SUPPORT FOR SELECTIVE PRINT & DIRECT PRINT
+  const handleDownloadPDF = async (directPrint = false) => {
       if (!exportRef.current) return;
+      if (sheetsToPrint.length === 0) { alert("Seleziona almeno un foglio da stampare."); return; }
+
+      const startPage = currentSheetPage;
+
+      setIsGeneratingPDF(true);
       const width = formatConfig.pdfWidth;
       exportRef.current.style.width = `${width}px`;
-      const currentEditorWidth = editorRef.current?.offsetWidth || formatConfig.width;
-      const factor = formatConfig.width / currentEditorWidth;
-      setPdfScaleFactor(factor);
-      setIsGeneratingPDF(true);
+      
       try {
-        await new Promise(resolve => setTimeout(resolve, 800));
-        const sheet1 = exportRef.current.querySelector('#pdf-sheet-1') as HTMLElement;
-        const sheet2 = exportRef.current.querySelector('#pdf-sheet-2') as HTMLElement;
-        if (!sheet1 || !sheet2) throw new Error("Elements not found");
-        
-        const options = { scale: 2, useCORS: true, logging: false, backgroundColor: '#ffffff', windowWidth: Math.max(1600, width + 100) };
-        const canvas1 = await html2canvas(sheet1, options);
-        const canvas2 = await html2canvas(sheet2, options);
-        const imgData1 = canvas1.toDataURL('image/jpeg', 0.95);
-        const imgData2 = canvas2.toDataURL('image/jpeg', 0.95);
         // @ts-ignore
         const doc = new jsPDF({ orientation: formatConfig.pdfOrientation, unit: 'mm', format: formatConfig.pdfFormat });
         const pdfWidth = doc.internal.pageSize.getWidth();
         const pdfHeight = doc.internal.pageSize.getHeight();
-        doc.addImage(imgData1, 'JPEG', 0, 0, pdfWidth, pdfHeight);
-        doc.addPage();
-        doc.addImage(imgData2, 'JPEG', 0, 0, pdfWidth, pdfHeight);
-        doc.save(`${data.title.replace(/[^a-z0-9]/gi, '_').toLowerCase()}.pdf`);
+        
+        let pageCount = 0;
+        // LOOP THROUGH SELECTED PAGES
+        for (const actualPageIndex of sheetsToPrint) {
+             
+             // 1. UPDATE STATE TO RENDER CORRECT BATCH
+             if (data.format === 'tags') {
+                 setCurrentSheetPage(actualPageIndex);
+                 await new Promise(resolve => setTimeout(resolve, 150)); // Slightly increased delay for safety
+             }
+
+             // 2. WAIT FOR DOM TO RENDER IMAGES
+             await new Promise(resolve => setTimeout(resolve, 800));
+
+             const sheet1 = exportRef.current.querySelector('#pdf-sheet-1') as HTMLElement;
+             const sheet2 = exportRef.current.querySelector('#pdf-sheet-2') as HTMLElement;
+             if (!sheet1 || !sheet2) throw new Error("Elements not found");
+
+             const options = { scale: 2, useCORS: true, logging: false, backgroundColor: '#ffffff', windowWidth: Math.max(1600, width + 100) };
+             const canvas1 = await html2canvas(sheet1, options);
+             const canvas2 = await html2canvas(sheet2, options);
+             
+             if (pageCount > 0) doc.addPage();
+             doc.addImage(canvas1.toDataURL('image/jpeg', 0.95), 'JPEG', 0, 0, pdfWidth, pdfHeight);
+             doc.addPage();
+             doc.addImage(canvas2.toDataURL('image/jpeg', 0.95), 'JPEG', 0, 0, pdfWidth, pdfHeight);
+             
+             pageCount++;
+        }
+
+        if (directPrint) {
+            // DIRECT PRINT LOGIC: Open Blob in new window which triggers browser print
+            doc.autoPrint(); // Adds JS to PDF to trigger print
+            const blob = doc.output('blob');
+            const url = URL.createObjectURL(blob);
+            window.open(url, '_blank'); // Opens PDF viewer
+        } else {
+            // DOWNLOAD LOGIC
+            doc.save(`${data.title.replace(/[^a-z0-9]/gi, '_').toLowerCase()}.pdf`);
+        }
+        
+        // Restore original page
+        if (data.format === 'tags') {
+            setCurrentSheetPage(startPage);
+        }
         setShowPrintModal(false);
       } catch (e) { console.error("PDF Error", e); alert("Errore PDF."); } finally { setIsGeneratingPDF(false); }
   };
@@ -609,6 +706,26 @@ const CrosswordGrid: React.FC<CrosswordGridProps> = ({ data, onComplete, onEdit,
             <button onClick={() => setShowGraphicsModal(true)} className="bg-white px-3 py-2 rounded-full shadow border text-sm flex items-center gap-2 font-bold hover:bg-pink-50 text-pink-600 active:scale-95 border-pink-200"><Palette size={16} /> Grafica</button>
             {data.format === 'tags' && (
                 <div className="flex bg-gray-100 rounded-full p-1 border border-gray-300">
+                    {/* INPUT CARTELLA NASCOSTO */}
+                    <input 
+                        type="file" 
+                        ref={folderInputRef}
+                        // @ts-ignore
+                        webkitdirectory="" directory="" multiple 
+                        accept="image/png, image/jpeg, image/jpg, image/webp"
+                        className="hidden" 
+                        onChange={handleFolderUpload} 
+                    />
+                    {/* INPUT ALBUM LOAD */}
+                    <input type="file" ref={albumUploadRef} className="hidden" accept=".json" onChange={handleAlbumLoad} />
+
+                    <div className="flex items-center gap-1 mr-2 px-2 border-r border-gray-300">
+                        <button onClick={handleFolderUploadTrigger} className="p-2 rounded-full bg-yellow-100 text-yellow-700 hover:bg-yellow-200 shadow-sm" title="Carica Cartella (Crea Pagine Multiple)"><FolderInput size={16}/></button>
+                        <button onClick={handleAlbumSave} className="p-2 rounded-full bg-blue-100 text-blue-700 hover:bg-blue-200 shadow-sm" title="Salva Album Corrente"><Save size={16}/></button>
+                        <button onClick={handleAlbumLoadTrigger} className="p-2 rounded-full bg-green-100 text-green-700 hover:bg-green-200 shadow-sm" title="Carica Album"><Upload size={16}/></button>
+                        <button onClick={() => setShowHelpModal(true)} className="p-2 rounded-full bg-gray-600 text-white hover:bg-gray-700 shadow-sm animate-pulse" title="Guida all'uso"><HelpCircle size={16}/></button>
+                    </div>
+
                     <button onClick={() => setViewMode('single')} className={`px-3 py-1 rounded-full text-xs font-bold flex items-center gap-1 transition-all ${viewMode === 'single' ? 'bg-white shadow text-blue-600' : 'text-gray-500 hover:bg-gray-200'}`}><LayoutTemplate size={14}/> Singolo</button>
                     <button onClick={() => setViewMode('sheets')} className={`px-3 py-1 rounded-full text-xs font-bold flex items-center gap-1 transition-all ${viewMode === 'sheets' ? 'bg-white shadow text-purple-600' : 'text-gray-500 hover:bg-gray-200'}`}><Eye size={14}/> FOGLI A4</button>
                 </div>
@@ -618,6 +735,41 @@ const CrosswordGrid: React.FC<CrosswordGridProps> = ({ data, onComplete, onEdit,
             {isCrossword && <button onClick={() => setRevealAnswers(!revealAnswers)} className={`px-4 py-2 rounded-full shadow border text-sm flex items-center gap-2 font-bold active:scale-95 ${revealAnswers ? 'bg-yellow-100 text-yellow-800' : 'bg-white text-gray-700'}`}>{revealAnswers ? <EyeOff size={16}/> : <Eye size={16}/>}</button>}
             <button onClick={handleOpenPrintModal} disabled={isGeneratingPDF} className={`text-white px-6 py-2 rounded-full shadow-lg text-sm flex items-center gap-2 font-bold active:scale-95 ${isGeneratingPDF ? 'bg-gray-400' : 'bg-gradient-to-r from-green-600 to-emerald-600'}`}>{isGeneratingPDF ? <Loader2 size={16} className="animate-spin"/> : <Printer size={16} />} ANTEPRIMA E STAMPA</button>
        </div>
+
+       {/* HELP MODAL */}
+       {showHelpModal && (
+           <div className="fixed inset-0 z-[120] flex items-center justify-center bg-black/60 backdrop-blur-sm p-4 animate-in fade-in" onClick={() => setShowHelpModal(false)}>
+               <div className="bg-white rounded-2xl shadow-2xl p-6 w-full max-w-lg overflow-y-auto max-h-[90vh]" onClick={e => e.stopPropagation()}>
+                    <h3 className="text-xl font-bold mb-4 flex items-center gap-2 text-gray-800 border-b pb-2"><HelpCircle className="text-blue-500"/> Guida all'Uso</h3>
+                    
+                    <div className="space-y-6">
+                        <div className="bg-yellow-50 p-4 rounded-lg border border-yellow-200">
+                            <h4 className="font-bold text-yellow-800 mb-2 flex items-center gap-2"><FolderInput size={18}/> 1. Caricamento Cartella (96 Foto)</h4>
+                            <p className="text-sm text-yellow-900 mb-2"><strong>Problema:</strong> "Vedo la cartella vuota quando la seleziono!"</p>
+                            <p className="text-sm text-yellow-900 mb-2"><strong>Soluzione:</strong> È normale! Il computer ti chiede di scegliere il <u>contenitore</u>, non i file. I file sono lì, ma nascosti dalla finestra di scelta.</p>
+                            <ol className="list-decimal list-inside text-sm text-yellow-800 space-y-1 ml-1">
+                                <li>Clicca sul pulsante giallo <b>Carica Cartella</b>.</li>
+                                <li>Seleziona la tua cartella "Natale" dal Desktop.</li>
+                                <li>Anche se sembra vuota, clicca il pulsante <b>"Carica"</b> o <b>"Seleziona Cartella"</b> in basso a destra.</li>
+                                <li>Conferma se il browser ti chiede il permesso ("Vuoi caricare 96 file?").</li>
+                                <li>Fatto! Creeremo automaticamente 12 pagine di bigliettini.</li>
+                            </ol>
+                        </div>
+
+                        <div className="bg-blue-50 p-4 rounded-lg border border-blue-200">
+                            <h4 className="font-bold text-blue-800 mb-2 flex items-center gap-2"><Save size={18}/> 2. Salva e Carica Album (.JSON)</h4>
+                            <p className="text-sm text-blue-900 mb-2">Per non dover ricaricare le 96 foto ogni volta:</p>
+                            <ul className="list-disc list-inside text-sm text-blue-800 space-y-1 ml-1">
+                                <li><strong>Salva:</strong> Clicca l'icona <Save size={14} className="inline"/> (Floppy Disk blu). Verrà scaricato un file sul tuo computer (es. <code>album_natale.json</code>).</li>
+                                <li><strong>Carica (L'anno prossimo):</strong> Clicca l'icona <Upload size={14} className="inline"/> (Freccia verde). Seleziona quel file <code>.json</code> e tutte le tue foto torneranno al loro posto all'istante!</li>
+                            </ul>
+                        </div>
+                    </div>
+                    
+                    <button onClick={() => setShowHelpModal(false)} className="w-full mt-6 py-3 bg-gray-800 text-white rounded-lg font-bold hover:bg-gray-900 transition-colors">Ho Capito, Chiudi</button>
+               </div>
+           </div>
+       )}
 
        {/* GRAPHICS EDITOR MODAL */}
        {showGraphicsModal && (
@@ -647,13 +799,34 @@ const CrosswordGrid: React.FC<CrosswordGridProps> = ({ data, onComplete, onEdit,
                <div className="flex justify-between items-center p-6 border-b bg-gray-50 shrink-0">
                    <div>
                        <h3 className="text-2xl font-bold text-gray-800 flex items-center gap-2"><Printer className="text-blue-600"/> Anteprima di Stampa</h3>
-                       <div className="flex items-center gap-3 mt-1"><p className="text-sm text-gray-500">Controlla il risultato finale.</p></div>
+                       <div className="flex items-center gap-3 mt-1"><p className="text-sm text-gray-500">Seleziona i fogli da stampare.</p></div>
                    </div>
                    <button onClick={() => setShowPrintModal(false)} className="bg-white text-gray-400 hover:text-red-500 rounded-full p-2 hover:bg-red-50 transition-all"><XCircle size={28}/></button>
                </div>
-               <div className="flex-1 overflow-y-auto p-6 bg-gray-100/50 flex flex-col items-center justify-center relative min-h-[300px]">
+               
+               <div className="flex-1 overflow-y-auto p-6 bg-gray-100/50 flex flex-col items-center relative min-h-[300px]">
+                   
+                   {/* SELECTIVE PRINT GRID FOR TAGS */}
+                   {data.format === 'tags' && totalPages > 1 && !isGeneratingPreview && (
+                       <div className="w-full max-w-4xl mb-6">
+                           <p className="text-center text-xs font-bold text-gray-500 uppercase mb-3">Clicca sui fogli per selezionarli</p>
+                           <div className="grid grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-3">
+                               {Array.from({ length: totalPages }).map((_, idx) => (
+                                   <button 
+                                      key={idx}
+                                      onClick={() => toggleSheetPrintSelection(idx)}
+                                      className={`p-3 rounded-xl border-2 transition-all flex flex-col items-center justify-center gap-1 ${sheetsToPrint.includes(idx) ? 'bg-blue-600 border-blue-600 text-white shadow-lg scale-105' : 'bg-white border-gray-200 text-gray-400 hover:border-blue-300'}`}
+                                   >
+                                       <span className="text-lg font-bold">#{idx + 1}</span>
+                                       <span className="text-[10px] uppercase font-bold">{sheetsToPrint.includes(idx) ? <CheckCircle2 size={16}/> : 'Escluso'}</span>
+                                   </button>
+                               ))}
+                           </div>
+                       </div>
+                   )}
+
                    {isGeneratingPreview ? (
-                       <div className="flex flex-col items-center gap-3 text-blue-500 animate-pulse">
+                       <div className="flex flex-col items-center gap-3 text-blue-500 animate-pulse my-auto">
                            <Loader2 size={48} className="animate-spin"/>
                            <span className="font-bold text-sm uppercase tracking-widest text-center">
                                Sto preparando le immagini...<br/>
@@ -663,24 +836,36 @@ const CrosswordGrid: React.FC<CrosswordGridProps> = ({ data, onComplete, onEdit,
                    ) : pdfPreviews.length > 0 ? (
                        <div className="flex flex-col md:flex-row gap-6 w-full justify-center items-center">
                            <div className="flex flex-col gap-2 items-center w-full md:w-1/2 max-w-lg">
-                               <span className="text-xs font-bold uppercase text-gray-400 tracking-widest bg-white px-2 py-1 rounded-full shadow-sm">Foglio 1: Esterno</span>
+                               <span className="text-xs font-bold uppercase text-gray-400 tracking-widest bg-white px-2 py-1 rounded-full shadow-sm">Foglio {currentSheetPage + 1}: Esterno</span>
                                <img src={pdfPreviews[0]} alt="Preview 1" className="w-full h-auto shadow-xl rounded-sm border bg-white" />
                            </div>
                            <div className="flex flex-col gap-2 items-center w-full md:w-1/2 max-w-lg">
-                               <span className="text-xs font-bold uppercase text-gray-400 tracking-widest bg-white px-2 py-1 rounded-full shadow-sm">Foglio 2: Interno</span>
+                               <span className="text-xs font-bold uppercase text-gray-400 tracking-widest bg-white px-2 py-1 rounded-full shadow-sm">Foglio {currentSheetPage + 1}: Interno</span>
                                <img src={pdfPreviews[1]} alt="Preview 2" className="w-full h-auto shadow-xl rounded-sm border bg-white" />
                            </div>
                        </div>
                    ) : (
-                       <div className="text-gray-400 flex flex-col items-center"><Info size={40} className="mb-2"/><p>Impossibile generare l'anteprima.</p></div>
+                       <div className="text-gray-400 flex flex-col items-center my-auto"><Info size={40} className="mb-2"/><p>Impossibile generare l'anteprima.</p></div>
                    )}
                </div>
                <div className="p-6 border-t bg-white shrink-0">
                     <div className="flex flex-col md:flex-row gap-4 items-center justify-between">
-                         <button onClick={() => setShowBorders(!showBorders)} className={`w-full md:w-auto px-6 py-3 rounded-xl border-2 flex items-center justify-center gap-3 font-bold transition-all ${showBorders ? 'border-blue-500 bg-blue-50 text-blue-700' : 'border-gray-200 text-gray-500 hover:bg-gray-50'}`}>{showBorders ? <CheckCircle2 size={20} className="text-blue-600"/> : <div className="w-5 h-5 rounded-full border-2 border-gray-300"/>} Cornice Decorativa</button>
-                         <div className="flex gap-3 w-full md:w-auto">
-                            <button onClick={() => setShowPrintModal(false)} className="flex-1 md:flex-none px-6 py-3 rounded-xl font-bold text-gray-500 hover:bg-gray-100 transition-colors">Annulla</button>
-                            <button onClick={handleDownloadPDF} disabled={isGeneratingPDF} className={`flex-1 md:flex-none px-8 py-3 rounded-xl font-bold text-white shadow-lg hover:shadow-xl hover:scale-[1.02] transition-all flex items-center justify-center gap-2 ${isGeneratingPDF ? 'bg-gray-400' : 'bg-gradient-to-r from-blue-600 to-indigo-600'}`}>{isGeneratingPDF ? <Loader2 size={20} className="animate-spin"/> : <Download size={20}/>} Scarica PDF</button>
+                         {data.format !== 'tags' && <button onClick={() => setShowBorders(!showBorders)} className={`w-full md:w-auto px-6 py-3 rounded-xl border-2 flex items-center justify-center gap-3 font-bold transition-all ${showBorders ? 'border-blue-500 bg-blue-50 text-blue-700' : 'border-gray-200 text-gray-500 hover:bg-gray-50'}`}>{showBorders ? <CheckCircle2 size={20} className="text-blue-600"/> : <div className="w-5 h-5 rounded-full border-2 border-gray-300"/>} Cornice Decorativa</button>}
+                         
+                         <div className="flex gap-3 w-full justify-end">
+                            <button onClick={() => setShowPrintModal(false)} className="px-6 py-3 rounded-xl font-bold text-gray-500 hover:bg-gray-100 transition-colors">Annulla</button>
+                            
+                            {/* PRINT ACTION - DIRECT */}
+                            <button onClick={() => handleDownloadPDF(true)} disabled={isGeneratingPDF || sheetsToPrint.length === 0} className={`px-6 py-3 rounded-xl font-bold text-blue-700 bg-blue-100 border border-blue-200 shadow-sm hover:shadow-md hover:bg-blue-200 transition-all flex items-center justify-center gap-2 ${isGeneratingPDF || sheetsToPrint.length === 0 ? 'opacity-50 cursor-not-allowed' : ''}`}>
+                                {isGeneratingPDF ? <Loader2 size={20} className="animate-spin"/> : <Printer size={20}/>} 
+                                Stampa Subito
+                            </button>
+
+                            {/* PRINT ACTION - DOWNLOAD */}
+                            <button onClick={() => handleDownloadPDF(false)} disabled={isGeneratingPDF || sheetsToPrint.length === 0} className={`px-6 py-3 rounded-xl font-bold text-white shadow-lg hover:shadow-xl transition-all flex items-center justify-center gap-2 ${isGeneratingPDF || sheetsToPrint.length === 0 ? 'bg-gray-400' : 'bg-gradient-to-r from-blue-600 to-indigo-600 hover:scale-[1.02]'}`}>
+                                {isGeneratingPDF ? <Loader2 size={20} className="animate-spin"/> : <Download size={20}/>} 
+                                {data.format === 'tags' && totalPages > 1 ? `Scarica SELEZIONATI` : 'Scarica PDF'}
+                            </button>
                          </div>
                     </div>
                </div>
@@ -693,11 +878,24 @@ const CrosswordGrid: React.FC<CrosswordGridProps> = ({ data, onComplete, onEdit,
             <h3 className="text-center text-white font-bold uppercase tracking-widest mb-4 flex items-center justify-center gap-2 drop-shadow-md"><Edit size={20}/> EDITOR {data.format === 'tags' ? '(Anteprima Singolo Bigliettino)' : 'BIGLIETTO'}</h3>
             
             {/* Tag Navigation */}
-            {data.format === 'tags' && viewMode === 'single' && (
-                <div className="flex justify-center items-center gap-4 mb-4 text-white">
-                    <button onClick={() => setCurrentTagIndex(p => Math.max(0, p - 1))} disabled={currentTagIndex === 0} className="p-2 bg-white/20 rounded-full hover:bg-white/40 disabled:opacity-30"><ChevronLeft size={24}/></button>
-                    <span className="font-bold text-lg">Bigliettino {currentTagIndex + 1} di 8</span>
-                    <button onClick={() => setCurrentTagIndex(p => Math.min(7, p + 1))} disabled={currentTagIndex === 7} className="p-2 bg-white/20 rounded-full hover:bg-white/40 disabled:opacity-30"><ChevronRight size={24}/></button>
+            {data.format === 'tags' && (
+                <div className="flex flex-col items-center gap-2 mb-4">
+                    {/* SHEET NAV */}
+                    {totalPages > 1 && (
+                        <div className="flex items-center gap-4 bg-white/20 p-2 rounded-full backdrop-blur-sm">
+                            <button onClick={() => setCurrentSheetPage(p => Math.max(0, p - 1))} disabled={currentSheetPage === 0} className="text-white disabled:opacity-30 hover:scale-110 transition-transform"><ChevronLeft size={24}/></button>
+                            <span className="text-white font-bold text-sm uppercase tracking-wider">Foglio {currentSheetPage + 1} di {totalPages}</span>
+                            <button onClick={() => setCurrentSheetPage(p => Math.min(totalPages - 1, p + 1))} disabled={currentSheetPage === totalPages - 1} className="text-white disabled:opacity-30 hover:scale-110 transition-transform"><ChevronRight size={24}/></button>
+                        </div>
+                    )}
+
+                    {viewMode === 'single' && (
+                        <div className="flex justify-center items-center gap-4 text-white">
+                            <button onClick={() => setCurrentTagIndex(p => Math.max(0, p - 1))} disabled={currentTagIndex === 0} className="p-2 bg-white/20 rounded-full hover:bg-white/40 disabled:opacity-30"><ChevronLeft size={20}/></button>
+                            <span className="font-bold text-base">Bigliettino {currentTagIndex + 1} di 8</span>
+                            <button onClick={() => setCurrentTagIndex(p => Math.min(7, p + 1))} disabled={currentTagIndex === 7} className="p-2 bg-white/20 rounded-full hover:bg-white/40 disabled:opacity-30"><ChevronRight size={20}/></button>
+                        </div>
+                    )}
                 </div>
             )}
 
@@ -718,6 +916,8 @@ const CrosswordGrid: React.FC<CrosswordGridProps> = ({ data, onComplete, onEdit,
                                         const msg = tagMessages[dataIndex];
                                         
                                         if (!v) return <div key={i} className="w-[397px] h-[280px]"></div>;
+                                        
+                                        const displayDate = data.theme === 'christmas' ? `SS. Natale ${currentYear}` : (data.eventDate || currentYear.toString());
 
                                         return (
                                             <div key={i} style={{ width: '397px', height: '280px', padding: '10px', display: 'flex', boxSizing: 'border-box' }}>
@@ -732,11 +932,12 @@ const CrosswordGrid: React.FC<CrosswordGridProps> = ({ data, onComplete, onEdit,
                                                     ) : (
                                                         <>
                                                             <div className="w-1/2 h-full p-2 flex flex-col items-center justify-center text-center border-r border-dotted border-gray-200">
-                                                                <div className="text-[10px] text-gray-400 mt-auto pt-2 border-t w-3/4">Da:</div>
+                                                                {data.recipientName && <div className="text-[10px] font-bold text-gray-400 uppercase mb-2">A: {data.recipientName}</div>}
                                                             </div>
-                                                            <div className="w-1/2 h-full p-2 flex flex-col items-center justify-center text-center">
+                                                            <div className="w-1/2 h-full p-2 flex flex-col items-center justify-start text-center">
+                                                                <div className="text-[9px] text-gray-400 font-bold uppercase mb-2">{displayDate}</div>
                                                                 <div className={`${themeAssets.fontTitle} text-lg text-gray-800`}>{v.title}</div>
-                                                                <div className="text-[9px] italic text-gray-600 overflow-hidden h-12">{msg}</div>
+                                                                <div className="text-[9px] italic text-gray-600 mt-2 whitespace-pre-wrap">{msg}</div>
                                                             </div>
                                                         </>
                                                     )}
@@ -775,16 +976,21 @@ const CrosswordGrid: React.FC<CrosswordGridProps> = ({ data, onComplete, onEdit,
                                 >
                                     {data.format === 'tags' ? (
                                         // For Tags, show current variation with controls
-                                        <div className="relative w-full h-full group">
-                                            <img 
-                                                src={tagVariations[currentTagIndex]?.img || data.images?.extraImage || photos[0]} 
-                                                className="max-w-full max-h-full object-cover drop-shadow-md shadow-lg w-full h-full" 
-                                            />
+                                        <div className="relative w-full h-full group bg-gray-50">
+                                            {tagVariations[currentTagIndex]?.img || data.images?.extraImage || photos[0] ? (
+                                                <img 
+                                                    src={tagVariations[currentTagIndex]?.img || data.images?.extraImage || photos[0]} 
+                                                    className="max-w-full max-h-full object-cover drop-shadow-md shadow-lg w-full h-full" 
+                                                />
+                                            ) : (
+                                                <div className="w-full h-full flex items-center justify-center text-gray-300">
+                                                    <ImagePlus size={32}/>
+                                                </div>
+                                            )}
                                             {/* OVERLAY CONTROLS FOR SINGLE TAG */}
                                             <div className="absolute bottom-2 right-2 flex gap-2 z-50 pointer-events-auto opacity-0 group-hover:opacity-100 transition-opacity">
                                                  <input type="file" ref={singleTagFileInputRef} className="hidden" accept="image/*" onChange={handleSingleTagFileChange}/>
                                                  <button onClick={handleSingleTagUploadTrigger} className="bg-white text-gray-700 p-2 rounded-full shadow hover:bg-gray-100 hover:text-blue-600" title="Carica foto per questo bigliettino"><Camera size={16}/></button>
-                                                 <button onClick={handleSingleTagRandomize} className="bg-white text-gray-700 p-2 rounded-full shadow hover:bg-gray-100 hover:text-purple-600" title="Immagine casuale"><Shuffle size={16}/></button>
                                             </div>
                                         </div>
                                     ) : photos.length === 1 ? (
@@ -842,25 +1048,25 @@ const CrosswordGrid: React.FC<CrosswordGridProps> = ({ data, onComplete, onEdit,
                                     </div>
                                 </div>
                             ) : data.format === 'tags' ? (
-                                <div className="flex-1 flex flex-col items-center justify-center text-center p-2">
-                                    {data.recipientName && <p className="text-xs uppercase text-gray-400 font-bold mb-4">A: {data.recipientName}</p>}
+                                <div className="flex-1 flex flex-col items-center justify-start text-center p-2 pt-4">
+                                    <div className="w-full mb-4">
+                                        <p className="text-xs uppercase text-gray-400 font-bold mb-1">
+                                            {data.theme === 'christmas' ? `SS. Natale ${currentYear}` : (data.eventDate || currentYear)}
+                                        </p>
+                                    </div>
+
+                                    {data.recipientName && <p className="text-xs uppercase text-gray-400 font-bold mb-2">A: {data.recipientName}</p>}
                                     
                                     <p className={`${themeAssets.fontTitle} text-2xl text-gray-800 whitespace-pre-line leading-tight`}>{tagVariations[currentTagIndex]?.title || "Auguri!"}</p>
                                     
                                     {/* Editable Tag Message */}
-                                    <div className="mt-4 w-full relative pointer-events-auto group">
+                                    <div className="mt-4 w-full relative pointer-events-auto group flex-1">
                                         <textarea 
-                                            className="w-full text-center text-xs font-serif bg-transparent outline-none resize-none border-b border-transparent hover:border-gray-200 focus:border-blue-400 transition-colors" 
-                                            rows={3} 
+                                            className="w-full h-full text-center text-xs font-serif bg-transparent outline-none resize-none border border-transparent hover:border-gray-200 focus:border-blue-400 transition-colors rounded p-1" 
                                             value={tagMessages[currentTagIndex] || ""} 
                                             onChange={(e) => handleTagMessageChange(e.target.value)}
                                         />
-                                        <span className="absolute -top-3 -right-3 opacity-0 group-hover:opacity-100 text-gray-400 bg-white rounded-full p-1 shadow-sm transition-opacity"><Pencil size={10}/></span>
-                                    </div>
-
-                                    {data.eventDate && <div style={{ fontSize: '10px', marginTop: '5px', color: '#666', textTransform: 'uppercase' }}>{data.eventDate}</div>}
-                                    <div className="mt-8 border-t border-dashed border-gray-300 w-full pt-2">
-                                        <p className="text-xs text-gray-400">Da:</p>
+                                        <span className="absolute top-0 right-0 opacity-0 group-hover:opacity-100 text-gray-400 bg-white rounded-full p-1 shadow-sm transition-opacity"><Pencil size={10}/></span>
                                     </div>
                                 </div>
                             ) : (
@@ -883,23 +1089,10 @@ const CrosswordGrid: React.FC<CrosswordGridProps> = ({ data, onComplete, onEdit,
                         </div>
                         {/* Custom Texts */}
                         {customTexts.map(t => (
-                            <div key={t.id} className={`absolute left-1/2 top-1/2 flex items-center justify-center pointer-events-auto ${activeItemId === t.id ? 'cursor-move ring-1 ring-purple-300 ring-dashed bg-white/80 rounded-lg shadow-sm z-50' : 'z-40'}`} 
-                                style={{ transform: `translate(-50%, -50%) translate(${t.x}px, ${t.y}px)` }} 
-                                onMouseDown={(e) => startDrag(e, t.id)}
-                                onClick={(e) => e.stopPropagation()} 
-                                onDoubleClick={(e) => { e.stopPropagation(); setEditingItemId(t.id); }}
-                            >
-                                {editingItemId === t.id ? (
-                                    <div className="relative group p-2 border-2 border-purple-300 border-dashed rounded-lg bg-white shadow-xl z-50" style={{ width: `${t.width || 250}px` }} onMouseDown={(e) => e.stopPropagation()}>
-                                        <textarea autoFocus value={t.content} onChange={(e) => updateCustomTextContent(t.id, e.target.value)} className="w-full bg-transparent text-center font-hand focus:outline-none text-purple-900 placeholder-purple-300 resize-none overflow-hidden" style={{ fontSize: `${(t.scale * 20)}px`, lineHeight: 1.2 }} rows={Math.max(1, (t.content?.split('\n').length || 1))}/>
-                                        <button onClick={() => setEditingItemId(null)} className="absolute -top-3 -right-3 bg-green-500 text-white rounded-full p-1 shadow-md hover:bg-green-600"><CheckCircle2 size={14}/></button>
-                                        <button onClick={() => removeCustomText(t.id)} className="absolute -top-3 -left-3 bg-red-500 text-white rounded-full p-1 hover:bg-red-600"><Trash2 size={14}/></button>
-                                        <div onMouseDown={(e) => startResize(e, t.id, 'scale')} className="absolute -bottom-3 -right-3 w-6 h-6 bg-purple-600 text-white rounded-full shadow-md flex items-center justify-center cursor-nwse-resize pointer-events-auto hover:scale-110 z-20"><Maximize size={12}/></div>
-                                        <div onMouseDown={(e) => startResize(e, t.id, 'width')} className="absolute top-1/2 -right-3 -translate-y-1/2 w-4 h-8 bg-purple-400 text-white rounded-md shadow-md flex items-center justify-center cursor-ew-resize pointer-events-auto hover:scale-110 z-20"><ArrowRightLeft size={12}/></div>
-                                    </div>
-                                ) : (
-                                    <div style={{ width: `${t.width || 250}px` }} className="relative"><p className="font-hand text-purple-900 text-center px-2" style={{ fontSize: `${(t.scale * 20)}px`, lineHeight: 1.2, wordWrap: 'break-word' }}>{t.content}</p>{activeItemId === t.id && <button onClick={(e) => { e.stopPropagation(); setEditingItemId(t.id); }} className="absolute -top-3 -right-3 bg-white text-purple-600 rounded-full p-1.5 shadow-md border border-purple-100 hover:bg-purple-50 z-50"><Pencil size={12}/></button>}</div>
-                                )}
+                            <div key={t.id} style={{ position: 'absolute', left: '50%', top: '50%', transform: `translate(-50%, -50%) translate(${t.x * pdfScaleFactor}px, ${t.y * pdfScaleFactor}px)`, pointerEvents: 'none', zIndex: 50 }}>
+                                <div style={{ width: `${(t.width || 250) * pdfScaleFactor}px` }}>
+                                    <p className="font-hand" style={{ fontSize: `${(t.scale * 20) * pdfScaleFactor}px`, lineHeight: 1.2, color: '#581c87', textAlign: 'center', wordWrap: 'break-word' }}>{t.content}</p>
+                                </div>
                             </div>
                         ))}
                     </div>
@@ -912,9 +1105,10 @@ const CrosswordGrid: React.FC<CrosswordGridProps> = ({ data, onComplete, onEdit,
             {data.format === 'tags' ? (
                 // TAGS LAYOUT: 8 Items Grid on A4 PORTRAIT (794x1123px)
                 // KEY ADDED HERE TO FORCE RE-RENDER ON PRINT
-                <div key={printRenderKey}>
+                <div key={`${printRenderKey}-${currentSheetPage}`}>
                     <div id="pdf-sheet-1" style={{ width: '794px', height: '1123px', display: 'flex', flexWrap: 'wrap', alignContent: 'flex-start', padding: '0', margin: '0', backgroundColor: 'white', boxSizing: 'border-box' }}>
                         {Array(8).fill(null).map((_, i) => {
+                             // Use slice of current page for variations
                              const v = tagVariations[i];
                              if (!v) return <div key={i} style={{ width: '397px', height: '280px' }}></div>;
                              return (
@@ -951,6 +1145,8 @@ const CrosswordGrid: React.FC<CrosswordGridProps> = ({ data, onComplete, onEdit,
                             const v = tagVariations[dataIndex];
                             const msg = tagMessages[dataIndex];
                             if (!v) return <div key={i} style={{ width: '397px', height: '280px' }}></div>;
+                            
+                            const displayDate = data.theme === 'christmas' ? `SS. Natale ${currentYear}` : (data.eventDate || currentYear.toString());
 
                             return (
                                 <div key={i} style={{ width: '397px', height: '280px', boxSizing: 'border-box', padding: '10px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
@@ -959,13 +1155,12 @@ const CrosswordGrid: React.FC<CrosswordGridProps> = ({ data, onComplete, onEdit,
                                         {/* Inner Left - DEDICATION */}
                                         <div style={{ width: '50%', height: '100%', padding: '5px', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', textAlign: 'center', borderRight: '1px dotted #eee', boxSizing: 'border-box' }}>
                                             {data.recipientName && <div style={{fontSize: '10px', fontWeight: 'bold', color: '#9ca3af', textTransform: 'uppercase', marginBottom: '5px'}}>A: {data.recipientName}</div>}
-                                            <div style={{ marginTop: 'auto', borderTop: '1px dashed #e5e7eb', width: '80%', paddingTop: '5px', fontSize: '10px', color: '#9ca3af' }}>Da:</div>
                                         </div>
                                         {/* Inner Right - MESSAGE */}
-                                        <div style={{ width: '50%', height: '100%', padding: '5px', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', textAlign: 'center', boxSizing: 'border-box' }}>
+                                        <div style={{ width: '50%', height: '100%', padding: '5px', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'start', textAlign: 'center', boxSizing: 'border-box' }}>
+                                            <div style={{ fontSize: '8px', textTransform: 'uppercase', color: '#9ca3af', fontWeight: 'bold', marginBottom: '5px' }}>{displayDate}</div>
                                             <div className={themeAssets.fontTitle} style={{ fontSize: '16px', color: '#1f2937', lineHeight: '1', marginBottom: '5px' }}>{v.title}</div>
-                                            <div style={{ fontSize: '9px', fontStyle: 'italic', color: '#4b5563', overflow: 'hidden' }}>{msg}</div>
-                                            {data.eventDate && <div style={{ fontSize: '8px', marginTop: '5px', color: '#9ca3af', textTransform: 'uppercase' }}>{data.eventDate}</div>}
+                                            <div style={{ fontSize: '9px', fontStyle: 'italic', color: '#4b5563', whiteSpace: 'pre-wrap', wordBreak: 'break-word', width: '100%' }}>{msg}</div>
                                         </div>
                                     </div>
                                 </div>
