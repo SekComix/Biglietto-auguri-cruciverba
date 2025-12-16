@@ -66,6 +66,16 @@ const FORMAT_CONFIG: Record<CardFormat, { label: string, cssAspect: string, widt
 
 const getSolutionLabel = (index: number) => String.fromCharCode(64 + index);
 
+// FISHER-YATES SHUFFLE FOR TRUE RANDOMNESS
+const shuffleArray = (array: string[]) => {
+    const arr = [...array];
+    for (let i = arr.length - 1; i > 0; i--) {
+        const j = Math.floor(Math.random() * (i + 1));
+        [arr[i], arr[j]] = [arr[j], arr[i]];
+    }
+    return arr;
+};
+
 const PhotoCollage: React.FC<{ photos: string[] }> = ({ photos }) => {
     if (!photos || photos.length === 0) return null;
     const count = photos.length;
@@ -194,28 +204,36 @@ const CrosswordGrid: React.FC<CrosswordGridProps> = ({ data, onComplete, onEdit,
           return;
       }
       
-      // LOGIC UPGRADE: Fill tagMessages to match total image count if needed
-      // This ensures we have unique messages for ALL 96 images, not just repeating 12
+      // LOGIC UPGRADE: Fill tagMessages using SHUFFLE BAG to ensure uniqueness
       if (allTagImages.length > 0 && tagMessages.length < allTagImages.length) {
           const themeMessages = TAG_MESSAGES_DB[data.theme] || TAG_MESSAGES_DB.generic;
-          const newMessages = [...tagMessages];
           
-          // Fill up to total image count
-          for (let i = tagMessages.length; i < Math.max(8, allTagImages.length); i++) {
-              // Pick random message to avoid sequential repetition
-              const randomMsg = themeMessages[Math.floor(Math.random() * themeMessages.length)];
-              newMessages.push(randomMsg);
+          // Generate a shuffled pool large enough for all images
+          let messagePool: string[] = [];
+          while (messagePool.length < allTagImages.length) {
+              // Add a full shuffled deck of messages
+              messagePool = [...messagePool, ...shuffleArray(themeMessages)];
           }
-          setTagMessages(newMessages);
-      } else if (tagMessages.length === 0) {
-          // Initial population
+          
+          // Only take what we need, preserving existing messages if any
+          const currentLength = tagMessages.length;
+          const needed = allTagImages.length - currentLength;
+          // We take from the pool, but we must ensure we don't just take the start if we already have some.
+          // Simpler: Just regenerate the tail.
+          
+          const existing = [...tagMessages];
+          const newPart = messagePool.slice(0, needed);
+          
+          setTagMessages([...existing, ...newPart]);
+
+      } else if (tagMessages.length === 0 && allTagImages.length > 0) {
+          // Initial Full Population
           const themeMessages = TAG_MESSAGES_DB[data.theme] || TAG_MESSAGES_DB.generic;
-          const initialMsgs: string[] = [];
-           for (let i = 0; i < Math.max(8, allTagImages.length); i++) {
-              const randomMsg = themeMessages[Math.floor(Math.random() * themeMessages.length)];
-              initialMsgs.push(randomMsg);
+          let messagePool: string[] = [];
+          while (messagePool.length < allTagImages.length) {
+              messagePool = [...messagePool, ...shuffleArray(themeMessages)];
           }
-          setTagMessages(initialMsgs);
+          setTagMessages(messagePool.slice(0, allTagImages.length));
       }
       
       // Calculate which 8 images to show based on page
@@ -237,7 +255,7 @@ const CrosswordGrid: React.FC<CrosswordGridProps> = ({ data, onComplete, onEdit,
       });
       setTagVariations(newVars);
 
-  }, [allTagImages, currentSheetPage, data.format, data.theme, data.title, tagMessages.length]); // Added dependency to re-run if length mismatches
+  }, [allTagImages, currentSheetPage, data.format, data.theme, data.title, tagMessages.length]); 
 
 
   useEffect(() => {
@@ -913,7 +931,10 @@ const CrosswordGrid: React.FC<CrosswordGridProps> = ({ data, onComplete, onEdit,
                                         // Sheet 2 Logic: Swap columns
                                         const dataIndex = isSheet1 ? i : (i % 2 === 0 ? i + 1 : i - 1);
                                         const v = tagVariations[dataIndex];
-                                        const msg = tagMessages[dataIndex];
+                                        
+                                        // CORRECTION: use global offset for message
+                                        const globalIndex = (currentSheetPage * 8) + dataIndex;
+                                        const msg = tagMessages[globalIndex] || tagMessages[dataIndex] || "";
                                         
                                         if (!v) return <div key={i} className="w-[397px] h-[280px]"></div>;
                                         
@@ -1063,7 +1084,7 @@ const CrosswordGrid: React.FC<CrosswordGridProps> = ({ data, onComplete, onEdit,
                                     <div className="mt-4 w-full relative pointer-events-auto group flex-1">
                                         <textarea 
                                             className="w-full h-full text-center text-xs font-serif bg-transparent outline-none resize-none border border-transparent hover:border-gray-200 focus:border-blue-400 transition-colors rounded p-1" 
-                                            value={tagMessages[currentTagIndex] || ""} 
+                                            value={tagMessages[(currentSheetPage * 8) + currentTagIndex] || tagMessages[currentTagIndex] || ""} 
                                             onChange={(e) => handleTagMessageChange(e.target.value)}
                                         />
                                         <span className="absolute top-0 right-0 opacity-0 group-hover:opacity-100 text-gray-400 bg-white rounded-full p-1 shadow-sm transition-opacity"><Pencil size={10}/></span>
@@ -1143,7 +1164,11 @@ const CrosswordGrid: React.FC<CrosswordGridProps> = ({ data, onComplete, onEdit,
                             // SWAP COLUMNS LOGIC for Duplex Printing (Long Edge)
                             const dataIndex = i % 2 === 0 ? i + 1 : i - 1;
                             const v = tagVariations[dataIndex];
-                            const msg = tagMessages[dataIndex];
+                            
+                            // CORRECTION: use global offset for message
+                            const globalIndex = (currentSheetPage * 8) + dataIndex;
+                            const msg = tagMessages[globalIndex] || tagMessages[dataIndex] || "";
+
                             if (!v) return <div key={i} style={{ width: '397px', height: '280px' }}></div>;
                             
                             const displayDate = data.theme === 'christmas' ? `SS. Natale ${currentYear}` : (data.eventDate || currentYear.toString());
