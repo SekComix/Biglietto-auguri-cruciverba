@@ -8,7 +8,7 @@ export type ThemeType = 'christmas' | 'easter' | 'birthday' | 'elegant' | 'gener
 
 export type ToneType = 'funny' | 'heartfelt' | 'rhyme' | 'surprise' | 'custom';
 
-export type CardFormat = 'a4' | 'a3' | 'square';
+export type CardFormat = 'a4' | 'a3' | 'square' | 'tags';
 
 export interface WordEntry {
   id: string;
