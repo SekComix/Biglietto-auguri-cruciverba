@@ -1,4 +1,4 @@
-Il codice CrosswordGrid.tsx è stato aggiornatoIl codice CrosswordGrid.tsx è stato aggiornato
+
 import React, { useState, useEffect, useRef } from 'react';
 import { CrosswordData, CellData, Direction, ThemeType } from '../types';
 import { Printer, Edit, Eye, EyeOff, BookOpen, FileText, CheckCircle2, Palette, Download, Loader2, XCircle, RotateCw, Maximize, Move, Info, Type, Trash2, Grip, ArrowRightLeft, Pencil } from 'lucide-react';
@@ -255,23 +255,39 @@ const CrosswordGrid: React.FC<CrosswordGridProps> = ({ data, onComplete, onEdit,
       const rawString = data.solution.original || data.solution.word;
       const chars = rawString.split('');
       let letterIndexCounter = 0;
+      
+      const len = chars.length;
+      let boxSize = '25px';
+      let fontSize = '14px';
+      let numFontSize = '8px';
+      
+      if (len > 15) { boxSize = '16px'; fontSize = '10px'; numFontSize = '6px'; }
+      else if (len > 10) { boxSize = '20px'; fontSize = '12px'; numFontSize = '7px'; }
+      else if (len > 8) { boxSize = '22px'; fontSize = '13px'; }
+
+      if (isPrint) {
+           boxSize = String(parseInt(boxSize) * 0.8) + 'px';
+           fontSize = String(parseInt(fontSize) * 0.8) + 'px';
+      }
+
       return (
         <div className="mb-2 p-1 w-full flex justify-center pointer-events-auto">
-            <div className="flex justify-center gap-1 flex-wrap">
+            <div className="flex justify-center gap-1 flex-wrap items-center">
                 {chars.map((char: string, i: number) => {
                     const isSpace = !/[A-Z]/i.test(char);
-                    if (isSpace) return <div key={i} className="w-4 h-6"></div>;
+                    if (isSpace) return <div key={i} style={{ width: String(parseInt(boxSize)*0.6)+'px', height: boxSize }}></div>;
                     letterIndexCounter++;
                     const currentIndex = letterIndexCounter;
                     return (
                         <div key={i} style={{ 
-                            width: '25px', height: '25px', 
+                            width: boxSize, height: boxSize, 
                             backgroundColor: (!isPrint && revealAnswers) ? '#FEF08A' : 'white', 
                             border: '1px solid #EAB308', display: 'flex', alignItems: 'center', justifyContent: 'center', 
-                            fontWeight: 'bold', fontSize: '14px', color: '#854D0E', position: 'relative'
+                            fontWeight: 'bold', fontSize: fontSize, color: '#854D0E', position: 'relative',
+                            flexShrink: 0, overflow: 'hidden', lineHeight: 1
                         }}>
-                            {!isPrint && revealAnswers && <span style={{zIndex: 2}}>{char}</span>}
-                            <span style={{ position: 'absolute', bottom: '1px', right: '1px', fontSize: '8px', color: '#B45309', fontWeight: 'bold', lineHeight: 1 }}>{getSolutionLabel(currentIndex)}</span>
+                            {!isPrint && revealAnswers && <span style={{zIndex: 2, display: 'flex', alignItems: 'center', justifyContent: 'center', width: '100%', height: '100%', lineHeight: 1}}>{char}</span>}
+                            <span style={{ position: 'absolute', bottom: '1px', right: '1px', fontSize: numFontSize, color: '#B45309', fontWeight: 'bold', lineHeight: 1 }}>{getSolutionLabel(currentIndex)}</span>
                         </div>
                     );
                 })}
@@ -332,18 +348,22 @@ const CrosswordGrid: React.FC<CrosswordGridProps> = ({ data, onComplete, onEdit,
 
   const renderGridCells = (isPrint = false) => (
     <div className={`grid gap-[1px] bg-black/10 p-2 rounded-lg pointer-events-auto`} style={{ 
-        gridTemplateColumns: `repeat(${data.width}, minmax(0, 1fr))`, aspectRatio: `${data.width}/${data.height}`,
-        width: '100%', height: 'auto', maxHeight: '100%', maxWidth: '100%', margin: '0 auto' 
+        gridTemplateColumns: `repeat(${data.width}, minmax(0, 1fr))`, 
+        aspectRatio: `${data.width}/${data.height}`,
+        width: '100%', 
+        maxWidth: '100%',
+        maxHeight: '100%',
+        margin: '0 auto' 
     }}>
       {grid.map((row, y) => row.map((cell, x) => {
           const isSelected = !isPrint && selectedCell?.x === x && selectedCell?.y === y;
           const displayChar = isPrint ? '' : (revealAnswers ? cell.char : cell.userChar); 
           if (!cell.char) return <div key={`${x}-${y}`} className={`bg-black/5 rounded-sm`} />;
           return (
-            <div key={`${x}-${y}-${revealAnswers}`} onClick={() => !isPrint && handleCellClick(x, y)} className={`relative flex items-center justify-center w-full h-full text-xl font-bold cursor-pointer rounded-sm`} style={{ backgroundColor: cell.isSolutionCell ? '#FEF08A' : (isSelected && !isPrint ? '#DBEAFE' : '#FFFFFF'), boxSizing: 'border-box' }}>
+            <div key={`${x}-${y}-${revealAnswers}`} onClick={() => !isPrint && handleCellClick(x, y)} className={`relative flex items-center justify-center w-full h-full text-xl font-bold cursor-pointer rounded-sm`} style={{ backgroundColor: cell.isSolutionCell ? '#FEF08A' : (isSelected && !revealAnswers && !isPrint ? '#DBEAFE' : '#FFFFFF'), boxSizing: 'border-box' }}>
               {cell.number && <span className={`absolute top-0 left-0 leading-none ${isPrint ? 'text-[8px] p-[1px] font-bold text-gray-500' : 'text-[9px] p-0.5 text-gray-500'}`}>{cell.number}</span>}
               {cell.isSolutionCell && cell.solutionIndex !== undefined && <div className={`absolute bottom-0 right-0 leading-none font-bold text-gray-600 bg-white/60 rounded-tl-sm z-10 ${isPrint ? 'text-[8px] p-[1px]' : 'text-[9px] p-0.5'}`}>{getSolutionLabel(cell.solutionIndex)}</div>}
-              {isPrint ? <span className="font-bold text-lg"></span> : (isSelected && !revealAnswers ? <input ref={(el) => { inputRefs.current[y][x] = el; }} maxLength={1} className="w-full h-full text-center bg-transparent outline-none uppercase" value={cell.userChar} onChange={(e) => handleInput(x, y, e.target.value)} /> : <span className={revealAnswers ? 'text-green-600' : ''}>{displayChar}</span>)}
+              {isPrint ? <span className="font-bold text-lg"></span> : (isSelected && !revealAnswers ? <input ref={(el) => { inputRefs.current[y][x] = el; }} maxLength={1} className="w-full h-full text-center bg-transparent outline-none uppercase" value={cell.userChar} onChange={(e) => handleInput(x, y, e.target.value)} /> : <div className={`w-full h-full flex items-center justify-center uppercase ${revealAnswers ? 'text-green-600' : ''}`}>{displayChar}</div>)}
             </div>
           );
       }))}
@@ -490,10 +510,11 @@ const CrosswordGrid: React.FC<CrosswordGridProps> = ({ data, onComplete, onEdit,
                                          {renderGridCells(false)}
                                     </div>
                                 </div>
-                                <div className="shrink-0 mt-2 text-[9px] md:text-[10px] grid grid-cols-2 gap-2 leading-tight w-full border-t border-black pt-2 overflow-y-auto max-h-[150px] custom-scrollbar pointer-events-auto">
+                                <div className="shrink-0 mt-2 text-[9px] md:text-[10px] grid grid-cols-2 gap-2 leading-tight w-full border-t border-black pt-2 overflow-y-auto max-h-[150px] pointer-events-auto" style={{ scrollbarWidth: 'none', msOverflowStyle: 'none' }}>
                                     <div className="pr-1"><b className="block border-b border-gray-300 mb-1 pb-0.5 font-bold text-xs">Orizzontali</b>{data.words.filter(w=>w.direction===Direction.ACROSS).map(w=><div key={w.id} className="mb-0.5"><b className="mr-1">{w.number}.</b>{w.clue}</div>)}</div>
                                     <div className="pl-1 border-l border-gray-100"><b className="block border-b border-gray-300 mb-1 pb-0.5 font-bold text-xs">Verticali</b>{data.words.filter(w=>w.direction===Direction.DOWN).map(w=><div key={w.id} className="mb-0.5"><b className="mr-1">{w.number}.</b>{w.clue}</div>)}</div>
                                 </div>
+                                <style>{`.custom-scrollbar::-webkit-scrollbar { display: none; }`}</style>
                             </div>
                         ) : (
                             <div className="flex-1 flex items-center justify-center opacity-20 border-2 border-dashed border-gray-300 m-8 rounded-xl"><p className="text-xl font-hand rotate-[-5deg] text-center">Spazio per dedica<br/>scritta a mano...</p></div>
