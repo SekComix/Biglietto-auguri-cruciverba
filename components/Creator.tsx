@@ -1,8 +1,8 @@
 
 import React, { useState, useEffect, useRef } from 'react';
 import { generateCrossword, regenerateGreetingOptions } from '../services/geminiService';
-import { CrosswordData, ManualInput, ThemeType, ToneType, Direction } from '../types';
-import { Loader2, Wand2, Plus, Trash2, Gift, PartyPopper, CalendarHeart, Crown, KeyRound, Image as ImageIcon, Upload, Calendar, AlertCircle, Grid3X3, MailOpen, Images, Ghost, GraduationCap, ScrollText, HeartHandshake, BookOpen, Search, X, Smile, Heart, Music, Sparkles, Edit, PenTool, LayoutGrid, Zap, Check, MessageSquareDashed, Info, HelpCircle, Bot, BrainCircuit, Feather, Quote, Briefcase, GraduationCap as GradCap, Puzzle, Stamp, FileBadge } from 'lucide-react';
+import { CrosswordData, ManualInput, ThemeType, ToneType, Direction, CardFormat } from '../types';
+import { Loader2, Wand2, Plus, Trash2, Gift, PartyPopper, CalendarHeart, Crown, KeyRound, Image as ImageIcon, Upload, Calendar, AlertCircle, Grid3X3, MailOpen, Images, Ghost, GraduationCap, ScrollText, HeartHandshake, BookOpen, Search, X, Smile, Heart, Music, Sparkles, Edit, PenTool, LayoutGrid, Zap, Check, MessageSquareDashed, Info, HelpCircle, Bot, BrainCircuit, Feather, Quote, Briefcase, GraduationCap as GradCap, Puzzle, Stamp, FileBadge, BoxSelect } from 'lucide-react';
 
 interface CreatorProps {
   onCreated: (data: CrosswordData) => void;
@@ -51,6 +51,12 @@ const ACTIVITY_MODULES = [
     { id: 'simple', label: 'Solo Dedica', icon: MailOpen, desc: 'Nessun gioco, solo testo' },
 ];
 
+const CARD_FORMATS: { id: CardFormat; label: string; desc: string }[] = [
+    { id: 'a4', label: 'Standard (A4)', desc: 'Piegato a metà (A5)' },
+    { id: 'a3', label: 'Maxi (A3)', desc: 'Stampa grande poster' },
+    { id: 'square', label: 'Quadrato', desc: 'Moderno (30x15cm)' },
+];
+
 type CreationMode = 'guided' | 'freestyle' | 'manual';
 
 export const Creator: React.FC<CreatorProps> = ({ onCreated, initialData }) => {
@@ -70,6 +76,7 @@ export const Creator: React.FC<CreatorProps> = ({ onCreated, initialData }) => {
   
   const [tone, setTone] = useState<ToneType>('surprise');
   const [theme, setTheme] = useState<ThemeType>('christmas');
+  const [format, setFormat] = useState<CardFormat>('a4');
   const [hasWatermark, setHasWatermark] = useState(false);
   
   const [topic, setTopic] = useState('');
@@ -113,6 +120,7 @@ export const Creator: React.FC<CreatorProps> = ({ onCreated, initialData }) => {
         setRecipientName(initialData.recipientName);
         setEventDate(initialData.eventDate);
         setTheme(initialData.theme);
+        setFormat(initialData.format || 'a4');
         setHasWatermark(!!initialData.hasWatermark);
         setExtraImage(initialData.images?.extraImage);
         setPhotos(initialData.images?.photos || []);
@@ -149,6 +157,7 @@ export const Creator: React.FC<CreatorProps> = ({ onCreated, initialData }) => {
         setCreationMode('guided');
         setSelectedActivity('crossword');
         setHasWatermark(false);
+        setFormat('a4');
     }
   }, [initialData]);
 
@@ -369,7 +378,8 @@ export const Creator: React.FC<CreatorProps> = ({ onCreated, initialData }) => {
           contentType: finalContentType,
           tone: finalMode === 'ai' ? finalTone : undefined,
           customTone: finalCustomTone,
-          hasWatermark: hasWatermark
+          hasWatermark: hasWatermark,
+          format: format
         },
         (msg) => setStatusMsg(msg)
       );
@@ -476,13 +486,28 @@ export const Creator: React.FC<CreatorProps> = ({ onCreated, initialData }) => {
               ))}
             </div>
             
-            <div className="flex justify-center mb-4">
+            <div className="flex flex-col md:flex-row gap-4 mb-4 items-center justify-center">
+                 {/* FORMAT SELECTOR */}
+                 <div className="bg-gray-50 p-1 rounded-lg flex shadow-sm border border-gray-200">
+                     {CARD_FORMATS.map(f => (
+                         <button
+                            key={f.id}
+                            type="button"
+                            onClick={() => setFormat(f.id)}
+                            className={`px-3 py-1.5 rounded-md text-xs font-bold transition-all flex items-center gap-2 ${format === f.id ? 'bg-white text-blue-600 shadow-sm border border-blue-100' : 'text-gray-500 hover:bg-gray-100'}`}
+                            title={f.desc}
+                         >
+                            <BoxSelect size={14}/> {f.label}
+                         </button>
+                     ))}
+                 </div>
+
                  <button 
                     type="button"
                     onClick={() => setHasWatermark(!hasWatermark)}
-                    className={`flex items-center gap-2 px-4 py-2 rounded-full border text-sm font-bold transition-all ${hasWatermark ? 'bg-blue-100 text-blue-700 border-blue-300' : 'bg-gray-50 text-gray-500 border-gray-200'}`}
+                    className={`flex items-center gap-2 px-4 py-2 rounded-lg border text-xs font-bold transition-all ${hasWatermark ? 'bg-blue-100 text-blue-700 border-blue-300' : 'bg-gray-50 text-gray-500 border-gray-200'}`}
                  >
-                     <FileBadge size={16}/> {hasWatermark ? 'Filigrana Attiva' : 'Aggiungi Filigrana'}
+                     <FileBadge size={14}/> {hasWatermark ? 'Filigrana: SI' : 'Filigrana: NO'}
                  </button>
             </div>
 
