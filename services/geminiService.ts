@@ -27,6 +27,11 @@ const getApiKey = () => {
   return key;
 };
 
+// Helper function to normalize words (remove accents, keep only A-Z)
+const normalizeWord = (str: string): string => {
+    return str.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toUpperCase().replace(/[^A-Z]/g, "");
+};
+
 const FALLBACK_GREETINGS: Record<string, string[]> = {
     christmas: [
         "Ti auguro un Natale pieno di gioia, calore e momenti indimenticabili!",
@@ -101,7 +106,7 @@ const MAX_GRID_SIZE = 14;
 
 function generateLayout(wordsInput: {word: string, clue: string}[]): any[] {
     const wordsToPlace = [...wordsInput]
-        .map(w => ({ ...w, word: w.word.toUpperCase().replace(/[^A-Z]/g, '').trim() }))
+        .map(w => ({ ...w, word: normalizeWord(w.word) }))
         .filter(w => w.word.length > 1 && w.word.length <= MAX_GRID_SIZE) // Scarta parole troppo lunghe per la griglia
         .sort((a, b) => b.word.length - a.word.length);
 
@@ -283,7 +288,7 @@ function reindexGridNumbering(words: any[]) {
 
 const findSolutionInGrid = (words: any[], hiddenWord: string): any => {
     if (!hiddenWord) return null;
-    const cleanTarget = hiddenWord.toUpperCase().replace(/[^A-Z]/g, '');
+    const cleanTarget = normalizeWord(hiddenWord);
     const targetChars = cleanTarget.split('');
     const solutionCells: any[] = [];
     const usedCoords = new Set<string>();
@@ -325,14 +330,14 @@ const findSolutionInGrid = (words: any[], hiddenWord: string): any => {
         usedWordIndices.add(wordIndex);
     }
 
-    // Return sia la parola pulita per la logica, sia l'originale per la visualizzazione (con spazi)
+    // Return sia la parola pulita per la logica, sia l'originale per la visualizzazione (con spazi o accenti)
     if (solutionCells.length > 0) return { word: cleanTarget, original: hiddenWord.toUpperCase(), cells: solutionCells };
     return null;
 };
 
 const getMissingLetters = (existingWords: string[], targetWord: string): string[] => {
     const pool = existingWords.join('').toUpperCase().split('');
-    const target = targetWord.toUpperCase().replace(/[^A-Z]/g, '').split('');
+    const target = normalizeWord(targetWord).split('');
     const missing: string[] = [];
     
     const poolMap = new Map<string, number>();
@@ -362,7 +367,7 @@ export const generateCrossword = async (
     contentType: 'crossword' | 'simple';
     tone?: ToneType;
     customTone?: string;
-    hasWatermark?: boolean; // NEW
+    hasWatermark?: boolean; // NEW: Controllo opzionale filigrana
   },
   onStatusUpdate?: (status: string) => void
 ): Promise<CrosswordData> => {
@@ -382,10 +387,10 @@ export const generateCrossword = async (
           const inputs = inputData as ManualInput[];
           generatedWords = inputs
             .filter(i => i.word.trim() && i.clue.trim())
-            .map(i => ({ word: i.word.toUpperCase().trim(), clue: i.clue }));
+            .map(i => ({ word: normalizeWord(i.word), clue: i.clue }));
           
           if (hiddenSolutionWord) {
-             const cleanSol = hiddenSolutionWord.replace(/[^A-Z]/g, '').toUpperCase();
+             const cleanSol = normalizeWord(hiddenSolutionWord);
              const missingLetters = getMissingLetters(generatedWords.map(w => w.word), cleanSol);
              
              if (missingLetters.length > 0) {
@@ -405,7 +410,8 @@ export const generateCrossword = async (
                      
                      const json = JSON.parse(response.text || "{}");
                      if (json.words && Array.isArray(json.words)) {
-                         generatedWords = [...generatedWords, ...json.words];
+                         // Normalize AI added words too
+                         generatedWords = [...generatedWords, ...json.words.map((w: any) => ({ ...w, word: normalizeWord(w.word) }))];
                      }
                  } catch (e) {
                      console.warn("Fallita integrazione AI parole mancanti", e);
@@ -416,7 +422,7 @@ export const generateCrossword = async (
       } else {
           // MODALITA' AI PURA
           const topic = inputData as string;
-          const solutionChars = hiddenSolutionWord ? hiddenSolutionWord.toUpperCase().replace(/[^A-Z]/g, '').split('').join(', ') : '';
+          const solutionChars = hiddenSolutionWord ? normalizeWord(hiddenSolutionWord).split('').join(', ') : '';
           const lettersInstruction = solutionChars ? `IMPORTANTE: Devi generare parole che contengano le seguenti lettere sparse: ${solutionChars}.` : '';
           
           const prompt = `Genera una lista di 8-10 parole e definizioni per un cruciverba IN LINGUA ITALIANA sul tema: "${topic}". ${lettersInstruction} Le definizioni devono essere in italiano. Output JSON array di oggetti {word, clue}.`;
@@ -431,7 +437,8 @@ export const generateCrossword = async (
             const response = await withTimeout<GenerateContentResponse>(responsePromise, 30000, "Timeout generazione parole.");
             if (response.text) {
                 const json = JSON.parse(response.text);
-                generatedWords = json.words || [];
+                const rawWords = json.words || [];
+                generatedWords = rawWords.map((w: any) => ({ ...w, word: normalizeWord(w.word) }));
             }
           } catch (e) {
             console.error("AI Error", e);
