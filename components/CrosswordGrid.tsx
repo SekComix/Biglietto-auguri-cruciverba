@@ -1,7 +1,7 @@
 
 import React, { useState, useEffect, useRef } from 'react';
-import { CrosswordData, CellData, Direction, ThemeType } from '../types';
-import { Printer, Edit, Eye, EyeOff, BookOpen, FileText, CheckCircle2, Palette, Download, Loader2, XCircle, RotateCw, Maximize, Move, Info, Type, Trash2, Grip, ArrowRightLeft, Pencil, Frame } from 'lucide-react';
+import { CrosswordData, CellData, Direction, ThemeType, CardFormat } from '../types';
+import { Printer, Edit, Eye, EyeOff, BookOpen, FileText, CheckCircle2, Palette, Download, Loader2, XCircle, RotateCw, Maximize, Move, Info, Type, Trash2, Grip, ArrowRightLeft, Pencil, Frame, RefreshCcw, BoxSelect, ImagePlus, SmilePlus } from 'lucide-react';
 import html2canvas from 'html2canvas';
 import { jsPDF } from 'jspdf';
 
@@ -25,6 +25,14 @@ const THEME_ASSETS: Record<ThemeType, any> = {
   generic: { fontTitle: 'font-body', printBorder: 'border-solid border-2 border-gray-300', pdfBorder: '2px solid #d1d5db', decoration: '🎁', watermark: '🎁' }
 };
 
+const STICKER_OPTIONS = ['🎅', '🎄', '🎁', '❄️', '⛄', '🎂', '🎈', '🎉', '🕯️', '🍰', '💍', '❤️', '💐', '🎃', '👻', '🎓', '🏆', '⚽', '🐶', '🐱', '⭐', '✨'];
+
+const FORMAT_CONFIG: Record<CardFormat, { label: string, cssAspect: string, width: number, height: number, pdfFormat: any }> = {
+    'a4': { label: 'A4 Standard', cssAspect: 'aspect-[297/210]', width: 1123, height: 794, pdfFormat: 'a4' },
+    'a3': { label: 'A3 Maxi', cssAspect: 'aspect-[297/210]', width: 1587, height: 1123, pdfFormat: 'a3' },
+    'square': { label: 'Quadrato', cssAspect: 'aspect-[2/1]', width: 1134, height: 567, pdfFormat: [300, 150] }
+};
+
 const getSolutionLabel = (index: number) => {
     return String.fromCharCode(64 + index);
 };
@@ -40,7 +48,7 @@ const PhotoCollage: React.FC<{ photos: string[] }> = ({ photos }) => {
     return (
         <div className={`grid gap-0.5 w-full h-full bg-white overflow-hidden ${gridClass}`}>
             {photos.map((p, i) => (
-                <div key={i} className="relative w-full h-full overflow-hidden aspect-square">
+                <div key={i} className="relative w-full h-full overflow-hidden">
                     <img src={p} className="w-full h-full object-cover" alt={`mem-${i}`} />
                 </div>
             ))}
@@ -69,6 +77,7 @@ const CrosswordGrid: React.FC<CrosswordGridProps> = ({ data, onComplete, onEdit,
   const [revealAnswers, setRevealAnswers] = useState(false);
   const [showBorders, setShowBorders] = useState(true);
   const [showPrintModal, setShowPrintModal] = useState(false);
+  const [showGraphicsModal, setShowGraphicsModal] = useState(false); // NEW MODAL
   
   const inputRefs = useRef<(HTMLInputElement | null)[][]>([]);
 
@@ -84,8 +93,8 @@ const CrosswordGrid: React.FC<CrosswordGridProps> = ({ data, onComplete, onEdit,
   
   const [txtSheet2, setTxtSheet2] = useState({ scale: 1, x: 0, y: 0 });
   
-  // Default Y pushed down and X to left page
-  const [stickerGroup, setStickerGroup] = useState({ scale: 0.8, x: -200, y: 150 }); 
+  // Adjusted Default Position for Stickers to avoid overlap
+  const [stickerGroup, setStickerGroup] = useState({ scale: 0.8, x: -350, y: 200 }); 
 
   const [customTexts, setCustomTexts] = useState<PositionableItem[]>([]);
 
@@ -93,6 +102,8 @@ const CrosswordGrid: React.FC<CrosswordGridProps> = ({ data, onComplete, onEdit,
   const [activeResize, setActiveResize] = useState<{id: string, startX: number, startY: number, initialScale: number, initialWidth?: number, mode: 'scale' | 'width'} | null>(null);
 
   const [isGeneratingPDF, setIsGeneratingPDF] = useState(false);
+  const [isGeneratingPreview, setIsGeneratingPreview] = useState(false);
+  const [pdfPreviews, setPdfPreviews] = useState<string[]>([]);
   const [pdfScaleFactor, setPdfScaleFactor] = useState(1); 
   const exportRef = useRef<HTMLDivElement>(null);
   const editorRef = useRef<HTMLDivElement>(null);
@@ -101,6 +112,7 @@ const CrosswordGrid: React.FC<CrosswordGridProps> = ({ data, onComplete, onEdit,
   const isCrossword = data.type === 'crossword';
   const photos = data.images?.photos || [];
   const currentYear = new Date().getFullYear();
+  const formatConfig = FORMAT_CONFIG[data.format || 'a4'];
 
   // Determine density for print layout scaling
   const isHighDensity = data.words.length > 10;
@@ -111,6 +123,47 @@ const CrosswordGrid: React.FC<CrosswordGridProps> = ({ data, onComplete, onEdit,
         onUpdate({ message: editableMessage });
     }
   }, [editableMessage]);
+
+  useEffect(() => {
+    if (showPrintModal) {
+        generatePreviews();
+    } else {
+        setPdfPreviews([]);
+    }
+  }, [showPrintModal, showBorders, data]);
+
+  const generatePreviews = async () => {
+    if (!exportRef.current) return;
+    setIsGeneratingPreview(true);
+    
+    // Setup scale factor for preview (match what handleDownloadPDF does but for preview generation)
+    const currentEditorWidth = editorRef.current?.offsetWidth || formatConfig.width;
+    const factor = formatConfig.width / currentEditorWidth;
+    setPdfScaleFactor(factor);
+
+    try {
+        // Allow React to render the borders/changes
+        await new Promise(resolve => setTimeout(resolve, 300));
+        
+        const sheet1 = exportRef.current.querySelector('#pdf-sheet-1') as HTMLElement;
+        const sheet2 = exportRef.current.querySelector('#pdf-sheet-2') as HTMLElement;
+        
+        if (sheet1 && sheet2) {
+            // Lower scale for preview performance
+            const options = { scale: 0.8, useCORS: true, logging: false, backgroundColor: '#ffffff' };
+            const canvas1 = await html2canvas(sheet1, options);
+            const canvas2 = await html2canvas(sheet2, options);
+            setPdfPreviews([
+                canvas1.toDataURL('image/jpeg', 0.8),
+                canvas2.toDataURL('image/jpeg', 0.8)
+            ]);
+        }
+    } catch (e) {
+        console.error("Preview generation failed", e);
+    } finally {
+        setIsGeneratingPreview(false);
+    }
+  };
 
   useEffect(() => {
     if (!isCrossword) {
@@ -299,11 +352,11 @@ const CrosswordGrid: React.FC<CrosswordGridProps> = ({ data, onComplete, onEdit,
   };
 
   const handleDownloadPDF = async () => {
-      setShowPrintModal(false);
+      // Don't close modal immediately, show loading state
       if (!exportRef.current) return;
       
-      const currentEditorWidth = editorRef.current?.offsetWidth || 1123;
-      const factor = 1123 / currentEditorWidth;
+      const currentEditorWidth = editorRef.current?.offsetWidth || formatConfig.width;
+      const factor = formatConfig.width / currentEditorWidth;
       setPdfScaleFactor(factor);
 
       setIsGeneratingPDF(true);
@@ -319,11 +372,21 @@ const CrosswordGrid: React.FC<CrosswordGridProps> = ({ data, onComplete, onEdit,
         const canvas2 = await html2canvas(sheet2, options);
         const imgData1 = canvas1.toDataURL('image/jpeg', 0.95);
         const imgData2 = canvas2.toDataURL('image/jpeg', 0.95);
-        const win = window.open('', '_blank');
-        if (!win) { alert("Abilita i popup."); return; }
+
+        // CREATE PDF WITH DYNAMIC FORMAT
+        // @ts-ignore
+        const doc = new jsPDF({ orientation: 'l', unit: 'mm', format: formatConfig.pdfFormat });
         
-        win.document.write(`<!DOCTYPE html><html><head><title>Anteprima Biglietto</title><meta name="viewport" content="width=device-width, initial-scale=1.0"><style>body{font-family:system-ui;background:#374151;margin:0;padding:0;display:flex;flex-direction:column;align-items:center;min-height:100vh}.toolbar{position:fixed;top:0;left:0;width:100%;height:70px;background:white;box-shadow:0 4px 10px rgba(0,0,0,0.2);display:flex;align-items:center;justify-content:center;gap:20px;z-index:9999;min-width:600px;overflow-x:auto}.btn{padding:12px 24px;border-radius:30px;font-weight:700;cursor:pointer;border:2px solid #e5e7eb;white-space:nowrap;flex-shrink:0;font-size:16px;background:white;color:#374151;box-shadow:0 2px 5px rgba(0,0,0,0.05);transition:all 0.2s}.btn:hover{background:#f9fafb;border-color:#d1d5db;transform:translateY(-1px)}.btn-primary{background:#2563eb;color:white;border-color:#2563eb}.btn-primary:hover{background:#1d4ed8}.content{margin-top:90px;padding:20px;display:flex;flex-direction:column;align-items:center;gap:40px}.preview-img{max-width:95vw;max-height:85vh;border:1px solid #eee;background:white;box-shadow:0 20px 25px -5px rgba(0,0,0,0.1)}.rotate-180{transform:rotate(180deg)}@media print{body{display:block;background:white}.toolbar{display:none}.content{margin:0;padding:0;display:block}.preview-img{width:297mm;height:210mm;max-width:none;page-break-after:always;box-shadow:none;border:none}}</style><script>function toggleRotation(){document.getElementById('sheet2-img').classList.toggle('rotate-180')}</script></head><body><div class="toolbar"><button class="btn" onclick="window.close()">❌ Chiudi</button><button class="btn" onclick="toggleRotation()">🔄 Ruota Retro</button><button class="btn btn-primary" onclick="window.print()">🖨️ STAMPA</button></div><div class="content"><img src="${imgData1}" class="preview-img"/><img id="sheet2-img" src="${imgData2}" class="preview-img"/></div></body></html>`);
-        win.document.close();
+        // Calculate dimensions for PDF (full page)
+        const pdfWidth = doc.internal.pageSize.getWidth();
+        const pdfHeight = doc.internal.pageSize.getHeight();
+
+        doc.addImage(imgData1, 'JPEG', 0, 0, pdfWidth, pdfHeight);
+        doc.addPage();
+        doc.addImage(imgData2, 'JPEG', 0, 0, pdfWidth, pdfHeight);
+        doc.save(`${data.title.replace(/[^a-z0-9]/gi, '_').toLowerCase()}.pdf`);
+        setShowPrintModal(false);
+
       } catch (e) { console.error("PDF Error", e); alert("Errore PDF."); } finally { setIsGeneratingPDF(false); }
   };
 
@@ -347,6 +410,41 @@ const CrosswordGrid: React.FC<CrosswordGridProps> = ({ data, onComplete, onEdit,
           inputRefs.current[nextY][nextX]?.focus();
       }
     }
+  };
+
+  // NEW: FORMAT TOGGLE WITHOUT REGENERATION
+  const toggleFormat = () => {
+    const formats: CardFormat[] = ['a4', 'a3', 'square'];
+    const currentIndex = formats.indexOf(data.format || 'a4');
+    const nextIndex = (currentIndex + 1) % formats.length;
+    onUpdate({ format: formats[nextIndex] });
+  };
+
+  const handleGraphicChange = (type: 'photo' | 'sticker' | 'watermark', value: any) => {
+     if (type === 'watermark') {
+         onUpdate({ hasWatermark: !data.hasWatermark });
+     } else if (type === 'sticker') {
+         const current = data.stickers || [];
+         let newStickers;
+         if (current.includes(value)) {
+             newStickers = current.filter(s => s !== value);
+         } else {
+             if (current.length >= 5) return;
+             newStickers = [...current, value];
+         }
+         onUpdate({ stickers: newStickers });
+     } else if (type === 'photo') {
+         // Value is file event
+         const file = value.target.files[0];
+         if (file) {
+            const reader = new FileReader();
+            reader.onload = (e) => {
+                const result = e.target?.result as string;
+                onUpdate({ images: { ...data.images, photos: [result], photo: result } });
+            };
+            reader.readAsDataURL(file);
+         }
+     }
   };
 
   const renderGridCells = (isPrint = false) => (
@@ -378,33 +476,106 @@ const CrosswordGrid: React.FC<CrosswordGridProps> = ({ data, onComplete, onEdit,
        
        <div className="flex flex-wrap gap-2 justify-center z-20 sticky top-2 p-2 bg-black/5 rounded-full backdrop-blur-sm shadow-xl border border-white/10" onClick={(e) => e.stopPropagation()}>
             <button onClick={onEdit} className="bg-white px-4 py-2 rounded-full shadow border text-sm flex items-center gap-2 font-bold hover:bg-gray-50 text-gray-700 active:scale-95"><Edit size={16} /> Modifica Dati</button>
-            <button onClick={addCustomText} className="bg-white px-3 py-2 rounded-full shadow border text-sm flex items-center gap-2 font-bold hover:bg-purple-50 text-purple-700 active:scale-95 border-purple-200"><Type size={16}/> Aggiungi Testo</button>
+            <button onClick={() => setShowGraphicsModal(true)} className="bg-white px-3 py-2 rounded-full shadow border text-sm flex items-center gap-2 font-bold hover:bg-pink-50 text-pink-600 active:scale-95 border-pink-200"><Palette size={16} /> Grafica</button>
+            <button onClick={toggleFormat} className="bg-white px-3 py-2 rounded-full shadow border text-sm flex items-center gap-2 font-bold hover:bg-blue-50 text-blue-700 active:scale-95 border-blue-200" title="Cambia formato carta senza perdere i dati"><BoxSelect size={16}/> {data.format === 'square' ? 'Quadrato' : (data.format || 'a4').toUpperCase()}</button>
+            <button onClick={addCustomText} className="bg-white px-3 py-2 rounded-full shadow border text-sm flex items-center gap-2 font-bold hover:bg-purple-50 text-purple-700 active:scale-95 border-purple-200"><Type size={16}/> Testo</button>
             <button onClick={() => setRevealAnswers(!revealAnswers)} className={`px-4 py-2 rounded-full shadow border text-sm flex items-center gap-2 font-bold active:scale-95 ${revealAnswers ? 'bg-yellow-100 text-yellow-800' : 'bg-white text-gray-700'}`}>{revealAnswers ? <EyeOff size={16}/> : <Eye size={16}/>} {revealAnswers ? 'Nascondi' : 'Soluzione'}</button>
-            <button onClick={() => setShowPrintModal(true)} disabled={isGeneratingPDF} className={`text-white px-6 py-2 rounded-full shadow-lg text-sm flex items-center gap-2 font-bold active:scale-95 ${isGeneratingPDF ? 'bg-gray-400' : 'bg-gradient-to-r from-green-600 to-emerald-600'}`}>{isGeneratingPDF ? <Loader2 size={16} className="animate-spin"/> : <Printer size={16} />} ANTEPRIMA STAMPA</button>
+            <button onClick={() => setShowPrintModal(true)} disabled={isGeneratingPDF} className={`text-white px-6 py-2 rounded-full shadow-lg text-sm flex items-center gap-2 font-bold active:scale-95 ${isGeneratingPDF ? 'bg-gray-400' : 'bg-gradient-to-r from-green-600 to-emerald-600'}`}>{isGeneratingPDF ? <Loader2 size={16} className="animate-spin"/> : <Printer size={16} />} SCARICA PDF</button>
        </div>
 
-       {/* MODALE OPZIONI STAMPA */}
+       {/* GRAPHICS EDITOR MODAL */}
+       {showGraphicsModal && (
+           <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/60 backdrop-blur-sm p-4 animate-in fade-in" onClick={() => setShowGraphicsModal(false)}>
+               <div className="bg-white rounded-2xl shadow-2xl p-6 w-full max-w-sm" onClick={e => e.stopPropagation()}>
+                    <h3 className="text-xl font-bold mb-4 flex items-center gap-2"><Palette className="text-pink-500"/> Modifica Grafica</h3>
+                    
+                    <div className="space-y-4">
+                        <div className="bg-gray-50 p-3 rounded-lg border border-gray-200">
+                            <label className="text-xs font-bold text-gray-500 uppercase mb-2 block flex items-center gap-2"><ImagePlus size={14}/> Cambia Foto</label>
+                            <input type="file" accept="image/*" className="text-sm w-full file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-xs file:font-semibold file:bg-pink-50 file:text-pink-700 hover:file:bg-pink-100" onChange={(e) => handleGraphicChange('photo', e)}/>
+                        </div>
+
+                        <div className="bg-gray-50 p-3 rounded-lg border border-gray-200">
+                             <div className="flex justify-between items-center mb-2">
+                                <label className="text-xs font-bold text-gray-500 uppercase flex items-center gap-2"><SmilePlus size={14}/> Stickers ({data.stickers?.length || 0}/5)</label>
+                             </div>
+                             <div className="flex flex-wrap gap-1 max-h-32 overflow-y-auto">
+                                 {STICKER_OPTIONS.map(s => (
+                                     <button key={s} onClick={() => handleGraphicChange('sticker', s)} className={`text-xl p-1 rounded hover:bg-gray-200 ${data.stickers?.includes(s) ? 'bg-blue-100 ring-1 ring-blue-300' : ''}`}>
+                                         {s}
+                                     </button>
+                                 ))}
+                             </div>
+                        </div>
+
+                        <button onClick={() => handleGraphicChange('watermark', null)} className={`w-full py-2 rounded-lg font-bold border flex items-center justify-center gap-2 ${data.hasWatermark ? 'bg-blue-50 border-blue-300 text-blue-600' : 'bg-white border-gray-300 text-gray-500'}`}>
+                             Filigrana: {data.hasWatermark ? 'SI' : 'NO'}
+                        </button>
+                    </div>
+
+                    <button onClick={() => setShowGraphicsModal(false)} className="w-full mt-4 py-2 bg-gray-800 text-white rounded-lg font-bold">Chiudi</button>
+               </div>
+           </div>
+       )}
+
+       {/* MODALE OPZIONI STAMPA & ANTEPRIMA */}
        {showPrintModal && (
-          <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/60 backdrop-blur-sm p-4 animate-in fade-in" onClick={() => setShowPrintModal(false)}>
-            <div className="bg-white rounded-2xl shadow-2xl p-6 w-full max-w-md border-4 border-blue-100 scale-100 animate-in zoom-in-95" onClick={e => e.stopPropagation()}>
-               <div className="flex justify-between items-center mb-4 border-b pb-2">
-                   <h3 className="text-xl font-bold text-gray-800 flex items-center gap-2"><Printer className="text-blue-600"/> Opzioni di Stampa</h3>
-                   <button onClick={() => setShowPrintModal(false)} className="text-gray-400 hover:text-gray-600"><XCircle size={24}/></button>
+          <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/80 backdrop-blur-md p-4 animate-in fade-in" onClick={() => setShowPrintModal(false)}>
+            <div className="bg-white rounded-3xl shadow-2xl overflow-hidden w-full max-w-5xl border-4 border-blue-100 scale-100 animate-in zoom-in-95 flex flex-col max-h-[90vh]" onClick={e => e.stopPropagation()}>
+               
+               {/* Header */}
+               <div className="flex justify-between items-center p-6 border-b bg-gray-50 shrink-0">
+                   <div>
+                       <h3 className="text-2xl font-bold text-gray-800 flex items-center gap-2"><Printer className="text-blue-600"/> Anteprima di Stampa</h3>
+                       <div className="flex items-center gap-3 mt-1">
+                           <p className="text-sm text-gray-500">Controlla il risultato finale prima di scaricare il PDF.</p>
+                           <span className="px-2 py-0.5 bg-blue-100 text-blue-700 text-[10px] font-bold uppercase rounded border border-blue-200">Formato: {formatConfig.label}</span>
+                       </div>
+                   </div>
+                   <button onClick={() => setShowPrintModal(false)} className="bg-white text-gray-400 hover:text-red-500 rounded-full p-2 hover:bg-red-50 transition-all"><XCircle size={28}/></button>
                </div>
                
-               <div className="space-y-4 mb-6">
-                  <button onClick={() => setShowBorders(!showBorders)} className={`w-full p-4 rounded-xl border-2 flex items-center justify-between font-bold transition-all ${showBorders ? 'border-blue-500 bg-blue-50 text-blue-700 shadow-sm' : 'border-gray-200 text-gray-500 hover:bg-gray-50'}`}>
-                      <span className="flex items-center gap-3"><Frame size={20}/> Cornice Decorativa</span>
-                      {showBorders ? <CheckCircle2 size={24} className="text-blue-600"/> : <div className="w-6 h-6 rounded-full border-2 border-gray-300"/>}
-                  </button>
-                  <p className="text-xs text-gray-400 text-center px-4">Scegli se includere i bordi colorati nel PDF finale.</p>
+               {/* Preview Area */}
+               <div className="flex-1 overflow-y-auto p-6 bg-gray-100/50 flex flex-col items-center justify-center relative min-h-[300px]">
+                   {isGeneratingPreview ? (
+                       <div className="flex flex-col items-center gap-3 text-blue-500">
+                           <Loader2 size={48} className="animate-spin"/>
+                           <span className="font-bold text-sm uppercase tracking-widest">Generazione Anteprima...</span>
+                       </div>
+                   ) : pdfPreviews.length > 0 ? (
+                       <div className="flex flex-col md:flex-row gap-6 w-full justify-center items-center">
+                           <div className="flex flex-col gap-2 items-center w-full md:w-1/2 max-w-lg">
+                               <span className="text-xs font-bold uppercase text-gray-400 tracking-widest bg-white px-2 py-1 rounded-full shadow-sm">Foglio 1: Esterno</span>
+                               <img src={pdfPreviews[0]} alt="Preview 1" className="w-full h-auto shadow-xl rounded-sm border bg-white" />
+                           </div>
+                           <div className="flex flex-col gap-2 items-center w-full md:w-1/2 max-w-lg">
+                               <span className="text-xs font-bold uppercase text-gray-400 tracking-widest bg-white px-2 py-1 rounded-full shadow-sm">Foglio 2: Interno</span>
+                               <img src={pdfPreviews[1]} alt="Preview 2" className="w-full h-auto shadow-xl rounded-sm border bg-white" />
+                           </div>
+                       </div>
+                   ) : (
+                       <div className="text-gray-400 flex flex-col items-center">
+                           <Info size={40} className="mb-2"/>
+                           <p>Impossibile generare l'anteprima.</p>
+                       </div>
+                   )}
                </div>
-        
-               <div className="flex gap-3 pt-2">
-                  <button onClick={() => setShowPrintModal(false)} className="flex-1 py-3 rounded-xl font-bold text-gray-500 hover:bg-gray-100 border border-transparent hover:border-gray-200 transition-colors">Annulla</button>
-                  <button onClick={handleDownloadPDF} className="flex-1 py-3 rounded-xl font-bold bg-gradient-to-r from-blue-600 to-indigo-600 text-white shadow-lg hover:shadow-xl hover:scale-[1.02] transition-all flex items-center justify-center gap-2">
-                     <Download size={18}/> Genera PDF
-                  </button>
+
+               {/* Footer Controls */}
+               <div className="p-6 border-t bg-white shrink-0">
+                    <div className="flex flex-col md:flex-row gap-4 items-center justify-between">
+                         <button onClick={() => setShowBorders(!showBorders)} className={`w-full md:w-auto px-6 py-3 rounded-xl border-2 flex items-center justify-center gap-3 font-bold transition-all ${showBorders ? 'border-blue-500 bg-blue-50 text-blue-700' : 'border-gray-200 text-gray-500 hover:bg-gray-50'}`}>
+                              {showBorders ? <CheckCircle2 size={20} className="text-blue-600"/> : <div className="w-5 h-5 rounded-full border-2 border-gray-300"/>}
+                              Cornice Decorativa
+                         </button>
+                         
+                         <div className="flex gap-3 w-full md:w-auto">
+                            <button onClick={() => setShowPrintModal(false)} className="flex-1 md:flex-none px-6 py-3 rounded-xl font-bold text-gray-500 hover:bg-gray-100 transition-colors">Annulla</button>
+                            <button onClick={handleDownloadPDF} disabled={isGeneratingPDF} className={`flex-1 md:flex-none px-8 py-3 rounded-xl font-bold text-white shadow-lg hover:shadow-xl hover:scale-[1.02] transition-all flex items-center justify-center gap-2 ${isGeneratingPDF ? 'bg-gray-400' : 'bg-gradient-to-r from-blue-600 to-indigo-600'}`}>
+                                {isGeneratingPDF ? <Loader2 size={20} className="animate-spin"/> : <Download size={20}/>} Scarica PDF
+                            </button>
+                         </div>
+                    </div>
                </div>
             </div>
           </div>
@@ -413,7 +584,7 @@ const CrosswordGrid: React.FC<CrosswordGridProps> = ({ data, onComplete, onEdit,
        {/* FOGLIO 1: ESTERNO */}
        <div className="w-full max-w-5xl px-4 md:px-0">
             <h3 className="text-center text-white font-bold uppercase tracking-widest mb-4 flex items-center justify-center gap-2 drop-shadow-md"><FileText size={20}/> FOGLIO 1 (Esterno)</h3>
-            <div className="bg-white w-full aspect-[297/210] shadow-2xl flex relative overflow-hidden rounded-sm select-none p-4">
+            <div className={`bg-white w-full ${formatConfig.cssAspect} shadow-2xl flex relative overflow-hidden rounded-sm select-none p-4`}>
                  <div className="absolute inset-y-0 left-1/2 w-px bg-gray-300 border-l border-dashed border-gray-400 opacity-50 z-10 pointer-events-none"></div>
 
                  {/* WATERMARK */}
@@ -449,53 +620,53 @@ const CrosswordGrid: React.FC<CrosswordGridProps> = ({ data, onComplete, onEdit,
             </div>
        </div>
 
-       {/* FOGLIO 2: INTERNO */}
+       {/* FOGLIO 2: INTERNO - REFACTORED LAYOUT */}
        <div className="w-full max-w-5xl px-4 md:px-0">
            <h3 className="text-center text-white font-bold uppercase tracking-widest mb-4 flex items-center justify-center gap-2 drop-shadow-md"><BookOpen size={20}/> FOGLIO 2 (Interno)</h3>
-           {/* Added p-4 for editor visual spacing */}
-           <div ref={editorRef} className="bg-white w-full aspect-[297/210] shadow-2xl flex relative overflow-hidden rounded-sm select-none p-4">
+           <div ref={editorRef} className={`bg-white w-full ${formatConfig.cssAspect} shadow-2xl flex relative overflow-hidden rounded-sm select-none p-4`}>
                 
                 <div className="absolute inset-y-0 left-1/2 w-px bg-gray-300 border-l border-dashed border-gray-400 opacity-50 z-10 pointer-events-none"></div>
 
-                {/* WATERMARK - OPTIONAL - z-index fixed via Overlay */}
-                
-                {/* CONTENT LAYER - pointer-events-none on container, auto on children */}
+                {/* CONTENT LAYER */}
                 <div className={`absolute inset-4 flex z-10 pointer-events-none`}>
-                    {/* DEDICA (Left) */}
-                    <div className={`w-1/2 h-full p-6 flex flex-col text-center ${showBorders ? themeAssets.printBorder : 'border-none'} border-r-0 relative box-border pointer-events-none`}>
-                        {/* HEADER: TITLE & DATE */}
-                        <div className="mb-2 pointer-events-auto shrink-0 z-20">
+                    
+                    {/* --- COLONNA SINISTRA (Dedica/Foto) REFACTORED --- */}
+                    <div className={`w-1/2 h-full p-6 flex flex-col text-center ${showBorders ? themeAssets.printBorder : 'border-none'} border-r-0 relative box-border pointer-events-none overflow-hidden`}>
+                        
+                        {/* 1. Header Fissa in Alto */}
+                        <div className="shrink-0 mb-2 pointer-events-auto z-20">
                             <h1 className={`text-2xl md:text-3xl ${themeAssets.fontTitle} text-gray-900 leading-tight drop-shadow-sm`}>{data.title}</h1>
                             <p className="text-xs uppercase text-gray-500 font-bold tracking-widest mt-1">{data.eventDate || "Data Speciale"} • {currentYear}</p>
                         </div>
                         
-                        {/* IMAGE CONTAINER FIX - FLEXIBLE HEIGHT - REMOVED FIXED MAX HEIGHT */}
-                        <div className="flex-1 w-full min-h-0 flex items-center justify-center relative my-2 overflow-hidden">
-                            {photos.length > 0 ? (
-                                <div className={`aspect-square h-auto max-h-full w-auto max-w-[90%] relative pointer-events-auto ${activeItemId === 'img2' ? 'cursor-move ring-2 ring-blue-500 ring-dashed z-50' : ''}`} 
-                                    style={{ transform: `translate(${imgSheet2.x}px, ${imgSheet2.y}px) scale(${imgSheet2.scale})` }} 
-                                    onMouseDown={(e) => startDrag(e, 'img2')}
-                                    onClick={(e) => e.stopPropagation()} 
-                                    onDoubleClick={(e) => { e.stopPropagation(); setActiveItemId('img2'); }}
-                                >
-                                    <div className="w-full h-full border-4 border-white shadow-lg overflow-hidden rounded-sm bg-gray-100 rotate-1 pointer-events-none"><PhotoCollage photos={photos} /></div>
-                                    {activeItemId === 'img2' && <div onMouseDown={(e) => startResize(e, 'img2')} className="absolute -bottom-6 -right-6 w-10 h-10 bg-blue-600 text-white rounded-full shadow-xl flex items-center justify-center cursor-nwse-resize z-50 pointer-events-auto hover:scale-110"><Maximize size={20} /></div>}
-                                </div>
-                            ) : data.images?.extraImage ? (
-                                <div className={`relative flex items-center justify-center h-full w-full pointer-events-auto ${activeItemId === 'img2' ? 'cursor-move ring-2 ring-blue-500 ring-dashed z-50' : ''}`} 
-                                    style={{ transform: `translate(${imgSheet2.x}px, ${imgSheet2.y}px) scale(${imgSheet2.scale})` }} 
-                                    onMouseDown={(e) => startDrag(e, 'img2')}
-                                    onClick={(e) => e.stopPropagation()} 
-                                    onDoubleClick={(e) => { e.stopPropagation(); setActiveItemId('img2'); }}
-                                >
-                                    <img src={data.images.extraImage} className="max-h-full max-w-full object-contain drop-shadow-md pointer-events-none" />
-                                    {activeItemId === 'img2' && <div onMouseDown={(e) => startResize(e, 'img2')} className="absolute -bottom-6 -right-6 w-10 h-10 bg-blue-600 text-white rounded-full shadow-xl flex items-center justify-center cursor-nwse-resize z-50 pointer-events-auto hover:scale-110"><Maximize size={20} /></div>}
-                                </div>
-                            ) : <div className="flex-1 w-full"></div>}
+                        {/* 2. Photo Container - Flexible Height - STRICT PROPORTIONS */}
+                        <div className="flex-1 min-h-0 flex items-center justify-center relative w-full my-2">
+                             {/* The Wrapper controls the layout area */}
+                             <div className={`relative w-full h-full flex items-center justify-center pointer-events-auto ${activeItemId === 'img2' ? 'cursor-move ring-2 ring-blue-500 ring-dashed z-50' : ''}`}
+                                  style={{ transform: `translate(${imgSheet2.x}px, ${imgSheet2.y}px) scale(${imgSheet2.scale})` }}
+                                  onMouseDown={(e) => startDrag(e, 'img2')}
+                                  onClick={(e) => e.stopPropagation()} 
+                                  onDoubleClick={(e) => { e.stopPropagation(); setActiveItemId('img2'); }}
+                             >
+                                  {/* Inner content strictly contained */}
+                                  {photos.length > 0 ? (
+                                      <div className="max-w-full max-h-full aspect-square shadow-lg border-4 border-white bg-gray-100 rotate-1 overflow-hidden">
+                                          <PhotoCollage photos={photos} />
+                                      </div>
+                                  ) : data.images?.extraImage ? (
+                                      <img 
+                                        src={data.images.extraImage} 
+                                        className="max-w-full max-h-full object-contain drop-shadow-md" 
+                                        style={{ width: 'auto', height: 'auto' }}
+                                      />
+                                  ) : <div className="w-full h-full border-2 border-dashed border-gray-200 rounded flex items-center justify-center opacity-30"><ImagePlus size={32}/></div>}
+
+                                  {activeItemId === 'img2' && <div onMouseDown={(e) => startResize(e, 'img2')} className="absolute -bottom-6 -right-6 w-10 h-10 bg-blue-600 text-white rounded-full shadow-xl flex items-center justify-center cursor-nwse-resize z-50 pointer-events-auto hover:scale-110"><Maximize size={20} /></div>}
+                             </div>
                         </div>
 
-                        {/* MESSAGE CONTAINER - Shrinkable if needed but prefers auto */}
-                        <div className={`w-full relative group pointer-events-auto shrink-0 ${activeItemId === 'txt2' ? 'cursor-move ring-2 ring-blue-500 ring-dashed z-50' : ''}`} 
+                        {/* 3. Message Container - Bottom Fixed/Flexible */}
+                        <div className={`w-full relative group pointer-events-auto shrink-0 mt-2 ${activeItemId === 'txt2' ? 'cursor-move ring-2 ring-blue-500 ring-dashed z-50' : ''}`} 
                             style={{ transform: `translate(${txtSheet2.x}px, ${txtSheet2.y}px) scale(${txtSheet2.scale})` }} 
                             onMouseDown={(e) => startDrag(e, 'txt2')}
                             onClick={(e) => e.stopPropagation()} 
@@ -529,7 +700,7 @@ const CrosswordGrid: React.FC<CrosswordGridProps> = ({ data, onComplete, onEdit,
                         </div>
                     </div>
 
-                    {/* GIOCO (Right) - Added padding p-6 to force content away from border */}
+                    {/* COLONNA DESTRA (Gioco) */}
                     <div className={`w-1/2 h-full p-6 flex flex-col relative z-10 pointer-events-none overflow-hidden box-border ${showBorders ? themeAssets.printBorder : 'border-none'} border-l-0`}>
                         {isCrossword ? (
                             <div className="flex flex-col h-full w-full justify-between">
@@ -556,7 +727,7 @@ const CrosswordGrid: React.FC<CrosswordGridProps> = ({ data, onComplete, onEdit,
 
                 {/* OVERLAY LAYER - Z-50 - Outside Content Layer */}
                 <div className="absolute inset-0 z-50 pointer-events-none">
-                     {/* WATERMARK - Moved here for Z-Index priority */}
+                     {/* WATERMARK */}
                      {data.hasWatermark && (
                         <div className="relative w-full h-full overflow-hidden pointer-events-none">
                             <div className="absolute top-1/2 left-1/2 group pointer-events-auto" 
@@ -571,7 +742,7 @@ const CrosswordGrid: React.FC<CrosswordGridProps> = ({ data, onComplete, onEdit,
                         </div>
                      )}
 
-                     {/* STICKER CONTAINER - Pointer events auto */}
+                     {/* STICKER CONTAINER - Positioned to minimize default overlap */}
                      <div className={`absolute left-1/2 top-1/2 pointer-events-auto ${activeItemId === 'stickerGroup' ? 'cursor-move ring-2 ring-green-400 ring-dashed bg-green-50/30 rounded-lg z-50' : ''}`} 
                          style={{ transform: `translate(-50%, -50%) translate(${stickerGroup.x}px, ${stickerGroup.y}px) scale(${stickerGroup.scale})` }} 
                          onMouseDown={(e) => startDrag(e, 'stickerGroup')}
@@ -582,7 +753,7 @@ const CrosswordGrid: React.FC<CrosswordGridProps> = ({ data, onComplete, onEdit,
                          {activeItemId === 'stickerGroup' && <div onMouseDown={(e) => startResize(e, 'stickerGroup')} className="absolute -bottom-6 -right-6 w-10 h-10 bg-blue-600 text-white rounded-full shadow-xl flex items-center justify-center cursor-nwse-resize z-50 pointer-events-auto hover:scale-110"><Maximize size={20} /></div>}
                      </div>
 
-                      {/* Custom Texts - Pointer events auto */}
+                      {/* Custom Texts */}
                       {customTexts.map(t => (
                          <div key={t.id} className={`absolute left-1/2 top-1/2 flex items-center justify-center pointer-events-auto ${activeItemId === t.id ? 'cursor-move ring-1 ring-purple-300 ring-dashed bg-white/80 rounded-lg shadow-sm z-50' : 'z-40'}`} 
                              style={{ transform: `translate(-50%, -50%) translate(${t.x}px, ${t.y}px)` }} 
@@ -626,9 +797,9 @@ const CrosswordGrid: React.FC<CrosswordGridProps> = ({ data, onComplete, onEdit,
        </div>
 
        {/* --- HIDDEN PDF EXPORT STAGE --- */}
-       <div ref={exportRef} style={{ position: 'fixed', top: 0, left: '-9999px', width: '1123px', zIndex: -100 }}>
+       <div ref={exportRef} style={{ position: 'fixed', top: 0, left: '-9999px', width: `${formatConfig.width}px`, zIndex: -100 }}>
             {/* SHEET 1 */}
-            <div id="pdf-sheet-1" style={{ width: '1123px', height: '794px', display: 'flex', position: 'relative', backgroundColor: 'white', overflow: 'hidden', boxSizing: 'border-box', padding: '25px' }}>
+            <div id="pdf-sheet-1" style={{ width: `${formatConfig.width}px`, height: `${formatConfig.height}px`, display: 'flex', position: 'relative', backgroundColor: 'white', overflow: 'hidden', boxSizing: 'border-box', padding: '25px' }}>
                  {/* WATERMARK - OPTIONAL - APPLIED SCALE */}
                  {data.hasWatermark && (
                      <div style={{ position: 'absolute', top: '50%', left: '50%', transform: `translate(-50%, -50%) translate(${wmSheet1.x * pdfScaleFactor}px, ${wmSheet1.y * pdfScaleFactor}px) scale(${wmSheet1.scale}) rotate(12deg)`, fontSize: '130px', opacity: 0.20, zIndex: 0, whiteSpace: 'nowrap' }}>{themeAssets.watermark}</div>
@@ -648,39 +819,51 @@ const CrosswordGrid: React.FC<CrosswordGridProps> = ({ data, onComplete, onEdit,
                  </div>
             </div>
             
-            {/* SHEET 2 - RESTRUCTURED FOR PDF - Added Padding 25px for Print Margin Safety */}
-            <div id="pdf-sheet-2" style={{ width: '1123px', height: '794px', display: 'flex', position: 'relative', backgroundColor: 'white', overflow: 'hidden', boxSizing: 'border-box', padding: '25px' }}>
-                 {/* WATERMARK - OPTIONAL - APPLIED SCALE */}
+            {/* SHEET 2 - PDF LAYOUT REFACTORED FOR STRICT PROPORTIONS */}
+            <div id="pdf-sheet-2" style={{ width: `${formatConfig.width}px`, height: `${formatConfig.height}px`, display: 'flex', position: 'relative', backgroundColor: 'white', overflow: 'hidden', boxSizing: 'border-box', padding: '25px' }}>
+                 {/* WATERMARK */}
                  {data.hasWatermark && (
                     <div style={{ position: 'absolute', top: '50%', left: '50%', transform: `translate(-50%, -50%) translate(${wmSheet2.x * pdfScaleFactor}px, ${wmSheet2.y * pdfScaleFactor}px) scale(${wmSheet2.scale}) rotate(12deg)`, fontSize: '130px', opacity: 0.20, zIndex: 0, whiteSpace: 'nowrap' }}>{themeAssets.watermark}</div>
                  )}
                  
-                 {/* LEFT PAGE (DEDICA) - Reduced width to avoid print cutoff, added marginRight */}
+                 {/* LEFT PAGE (DEDICA) - Flex Column Layout for PDF */}
                  <div style={{ width: '49%', marginRight: '1%', height: '100%', position: 'relative', zIndex: 10, boxSizing: 'border-box', overflow: 'hidden', borderRight: 'none', border: showBorders ? themeAssets.pdfBorder : 'none' }}>
                      
-                     {/* CONTENT WRAPPER WITH PADDING - Keeps static text safe */}
-                     <div style={{ width: '100%', height: '100%', padding: '30px', display: 'flex', flexDirection: 'column', alignItems: 'center', textAlign: 'center' }}>
-                         {/* TITLE & DATE HEADER INTERNAL PDF */}
-                         <div style={{marginBottom: '20px', width: '100%'}}>
+                     {/* WRAPPER */}
+                     <div style={{ width: '100%', height: '100%', padding: '30px', display: 'flex', flexDirection: 'column', alignItems: 'center', textAlign: 'center', justifyContent: 'space-between' }}>
+                         
+                         {/* HEADER */}
+                         <div style={{marginBottom: '10px', width: '100%', flexShrink: 0}}>
                               <h1 className={themeAssets.fontTitle} style={{ fontSize: '40px', marginBottom: '5px', lineHeight: 1.2 }}>{data.title}</h1>
                               <p style={{ fontSize: '14px', textTransform: 'uppercase', color: '#666', letterSpacing: '2px' }}>{data.eventDate || "Data Speciale"} • {currentYear}</p>
                          </div>
-                         {/* PDF IMAGE CONTAINER */}
-                         <div style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', width: '100%', position: 'relative' }}>
-                            {photos.length > 0 ? (
-                                <div style={{ width: 'auto', maxWidth: '80%', maxHeight: '350px', aspectRatio: '1/1', border: '5px solid white', boxShadow: '0 4px 6px rgba(0,0,0,0.1)', overflow: 'hidden', backgroundColor: '#f3f4f6', marginBottom: '20px', transform: `translate(${imgSheet2.x * pdfScaleFactor}px, ${imgSheet2.y * pdfScaleFactor}px) scale(${imgSheet2.scale})` }}>
-                                    <PhotoCollage photos={photos} />
-                                </div>
-                            ) : data.images?.extraImage ? <img src={data.images.extraImage} style={{ maxWidth: '100%', maxHeight: '350px', objectFit: 'contain', marginBottom: '20px', transform: `translate(${imgSheet2.x * pdfScaleFactor}px, ${imgSheet2.y * pdfScaleFactor}px) scale(${imgSheet2.scale})` }} /> : null}
-                            <div style={{ transform: `translate(${txtSheet2.x * pdfScaleFactor}px, ${txtSheet2.y * pdfScaleFactor}px) scale(${txtSheet2.scale})` }}><p className={themeAssets.fontTitle} style={{ fontSize: '24px', lineHeight: 1.5, marginBottom: '20px' }}>"{editableMessage}"</p></div>
+
+                         {/* PHOTO AREA - Flex Grow to take space, but strict containment */}
+                         <div style={{ flex: '1 1 auto', display: 'flex', alignItems: 'center', justifyContent: 'center', width: '100%', overflow: 'hidden', minHeight: 0, margin: '10px 0', position: 'relative' }}>
+                             {/* Wrapper for transforms */}
+                             <div style={{ width: '100%', height: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', transform: `translate(${imgSheet2.x * pdfScaleFactor}px, ${imgSheet2.y * pdfScaleFactor}px) scale(${imgSheet2.scale})` }}>
+                                {photos.length > 0 ? (
+                                    <div style={{ maxWidth: '100%', maxHeight: '100%', aspectRatio: '1/1', border: '5px solid white', boxShadow: '0 4px 6px rgba(0,0,0,0.1)', overflow: 'hidden', backgroundColor: '#f3f4f6' }}>
+                                        <PhotoCollage photos={photos} />
+                                    </div>
+                                ) : data.images?.extraImage ? (
+                                    <img src={data.images.extraImage} style={{ maxWidth: '100%', maxHeight: '100%', objectFit: 'contain' }} />
+                                ) : null}
+                             </div>
+                         </div>
+
+                         {/* MESSAGE AREA */}
+                         <div style={{ flexShrink: 0, width: '100%', position: 'relative', minHeight: '50px' }}>
+                             <div style={{ transform: `translate(${txtSheet2.x * pdfScaleFactor}px, ${txtSheet2.y * pdfScaleFactor}px) scale(${txtSheet2.scale})` }}>
+                                <p className={themeAssets.fontTitle} style={{ fontSize: '24px', lineHeight: 1.5 }}>"{editableMessage}"</p>
+                             </div>
                          </div>
                      </div>
 
                  </div>
                  
-                 {/* RIGHT PAGE (CROSSWORD) - Reduced width, added marginLeft, extra padding for safety */}
+                 {/* RIGHT PAGE (CROSSWORD) */}
                  <div style={{ width: '49%', marginLeft: '1%', height: '100%', position: 'relative', zIndex: 10, boxSizing: 'border-box', overflow: 'hidden', borderLeft: 'none', border: showBorders ? themeAssets.pdfBorder : 'none' }}>
-                     {/* Added inner padding 40px to safely distance content from border */}
                      <div style={{ width: '100%', height: '100%', padding: '40px', paddingRight: '50px', display: 'flex', flexDirection: 'column' }}>
                         {isCrossword ? (
                            <div style={{ flex: 1, display: 'flex', flexDirection: 'column', height: '100%', overflow: 'hidden' }}>
@@ -688,13 +871,11 @@ const CrosswordGrid: React.FC<CrosswordGridProps> = ({ data, onComplete, onEdit,
                                     <h2 style={{ fontSize: '20px', fontWeight: 'bold', textTransform: 'uppercase', borderBottom: '2px solid black', marginBottom: '10px', paddingBottom: '5px', textAlign: 'center', letterSpacing: '2px' }}>Cruciverba</h2>
                                     {renderSolution(true)}
                                </div>
-                               {/* GRID CONTAINER - FLEX 1, MIN HEIGHT 0 to allow shrinking */}
                                <div style={{ flex: '1 1 auto', minHeight: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '10px 0', overflow: 'hidden' }}>
                                    <div style={{ width: '100%', height: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
                                        {renderGridCells(true)}
                                    </div>
                                </div>
-                               {/* CLUES CONTAINER - FLEX SHRINK 0 to FORCE space for text */}
                                <div style={{ flexShrink: 0, fontSize: printFontSize, display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px', lineHeight: 1.1, borderTop: '2px solid black', paddingTop: '10px' }}>
                                     <div><b style={{ display: 'block', borderBottom: '1px solid #ccc', marginBottom: '4px', paddingBottom: '2px', textTransform: 'uppercase', fontWeight: 'bold' }}>Orizzontali</b>{data.words.filter(w=>w.direction===Direction.ACROSS).map(w=><div key={w.id} style={{ marginBottom: '2px', whiteSpace: 'normal' }}><b style={{ marginRight: '4px' }}>{w.number}.</b>{w.clue}</div>)}</div>
                                     <div><b style={{ display: 'block', borderBottom: '1px solid #ccc', marginBottom: '4px', paddingBottom: '2px', textTransform: 'uppercase', fontWeight: 'bold' }}>Verticali</b>{data.words.filter(w=>w.direction===Direction.DOWN).map(w=><div key={w.id} style={{ marginBottom: '2px', whiteSpace: 'normal' }}><b style={{ marginRight: '4px' }}>{w.number}.</b>{w.clue}</div>)}</div>
@@ -704,7 +885,7 @@ const CrosswordGrid: React.FC<CrosswordGridProps> = ({ data, onComplete, onEdit,
                      </div>
                  </div>
 
-                 {/* ABSOLUTE ELEMENTS - OUTSIDE PADDED WRAPPER (Z-50 OVERLAY) - APPLIED SCALE */}
+                 {/* ABSOLUTE ELEMENTS */}
                  <div style={{ position: 'absolute', left: '50%', top: '50%', transform: `translate(-50%, -50%) translate(${stickerGroup.x * pdfScaleFactor}px, ${stickerGroup.y * pdfScaleFactor}px) scale(${stickerGroup.scale})`, pointerEvents: 'none', zIndex: 50 }}>
                       <div style={{display:'flex', gap:'10px', fontSize:'50px'}}>{(data.stickers || []).slice(0,5).map((s,i) => <span key={i}>{s}</span>)}</div>
                  </div>
