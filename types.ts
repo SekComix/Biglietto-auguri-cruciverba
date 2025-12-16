@@ -8,6 +8,8 @@ export type ThemeType = 'christmas' | 'easter' | 'birthday' | 'elegant' | 'gener
 
 export type ToneType = 'funny' | 'heartfelt' | 'rhyme' | 'surprise' | 'custom';
 
+export type CardFormat = 'a4' | 'a3' | 'square';
+
 export interface WordEntry {
   id: string;
   word: string;
@@ -42,13 +44,14 @@ export interface CrosswordData {
   eventDate: string;
   message: string;
   theme: ThemeType;
+  format: CardFormat; // NEW: Formato biglietto
   width: number;
   height: number;
   words: WordEntry[];
   solution?: SolutionData;
   images?: CustomImages;
   stickers?: string[];
-  hasWatermark?: boolean; // NEW: Controllo opzionale filigrana
+  hasWatermark?: boolean;
   // Campi per la modifica
   originalInput?: string | ManualInput[];
   originalMode?: 'ai' | 'manual';
