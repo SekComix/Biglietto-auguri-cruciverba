@@ -1,7 +1,7 @@
 
 import React, { useState, useEffect, useRef } from 'react';
 import { CrosswordData, CellData, Direction, ThemeType, CardFormat } from '../types';
-import { Printer, Edit, Eye, EyeOff, BookOpen, FileText, CheckCircle2, Palette, Download, Loader2, XCircle, RotateCw, Maximize, Move, Info, Type, Trash2, Grip, ArrowRightLeft, Pencil, Frame, RefreshCcw, BoxSelect, ImagePlus, SmilePlus, ChevronLeft, ChevronRight, LayoutTemplate, Camera, Shuffle, FolderInput, Save, Upload, HelpCircle, Check } from 'lucide-react';
+import { Printer, Edit, Eye, EyeOff, BookOpen, FileText, CheckCircle2, Palette, Download, Loader2, XCircle, RotateCw, Maximize, Move, Info, Type, Trash2, Grip, ArrowRightLeft, Pencil, Frame, RefreshCcw, BoxSelect, ImagePlus, SmilePlus, ChevronLeft, ChevronRight, LayoutTemplate, Camera, Shuffle, FolderInput, Save, Upload, HelpCircle, Check, Stamp } from 'lucide-react';
 import html2canvas from 'html2canvas';
 import { jsPDF } from 'jspdf';
 
@@ -677,7 +677,7 @@ const CrosswordGrid: React.FC<CrosswordGridProps> = ({ data, onComplete, onEdit,
     onUpdate({ format: formats[nextIndex] });
   };
 
-  const handleGraphicChange = (type: 'photo' | 'sticker' | 'watermark', value: any) => {
+  const handleGraphicChange = (type: 'photo' | 'sticker' | 'watermark' | 'brand', value: any) => {
      if (type === 'watermark') {
          onUpdate({ hasWatermark: !data.hasWatermark });
      } else if (type === 'sticker') {
@@ -693,6 +693,16 @@ const CrosswordGrid: React.FC<CrosswordGridProps> = ({ data, onComplete, onEdit,
             reader.onload = (e) => {
                 const result = e.target?.result as string;
                 onUpdate({ images: { ...data.images, photos: [result], photo: result, extraImage: result } });
+            };
+            reader.readAsDataURL(file);
+         }
+     } else if (type === 'brand') {
+         const file = value.target.files[0];
+         if (file) {
+            const reader = new FileReader();
+            reader.onload = (e) => {
+                const result = e.target?.result as string;
+                onUpdate({ images: { ...data.images, brandLogo: result } });
             };
             reader.readAsDataURL(file);
          }
@@ -799,6 +809,13 @@ const CrosswordGrid: React.FC<CrosswordGridProps> = ({ data, onComplete, onEdit,
                             <label className="text-xs font-bold text-gray-500 uppercase mb-2 block flex items-center gap-2"><ImagePlus size={14}/> Cambia Foto {data.format === 'tags' ? '(Copertina)' : ''}</label>
                             <input type="file" accept="image/*" className="text-sm w-full file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-xs file:font-semibold file:bg-pink-50 file:text-pink-700 hover:file:bg-pink-100" onChange={(e) => handleGraphicChange('photo', e)}/>
                         </div>
+                        
+                        {/* BRAND LOGO UPLOAD ADDED HERE */}
+                        <div className="bg-blue-50 p-3 rounded-lg border border-blue-200">
+                            <label className="text-xs font-bold text-blue-600 uppercase mb-2 block flex items-center gap-2"><Stamp size={14}/> Logo/Firma (Retro)</label>
+                            <input type="file" accept="image/*" className="text-sm w-full file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-xs file:font-semibold file:bg-blue-100 file:text-blue-700 hover:file:bg-blue-200" onChange={(e) => handleGraphicChange('brand', e)}/>
+                        </div>
+
                         <div className="bg-gray-50 p-3 rounded-lg border border-gray-200">
                              <div className="flex justify-between items-center mb-2"><label className="text-xs font-bold text-gray-500 uppercase flex items-center gap-2"><SmilePlus size={14}/> Stickers ({data.stickers?.length || 0}/5)</label></div>
                              <div className="flex flex-wrap gap-1 max-h-32 overflow-y-auto">{STICKER_OPTIONS.map(s => (<button key={s} onClick={() => handleGraphicChange('sticker', s)} className={`text-xl p-1 rounded hover:bg-gray-200 ${data.stickers?.includes(s) ? 'bg-blue-100 ring-1 ring-blue-300' : ''}`}>{s}</button>))}</div>
@@ -945,7 +962,17 @@ const CrosswordGrid: React.FC<CrosswordGridProps> = ({ data, onComplete, onEdit,
                                                 <div className="w-full h-full flex overflow-hidden border border-dashed border-gray-300">
                                                     {isSheet1 ? (
                                                         <>
-                                                            <div className="w-1/2 h-full bg-gray-50 flex items-center justify-center relative"><span className="absolute bottom-2 text-[8px] text-gray-300">Created by Enigmistica</span></div>
+                                                            <div className="w-1/2 h-full bg-gray-50 flex items-center justify-center relative overflow-hidden">
+                                                                {data.images?.brandLogo ? (
+                                                                    <img 
+                                                                        src={data.images.brandLogo} 
+                                                                        className="max-w-[70%] max-h-[70%] object-contain opacity-50 mix-blend-multiply grayscale" 
+                                                                        alt="Logo"
+                                                                    />
+                                                                ) : (
+                                                                    <span className="absolute bottom-2 text-[8px] text-gray-300">Created by Enigmistica</span>
+                                                                )}
+                                                            </div>
                                                             <div className="w-1/2 h-full bg-gray-100 overflow-hidden relative">
                                                                 {v.img ? <img src={v.img} className="w-full h-full object-cover" /> : null}
                                                             </div>
@@ -1137,10 +1164,22 @@ const CrosswordGrid: React.FC<CrosswordGridProps> = ({ data, onComplete, onEdit,
                                 {/* CARD OUTER: LEFT=BACK, RIGHT=FRONT */}
                                 <div style={{ width: '100%', height: '100%', display: 'flex', overflow: 'hidden', border: '1px dashed #e5e7eb' }}>
                                      {/* Back Cover (Left) - NOW HORIZONTAL AND CENTERED AT BOTTOM */}
-                                     <div style={{ width: '50%', height: '100%', backgroundColor: '#f9fafb', display: 'flex', alignItems: 'center', justifyContent: 'center', position: 'relative' }}>
-                                         <div style={{ position: 'absolute', bottom: '5px', width: '100%', textAlign: 'center' }}>
-                                             <span style={{ fontSize: '6px', color: '#d1d5db', textTransform: 'uppercase' }}>Created by Enigmistica</span>
-                                         </div>
+                                     <div style={{ width: '50%', height: '100%', backgroundColor: '#f9fafb', display: 'flex', alignItems: 'center', justifyContent: 'center', position: 'relative', overflow: 'hidden' }}>
+                                         {data.images?.brandLogo ? (
+                                             <img 
+                                                 src={data.images.brandLogo} 
+                                                 style={{ 
+                                                     maxWidth: '70%', 
+                                                     maxHeight: '70%', 
+                                                     objectFit: 'contain', 
+                                                     opacity: 0.5,
+                                                 }} 
+                                             />
+                                         ) : (
+                                             <div style={{ position: 'absolute', bottom: '5px', width: '100%', textAlign: 'center' }}>
+                                                 <span style={{ fontSize: '6px', color: '#d1d5db', textTransform: 'uppercase' }}>Created by Enigmistica</span>
+                                             </div>
+                                         )}
                                      </div>
                                      {/* Front Cover (Right) - IMAGE */}
                                      <div style={{ width: '50%', height: '100%', position: 'relative', overflow: 'hidden', backgroundColor: '#f3f4f6' }}>
