@@ -2,7 +2,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { generateCrossword, regenerateGreetingOptions } from '../services/geminiService';
 import { CrosswordData, ManualInput, ThemeType, ToneType, Direction, CardFormat } from '../types';
-import { Loader2, Wand2, Plus, Trash2, Gift, PartyPopper, CalendarHeart, Crown, KeyRound, Image as ImageIcon, Upload, Calendar, AlertCircle, Grid3X3, MailOpen, Images, Ghost, GraduationCap, ScrollText, HeartHandshake, BookOpen, Search, X, Smile, Heart, Music, Sparkles, Edit, PenTool, LayoutGrid, Zap, Check, MessageSquareDashed, Info, HelpCircle, Bot, BrainCircuit, Feather, Quote, Briefcase, GraduationCap as GradCap, Puzzle, Stamp, FileBadge, BoxSelect } from 'lucide-react';
+import { Loader2, Wand2, Plus, Trash2, Gift, PartyPopper, CalendarHeart, Crown, KeyRound, Image as ImageIcon, Upload, Calendar, AlertCircle, Grid3X3, MailOpen, Images, Ghost, GraduationCap, ScrollText, HeartHandshake, BookOpen, Search, X, Smile, Heart, Music, Sparkles, Edit, PenTool, LayoutGrid, Zap, Check, MessageSquareDashed, Info, HelpCircle, Bot, BrainCircuit, Feather, Quote, Briefcase, GraduationCap as GradCap, Puzzle, Stamp, FileBadge, BoxSelect, Tag } from 'lucide-react';
 
 interface CreatorProps {
   onCreated: (data: CrosswordData) => void;
@@ -51,10 +51,11 @@ const ACTIVITY_MODULES = [
     { id: 'simple', label: 'Solo Dedica', icon: MailOpen, desc: 'Nessun gioco, solo testo' },
 ];
 
-const CARD_FORMATS: { id: CardFormat; label: string; desc: string }[] = [
-    { id: 'a4', label: 'Standard (A4)', desc: 'Piegato a metà (A5)' },
-    { id: 'a3', label: 'Maxi (A3)', desc: 'Stampa grande poster' },
-    { id: 'square', label: 'Quadrato', desc: 'Moderno (30x15cm)' },
+const CARD_FORMATS: { id: CardFormat; label: string; desc: string; icon?: any }[] = [
+    { id: 'a4', label: 'Standard (A4)', desc: 'Piegato a metà (A5)', icon: BoxSelect },
+    { id: 'a3', label: 'Maxi (A3)', desc: 'Stampa grande poster', icon: BoxSelect },
+    { id: 'square', label: 'Quadrato', desc: 'Formato moderno (2:1)', icon: BoxSelect },
+    { id: 'tags', label: 'Bigliettini', desc: '8x Pacchetti (5x7cm)', icon: Tag },
 ];
 
 type CreationMode = 'guided' | 'freestyle' | 'manual';
@@ -177,6 +178,22 @@ export const Creator: React.FC<CreatorProps> = ({ onCreated, initialData }) => {
   useEffect(() => { if(recipientName) setShowNameError(false); }, [recipientName]);
   useEffect(() => { if(topic) setShowTopicError(false); }, [topic]);
 
+  const handleFormatChange = (newFormat: CardFormat) => {
+      setFormat(newFormat);
+      // Se si sceglie Quadrato o Bigliettini, si disabilita il cruciverba
+      if (newFormat === 'square' || newFormat === 'tags') {
+          setSelectedActivity('simple');
+      }
+  };
+
+  const handleActivityChange = (activityId: string) => {
+      setSelectedActivity(activityId);
+      // Se si sceglie Cruciverba ma si è in formato non compatibile, passa ad A4
+      if (activityId === 'crossword' && (format === 'square' || format === 'tags')) {
+          setFormat('a4');
+      }
+  };
+
   const handleImageUpload = (e: React.ChangeEvent<HTMLInputElement>, type: 'extra' | 'photo' | 'brand') => {
     const files = e.target.files;
     if (!files || files.length === 0) return;
@@ -270,6 +287,7 @@ export const Creator: React.FC<CreatorProps> = ({ onCreated, initialData }) => {
      setCreationMode('guided');
      setSelectedActivity('crossword');
      setTone('funny');
+     setFormat('a4');
      setTopic("Ama il calcio, la pizza e dormire sul divano.");
      setHiddenSolution("AUGURI");
   };
@@ -414,22 +432,26 @@ export const Creator: React.FC<CreatorProps> = ({ onCreated, initialData }) => {
 
   const ActivitySelector = () => (
     <div className="grid grid-cols-2 gap-3 mb-4">
-        {ACTIVITY_MODULES.map(act => (
+        {ACTIVITY_MODULES.map(act => {
+            const isDisabled = act.id === 'crossword' && (format === 'square' || format === 'tags');
+            return (
             <button
                 key={act.id}
                 type="button"
-                onClick={() => setSelectedActivity(act.id)}
-                className={`p-3 rounded-xl border flex items-center gap-3 transition-all ${selectedActivity === act.id ? 'bg-white border-blue-500 shadow-md ring-2 ring-blue-100' : 'bg-white/40 border-gray-200 hover:bg-white'}`}
+                disabled={isDisabled}
+                onClick={() => handleActivityChange(act.id)}
+                className={`p-3 rounded-xl border flex items-center gap-3 transition-all ${isDisabled ? 'opacity-50 cursor-not-allowed bg-gray-50 border-gray-100' : selectedActivity === act.id ? 'bg-white border-blue-500 shadow-md ring-2 ring-blue-100' : 'bg-white/40 border-gray-200 hover:bg-white'}`}
+                title={isDisabled ? "Non disponibile per questo formato" : ""}
             >
-                <div className={`p-2 rounded-full ${selectedActivity === act.id ? 'bg-blue-100 text-blue-600' : 'bg-gray-100 text-gray-500'}`}>
+                <div className={`p-2 rounded-full ${selectedActivity === act.id && !isDisabled ? 'bg-blue-100 text-blue-600' : 'bg-gray-100 text-gray-500'}`}>
                     <act.icon size={18} />
                 </div>
                 <div className="text-left">
-                    <div className={`text-sm font-bold ${selectedActivity === act.id ? 'text-gray-800' : 'text-gray-500'}`}>{act.label}</div>
+                    <div className={`text-sm font-bold ${selectedActivity === act.id && !isDisabled ? 'text-gray-800' : 'text-gray-500'}`}>{act.label}</div>
                     <div className="text-[10px] text-gray-400 leading-tight">{act.desc}</div>
                 </div>
             </button>
-        ))}
+        )})}
     </div>
   );
 
@@ -486,18 +508,18 @@ export const Creator: React.FC<CreatorProps> = ({ onCreated, initialData }) => {
               ))}
             </div>
             
-            <div className="flex flex-col md:flex-row gap-4 mb-4 items-center justify-center">
+            <div className="flex flex-wrap gap-2 md:gap-4 mb-4 items-center justify-center">
                  {/* FORMAT SELECTOR */}
-                 <div className="bg-gray-50 p-1 rounded-lg flex shadow-sm border border-gray-200">
+                 <div className="bg-gray-50 p-1 rounded-lg flex shadow-sm border border-gray-200 overflow-x-auto">
                      {CARD_FORMATS.map(f => (
                          <button
                             key={f.id}
                             type="button"
-                            onClick={() => setFormat(f.id)}
-                            className={`px-3 py-1.5 rounded-md text-xs font-bold transition-all flex items-center gap-2 ${format === f.id ? 'bg-white text-blue-600 shadow-sm border border-blue-100' : 'text-gray-500 hover:bg-gray-100'}`}
+                            onClick={() => handleFormatChange(f.id)}
+                            className={`px-3 py-1.5 rounded-md text-xs font-bold transition-all flex items-center gap-2 whitespace-nowrap ${format === f.id ? 'bg-white text-blue-600 shadow-sm border border-blue-100' : 'text-gray-500 hover:bg-gray-100'}`}
                             title={f.desc}
                          >
-                            <BoxSelect size={14}/> {f.label}
+                            {f.icon ? <f.icon size={14}/> : <BoxSelect size={14}/>} {f.label}
                          </button>
                      ))}
                  </div>
