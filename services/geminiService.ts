@@ -1,6 +1,6 @@
 
 import { GoogleGenAI, Type, GenerateContentResponse } from "@google/genai";
-import { CrosswordData, ManualInput, ThemeType, ToneType } from '../types';
+import { CrosswordData, ManualInput, ThemeType, ToneType, CardFormat } from '../types';
 
 const wordListSchema = {
   type: Type.OBJECT,
@@ -367,7 +367,8 @@ export const generateCrossword = async (
     contentType: 'crossword' | 'simple';
     tone?: ToneType;
     customTone?: string;
-    hasWatermark?: boolean; // NEW: Controllo opzionale filigrana
+    format?: CardFormat; // NEW: Formato
+    hasWatermark?: boolean; 
   },
   onStatusUpdate?: (status: string) => void
 ): Promise<CrosswordData> => {
@@ -498,7 +499,7 @@ export const generateCrossword = async (
       case 'halloween': defaultTitle = `Buon Halloween ${extraData?.recipientName}!`; break;
       case 'graduation': defaultTitle = `Congratulazioni Dott. ${extraData?.recipientName}!`; break;
       case 'confirmation': defaultTitle = `Santa Cresima di ${extraData?.recipientName}`; break;
-      case 'communion': defaultTitle = `Prima Comunione di ${extraData?.recipientName}`; break;
+      case 'communion': defaultTitle = `Prima Comunione di ${extraData?.recipientName}!`; break;
       case 'wedding': defaultTitle = `Viva gli Sposi!`; break;
   }
   
@@ -523,7 +524,8 @@ export const generateCrossword = async (
       originalHiddenSolution: hiddenSolutionWord,
       originalTone: extraData.tone,
       originalCustomTone: extraData.customTone,
-      hasWatermark: extraData.hasWatermark // NEW
+      hasWatermark: extraData.hasWatermark,
+      format: extraData.format || 'a4' // Default
   };
 };
 
