@@ -13,16 +13,16 @@ interface CrosswordGridProps {
 }
 
 const THEME_ASSETS: Record<ThemeType, any> = {
-  christmas: { fontTitle: 'font-christmas', printBorder: 'border-double border-4 border-red-800', decoration: '🎄', watermark: '🎅' },
-  birthday: { fontTitle: 'font-fun', printBorder: 'border-dashed border-4 border-pink-500', decoration: '🎂', watermark: '🎉' },
-  easter: { fontTitle: 'font-hand', printBorder: 'border-dotted border-4 border-green-500', decoration: '🐣', watermark: '🌸' },
-  halloween: { fontTitle: 'font-christmas', printBorder: 'border-solid border-4 border-orange-500', decoration: '🎃', watermark: '🕸️' },
-  graduation: { fontTitle: 'font-elegant', printBorder: 'border-double border-4 border-red-900', decoration: '🎓', watermark: '📜' },
-  confirmation: { fontTitle: 'font-script', printBorder: 'border-solid border-2 border-gray-400', decoration: '🕊️', watermark: '⛪' },
-  communion: { fontTitle: 'font-hand', printBorder: 'border-double border-4 border-yellow-500', decoration: '🥖', watermark: '🍇' },
-  wedding: { fontTitle: 'font-script', printBorder: 'border-solid border-1 border-rose-300', decoration: '💍', watermark: '❤️' },
-  elegant: { fontTitle: 'font-elegant', printBorder: 'border-double border-4 border-gray-900', decoration: '⚜️', watermark: '⚜️' },
-  generic: { fontTitle: 'font-body', printBorder: 'border-solid border-2 border-gray-300', decoration: '🎁', watermark: '🎁' }
+  christmas: { fontTitle: 'font-christmas', printBorder: 'border-double border-4 border-red-800', pdfBorder: '4px double #991b1b', decoration: '🎄', watermark: '🎅' },
+  birthday: { fontTitle: 'font-fun', printBorder: 'border-dashed border-4 border-pink-500', pdfBorder: '4px dashed #ec4899', decoration: '🎂', watermark: '🎉' },
+  easter: { fontTitle: 'font-hand', printBorder: 'border-dotted border-4 border-green-500', pdfBorder: '4px dotted #22c55e', decoration: '🐣', watermark: '🌸' },
+  halloween: { fontTitle: 'font-christmas', printBorder: 'border-solid border-4 border-orange-500', pdfBorder: '4px solid #f97316', decoration: '🎃', watermark: '🕸️' },
+  graduation: { fontTitle: 'font-elegant', printBorder: 'border-double border-4 border-red-900', pdfBorder: '4px double #7f1d1d', decoration: '🎓', watermark: '📜' },
+  confirmation: { fontTitle: 'font-script', printBorder: 'border-solid border-2 border-gray-400', pdfBorder: '2px solid #9ca3af', decoration: '🕊️', watermark: '⛪' },
+  communion: { fontTitle: 'font-hand', printBorder: 'border-double border-4 border-yellow-500', pdfBorder: '4px double #eab308', decoration: '🥖', watermark: '🍇' },
+  wedding: { fontTitle: 'font-script', printBorder: 'border-solid border-1 border-rose-300', pdfBorder: '1px solid #fda4af', decoration: '💍', watermark: '❤️' },
+  elegant: { fontTitle: 'font-elegant', printBorder: 'border-double border-4 border-gray-900', pdfBorder: '4px double #111827', decoration: '⚜️', watermark: '⚜️' },
+  generic: { fontTitle: 'font-body', printBorder: 'border-solid border-2 border-gray-300', pdfBorder: '2px solid #d1d5db', decoration: '🎁', watermark: '🎁' }
 };
 
 const getSolutionLabel = (index: number) => {
@@ -469,8 +469,8 @@ const CrosswordGrid: React.FC<CrosswordGridProps> = ({ data, onComplete, onEdit,
                             <p className="text-xs uppercase text-gray-500 font-bold tracking-widest mt-1">{data.eventDate || "Data Speciale"} • {currentYear}</p>
                         </div>
                         
-                        {/* IMAGE CONTAINER FIX - FLEXIBLE HEIGHT */}
-                        <div className="flex-1 w-full min-h-0 flex items-center justify-center relative my-2">
+                        {/* IMAGE CONTAINER FIX - FLEXIBLE HEIGHT - REMOVED FIXED MAX HEIGHT */}
+                        <div className="flex-1 w-full min-h-0 flex items-center justify-center relative my-2 overflow-hidden">
                             {photos.length > 0 ? (
                                 <div className={`aspect-square h-auto max-h-full w-auto max-w-[90%] relative pointer-events-auto ${activeItemId === 'img2' ? 'cursor-move ring-2 ring-blue-500 ring-dashed z-50' : ''}`} 
                                     style={{ transform: `translate(${imgSheet2.x}px, ${imgSheet2.y}px) scale(${imgSheet2.scale})` }} 
@@ -482,13 +482,13 @@ const CrosswordGrid: React.FC<CrosswordGridProps> = ({ data, onComplete, onEdit,
                                     {activeItemId === 'img2' && <div onMouseDown={(e) => startResize(e, 'img2')} className="absolute -bottom-6 -right-6 w-10 h-10 bg-blue-600 text-white rounded-full shadow-xl flex items-center justify-center cursor-nwse-resize z-50 pointer-events-auto hover:scale-110"><Maximize size={20} /></div>}
                                 </div>
                             ) : data.images?.extraImage ? (
-                                <div className={`relative inline-block h-auto max-h-full w-auto max-w-full pointer-events-auto ${activeItemId === 'img2' ? 'cursor-move ring-2 ring-blue-500 ring-dashed z-50' : ''}`} 
+                                <div className={`relative flex items-center justify-center h-full w-full pointer-events-auto ${activeItemId === 'img2' ? 'cursor-move ring-2 ring-blue-500 ring-dashed z-50' : ''}`} 
                                     style={{ transform: `translate(${imgSheet2.x}px, ${imgSheet2.y}px) scale(${imgSheet2.scale})` }} 
                                     onMouseDown={(e) => startDrag(e, 'img2')}
                                     onClick={(e) => e.stopPropagation()} 
                                     onDoubleClick={(e) => { e.stopPropagation(); setActiveItemId('img2'); }}
                                 >
-                                    <img src={data.images.extraImage} className="max-h-full max-w-full object-contain drop-shadow-md pointer-events-none" style={{ maxHeight: '250px' }} />
+                                    <img src={data.images.extraImage} className="max-h-full max-w-full object-contain drop-shadow-md pointer-events-none" />
                                     {activeItemId === 'img2' && <div onMouseDown={(e) => startResize(e, 'img2')} className="absolute -bottom-6 -right-6 w-10 h-10 bg-blue-600 text-white rounded-full shadow-xl flex items-center justify-center cursor-nwse-resize z-50 pointer-events-auto hover:scale-110"><Maximize size={20} /></div>}
                                 </div>
                             ) : <div className="flex-1 w-full"></div>}
@@ -633,12 +633,12 @@ const CrosswordGrid: React.FC<CrosswordGridProps> = ({ data, onComplete, onEdit,
                  {data.hasWatermark && (
                      <div style={{ position: 'absolute', top: '50%', left: '50%', transform: `translate(-50%, -50%) translate(${wmSheet1.x * pdfScaleFactor}px, ${wmSheet1.y * pdfScaleFactor}px) scale(${wmSheet1.scale}) rotate(12deg)`, fontSize: '130px', opacity: 0.20, zIndex: 0, whiteSpace: 'nowrap' }}>{themeAssets.watermark}</div>
                  )}
-                 <div className={showBorders ? themeAssets.printBorder : 'border-none'} style={{ width: '49%', marginRight: '1%', height: '100%', padding: '30px', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', textAlign: 'center', borderRight: 'none', position: 'relative', zIndex: 10, boxSizing: 'border-box' }}>
+                 <div style={{ width: '49%', marginRight: '1%', height: '100%', padding: '30px', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', textAlign: 'center', position: 'relative', zIndex: 10, boxSizing: 'border-box', borderRight: 'none', border: showBorders ? themeAssets.pdfBorder : 'none' }}>
                     <div style={{ fontSize: '80px', opacity: 0.2, marginBottom: '20px' }}>{themeAssets.decoration}</div>
                     {data.images?.brandLogo && <div style={{ position: 'absolute', bottom: '40px', left: '50%', transform: 'translateX(-50%)', display: 'flex', flexDirection: 'column', alignItems: 'center', opacity: 0.8 }}><p style={{ fontSize: '10px', textTransform: 'uppercase', letterSpacing: '2px', color: '#9ca3af', marginBottom: '5px' }}>Created by</p><img src={data.images.brandLogo} style={{ height: '40px', objectFit: 'contain' }} /></div>}
                  </div>
                  
-                 <div className={showBorders ? themeAssets.printBorder : 'border-none'} style={{ width: '49%', marginLeft: '1%', height: '100%', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', textAlign: 'center', borderLeft: 'none', position: 'relative', zIndex: 10, boxSizing: 'border-box' }}>
+                 <div style={{ width: '49%', marginLeft: '1%', height: '100%', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', textAlign: 'center', position: 'relative', zIndex: 10, boxSizing: 'border-box', borderLeft: 'none', border: showBorders ? themeAssets.pdfBorder : 'none' }}>
                      {/* COVER FULL SIZE - WITH INTERNAL PADDING TO PREVENT BORDER OVERLAP */}
                      {data.images?.extraImage ? (
                          <div style={{ width: '100%', height: '100%', padding: '40px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
@@ -656,7 +656,7 @@ const CrosswordGrid: React.FC<CrosswordGridProps> = ({ data, onComplete, onEdit,
                  )}
                  
                  {/* LEFT PAGE (DEDICA) - Reduced width to avoid print cutoff, added marginRight */}
-                 <div className={showBorders ? themeAssets.printBorder : 'border-none'} style={{ width: '49%', marginRight: '1%', height: '100%', borderRight: 'none', position: 'relative', zIndex: 10, boxSizing: 'border-box', overflow: 'hidden' }}>
+                 <div style={{ width: '49%', marginRight: '1%', height: '100%', position: 'relative', zIndex: 10, boxSizing: 'border-box', overflow: 'hidden', borderRight: 'none', border: showBorders ? themeAssets.pdfBorder : 'none' }}>
                      
                      {/* CONTENT WRAPPER WITH PADDING - Keeps static text safe */}
                      <div style={{ width: '100%', height: '100%', padding: '30px', display: 'flex', flexDirection: 'column', alignItems: 'center', textAlign: 'center' }}>
@@ -668,10 +668,10 @@ const CrosswordGrid: React.FC<CrosswordGridProps> = ({ data, onComplete, onEdit,
                          {/* PDF IMAGE CONTAINER */}
                          <div style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', width: '100%', position: 'relative' }}>
                             {photos.length > 0 ? (
-                                <div style={{ width: 'auto', maxWidth: '80%', maxHeight: '300px', aspectRatio: '1/1', border: '5px solid white', boxShadow: '0 4px 6px rgba(0,0,0,0.1)', overflow: 'hidden', backgroundColor: '#f3f4f6', marginBottom: '20px', transform: `translate(${imgSheet2.x * pdfScaleFactor}px, ${imgSheet2.y * pdfScaleFactor}px) scale(${imgSheet2.scale})` }}>
+                                <div style={{ width: 'auto', maxWidth: '80%', maxHeight: '350px', aspectRatio: '1/1', border: '5px solid white', boxShadow: '0 4px 6px rgba(0,0,0,0.1)', overflow: 'hidden', backgroundColor: '#f3f4f6', marginBottom: '20px', transform: `translate(${imgSheet2.x * pdfScaleFactor}px, ${imgSheet2.y * pdfScaleFactor}px) scale(${imgSheet2.scale})` }}>
                                     <PhotoCollage photos={photos} />
                                 </div>
-                            ) : data.images?.extraImage ? <img src={data.images.extraImage} style={{ maxHeight: '250px', maxWidth: '100%', objectFit: 'contain', marginBottom: '20px', transform: `translate(${imgSheet2.x * pdfScaleFactor}px, ${imgSheet2.y * pdfScaleFactor}px) scale(${imgSheet2.scale})` }} /> : null}
+                            ) : data.images?.extraImage ? <img src={data.images.extraImage} style={{ maxWidth: '100%', maxHeight: '350px', objectFit: 'contain', marginBottom: '20px', transform: `translate(${imgSheet2.x * pdfScaleFactor}px, ${imgSheet2.y * pdfScaleFactor}px) scale(${imgSheet2.scale})` }} /> : null}
                             <div style={{ transform: `translate(${txtSheet2.x * pdfScaleFactor}px, ${txtSheet2.y * pdfScaleFactor}px) scale(${txtSheet2.scale})` }}><p className={themeAssets.fontTitle} style={{ fontSize: '24px', lineHeight: 1.5, marginBottom: '20px' }}>"{editableMessage}"</p></div>
                          </div>
                      </div>
@@ -679,7 +679,7 @@ const CrosswordGrid: React.FC<CrosswordGridProps> = ({ data, onComplete, onEdit,
                  </div>
                  
                  {/* RIGHT PAGE (CROSSWORD) - Reduced width, added marginLeft, extra padding for safety */}
-                 <div className={showBorders ? themeAssets.printBorder : 'border-none'} style={{ width: '49%', marginLeft: '1%', height: '100%', borderLeft: 'none', position: 'relative', zIndex: 10, boxSizing: 'border-box', overflow: 'hidden' }}>
+                 <div style={{ width: '49%', marginLeft: '1%', height: '100%', position: 'relative', zIndex: 10, boxSizing: 'border-box', overflow: 'hidden', borderLeft: 'none', border: showBorders ? themeAssets.pdfBorder : 'none' }}>
                      {/* Added inner padding 40px to safely distance content from border */}
                      <div style={{ width: '100%', height: '100%', padding: '40px', paddingRight: '50px', display: 'flex', flexDirection: 'column' }}>
                         {isCrossword ? (
