@@ -27,8 +27,8 @@ const THEME_ASSETS: Record<ThemeType, any> = {
 
 const TAG_MESSAGES_DB: Record<string, string[]> = {
     christmas: ["Ti auguro un Natale pieno di gioia.", "Buone Feste!", "Auguri di cuore.", "Buon Natale!", "Felice Anno Nuovo", "Sotto l'albero tanta felicità."],
-    birthday: ["Buon Compleanno!", "Tanti auguri di felicità.", "Un anno in più, sempre fantastico!", "Festeggia alla grande."],
-    generic: ["Un pensiero per te.", "Con i migliori auguri.", "Spero ti piaccia!", "Tanta felicità."]
+    birthday: ["Buon Compleanno!", "Tanti auguri di felicità.", "Un anno in più, sempre fantastico!", "Festeggia alla grande.", "Sorprese bellissime in arrivo."],
+    generic: ["Un pensiero per te.", "Con i migliori auguri.", "Spero ti piaccia!", "Tanta felicità.", "Auguri sinceri."]
 };
 
 const STICKER_OPTIONS = ['🎅', '🎄', '🎁', '❄️', '⛄', '🎂', '🎈', '🎉', '🕯️', '🍰', '💍', '❤️', '💐', '🎃', '👻', '🎓', '🏆', '⚽', '🐶', '🐱', '⭐', '✨'];
@@ -144,7 +144,6 @@ const CrosswordGrid: React.FC<CrosswordGridProps> = ({ data, onComplete, onEdit,
   const printFontSize = isHighDensity ? '7.5px' : '9px';
   const totalPages = Math.ceil(Math.max(allTagImages.length, 8) / 8);
 
-  // INIT / RESET LOGIC
   useEffect(() => {
       const hasThemeChanged = prevDataRef.current.theme !== data.theme;
       const hasFormatChanged = prevDataRef.current.format !== data.format;
@@ -307,7 +306,11 @@ const CrosswordGrid: React.FC<CrosswordGridProps> = ({ data, onComplete, onEdit,
   };
 
   useEffect(() => {
-    if (showPrintModal) { generatePreviews(); } else { setPdfPreviews([]); }
+    if (showPrintModal) {
+        generatePreviews();
+    } else {
+        setPdfPreviews([]);
+    }
   }, [showPrintModal, showBorders, data, printRenderKey, currentSheetPage]);
 
   const generatePreviews = async () => {
@@ -877,4 +880,170 @@ const CrosswordGrid: React.FC<CrosswordGridProps> = ({ data, onComplete, onEdit,
                                             </div>
                                         </div>
                                     ) : photos.length === 1 ? (
-                                        <img src={photos[0]} className="max-w-full max-h-full object-contain drop-shadow-md shadow-lg border-4 border-white
+                                        <img src={photos[0]} className="max-w-full max-h-full object-contain drop-shadow-md shadow-lg border-4 border-white bg-gray-100 rotate-1" style={{ width: 'auto', height: 'auto' }} />
+                                    ) : photos.length > 1 ? (
+                                        <div className="max-w-full max-h-full aspect-square shadow-lg border-4 border-white bg-gray-100 rotate-1 overflow-hidden">
+                                            <PhotoCollage photos={photos} />
+                                        </div>
+                                    ) : data.images?.extraImage ? (
+                                        <img src={data.images.extraImage} className="max-w-full max-h-full object-contain drop-shadow-md w-full h-full" />
+                                    ) : <div className="w-full h-full border-2 border-dashed border-gray-200 rounded flex items-center justify-center opacity-30"><ImagePlus size={32}/></div>}
+
+                                    {activeItemId === 'img2' && <div onMouseDown={(e) => startResize(e, 'img2')} className="absolute -bottom-6 -right-6 w-10 h-10 bg-blue-600 text-white rounded-full shadow-xl flex items-center justify-center cursor-nwse-resize z-50 pointer-events-auto hover:scale-110"><Maximize size={20} /></div>}
+                                </div>
+                            </div>
+
+                            {data.format !== 'tags' && (
+                                <div className={`w-full relative group pointer-events-auto shrink-0 mt-2 ${activeItemId === 'txt2' ? 'cursor-move ring-2 ring-blue-500 ring-dashed z-50' : ''}`} 
+                                    style={{ transform: `translate(${txtSheet2.x}px, ${txtSheet2.y}px) scale(${txtSheet2.scale})` }} 
+                                    onMouseDown={(e) => startDrag(e, 'txt2')}
+                                    onClick={(e) => e.stopPropagation()} 
+                                    onDoubleClick={(e) => { e.stopPropagation(); setEditingItemId('txt2'); }}
+                                >
+                                    {editingItemId === 'txt2' ? (
+                                        <div className="w-full bg-white p-2 rounded-xl shadow-lg border border-blue-200 z-20 absolute top-[-50px] left-0 pointer-events-auto" onMouseDown={(e) => e.stopPropagation()}>
+                                            <textarea autoFocus className="w-full p-2 bg-gray-50 border border-blue-200 rounded-lg text-center text-sm font-hand" rows={4} value={editableMessage} onChange={(e) => setEditableMessage(e.target.value)}/>
+                                            <button onClick={() => setEditingItemId(null)} className="bg-green-500 text-white text-xs px-3 py-1 rounded-full font-bold mt-2">Fatto</button>
+                                        </div>
+                                    ) : (
+                                        <div className="relative p-2 transition-colors border border-transparent hover:border-yellow-200">
+                                            <p className={`text-xl md:text-2xl leading-relaxed ${themeAssets.fontTitle} text-gray-800 drop-shadow-sm`}>"{editableMessage}"</p>
+                                            {activeItemId === 'txt2' && <button onClick={(e) => { e.stopPropagation(); setEditingItemId('txt2'); }} className="absolute -top-3 -right-3 bg-white text-blue-600 rounded-full p-1.5 shadow-md border border-blue-100 hover:bg-blue-50 z-50"><Pencil size={12}/></button>}
+                                        </div>
+                                    )}
+                                    {activeItemId === 'txt2' && !editingItemId && <div onMouseDown={(e) => startResize(e, 'txt2')} className="absolute -bottom-6 -right-6 w-10 h-10 bg-blue-600 text-white rounded-full shadow-xl flex items-center justify-center cursor-nwse-resize z-50 pointer-events-auto hover:scale-110"><Maximize size={20} /></div>}
+                                </div>
+                            )}
+                        </div>
+
+                        <div className={`w-1/2 h-full p-6 flex flex-col relative z-10 pointer-events-none overflow-hidden box-border ${showBorders ? themeAssets.printBorder : 'border-none'} border-l-0`}>
+                             
+                            {data.hasWatermark && (
+                                <div 
+                                    className={`absolute top-1/2 left-1/2 select-none pointer-events-auto ${activeItemId === 'wm2' ? 'cursor-move ring-2 ring-blue-500 ring-dashed z-50' : 'z-0'}`} 
+                                    style={{ transform: `translate(-50%, -50%) translate(${wmSheet2.x}px, ${wmSheet2.y}px) scale(${wmSheet2.scale}) rotate(12deg)`, fontSize: '120px', opacity: 0.15, whiteSpace: 'nowrap' }}
+                                    onMouseDown={(e) => startDrag(e, 'wm2')}
+                                    onClick={(e) => e.stopPropagation()} 
+                                    onDoubleClick={(e) => { e.stopPropagation(); setActiveItemId('wm2'); }}
+                                >
+                                    {themeAssets.watermark}
+                                    {activeItemId === 'wm2' && <div onMouseDown={(e) => startResize(e, 'wm2')} className="absolute -bottom-6 -right-6 w-8 h-8 bg-blue-600 text-white rounded-full shadow-xl flex items-center justify-center cursor-nwse-resize z-50 pointer-events-auto hover:scale-110"><Maximize size={16} /></div>}
+                                </div>
+                            )}
+
+                            {isCrossword ? (
+                                <div className="flex flex-col h-full w-full justify-between z-10">
+                                    <div className="shrink-0 pointer-events-auto">
+                                        <h2 className="text-lg font-bold uppercase border-b-2 border-black mb-1 pb-1 text-center tracking-widest">Cruciverba</h2>
+                                        {renderSolution()}
+                                    </div>
+                                    <div className="flex-grow min-h-0 flex items-center justify-center py-1 relative w-full pointer-events-none">
+                                        <div className="w-full h-full max-h-full flex items-center justify-center pointer-events-auto" style={{ maxHeight: '100%' }}>{renderGridCells(false)}</div>
+                                    </div>
+                                    <div className="shrink-0 mt-1 text-[9px] md:text-[10px] grid grid-cols-2 gap-2 leading-tight w-full border-t border-black pt-1 overflow-y-auto max-h-[140px] pointer-events-auto" style={{ scrollbarWidth: 'none', msOverflowStyle: 'none' }}>
+                                        <div className="pr-1"><b className="block border-b border-gray-300 mb-1 pb-0.5 font-bold text-xs">Orizzontali</b>{data.words.filter(w=>w.direction===Direction.ACROSS).map(w=><div key={w.id} className="mb-0.5"><b className="mr-1">{w.number}.</b>{w.clue}</div>)}</div>
+                                        <div className="pl-1 border-l border-gray-100"><b className="block border-b border-gray-300 mb-1 pb-0.5 font-bold text-xs">Verticali</b>{data.words.filter(w=>w.direction===Direction.DOWN).map(w=><div key={w.id} className="mb-0.5"><b className="mr-1">{w.number}.</b>{w.clue}</div>)}</div>
+                                    </div>
+                                </div>
+                            ) : data.format === 'tags' ? (
+                                <div className="flex-1 flex flex-col items-center justify-start text-center p-2 pt-4 z-10">
+                                    <div className="w-full mb-4">
+                                        <p className="text-xs uppercase text-gray-400 font-bold mb-1">
+                                            {data.theme === 'christmas' ? `SS. Natale ${currentYear}` : (data.eventDate || currentYear)}
+                                        </p>
+                                    </div>
+
+                                    {data.recipientName && <p className="text-xs uppercase text-gray-400 font-bold mb-2">A: {data.recipientName}</p>}
+                                    
+                                    <p className={`${themeAssets.fontTitle} text-2xl text-gray-800 whitespace-pre-line leading-tight`}>{tagVariations[currentTagIndex]?.title || "Auguri!"}</p>
+                                    
+                                    <div className="mt-4 w-full relative pointer-events-auto group flex-1">
+                                        <textarea 
+                                            className="w-full h-full text-center text-xs font-serif bg-transparent outline-none resize-none border border-transparent hover:border-gray-200 focus:border-blue-400 transition-colors rounded p-1" 
+                                            value={tagMessages[(currentSheetPage * 8) + currentTagIndex] || tagMessages[currentTagIndex] || ""} 
+                                            onChange={(e) => handleTagMessageChange(e.target.value)}
+                                        />
+                                        <span className="absolute top-0 right-0 opacity-0 group-hover:opacity-100 text-gray-400 bg-white rounded-full p-1 shadow-sm transition-opacity"><Pencil size={10}/></span>
+                                    </div>
+                                </div>
+                            ) : (
+                                <div className="flex-1 flex items-center justify-center opacity-20 border-2 border-dashed border-gray-300 m-8 rounded-xl z-10"><p className="text-xl font-hand rotate-[-5deg] text-center">Spazio per dedica<br/>scritta a mano...</p></div>
+                            )}
+                        </div>
+                    </div>
+
+                    <div className="absolute inset-0 pointer-events-none" style={{ zIndex: 60 }}>
+                        <div className={`absolute left-1/2 top-1/2 pointer-events-auto ${activeItemId === 'stickerGroup' ? 'cursor-move ring-2 ring-green-400 ring-dashed bg-green-50/30 rounded-lg' : ''}`} 
+                            style={{ transform: `translate(-50%, -50%) translate(${stickerGroup.x}px, ${stickerGroup.y}px) scale(${stickerGroup.scale})` }} 
+                            onMouseDown={(e) => startDrag(e, 'stickerGroup')}
+                            onClick={(e) => e.stopPropagation()} 
+                            onDoubleClick={(e) => { e.stopPropagation(); setActiveItemId('stickerGroup'); }}
+                        >
+                            <div className="flex gap-2 text-3xl drop-shadow-sm">{(data.stickers || []).slice(0,5).map((s,i) => <span key={i}>{s}</span>)}</div>
+                            {activeItemId === 'stickerGroup' && <div onMouseDown={(e) => startResize(e, 'stickerGroup')} className="absolute -bottom-6 -right-6 w-10 h-10 bg-blue-600 text-white rounded-full shadow-xl flex items-center justify-center cursor-nwse-resize z-50 pointer-events-auto hover:scale-110"><Maximize size={20} /></div>}
+                        </div>
+                        {customTexts.map(t => (
+                            <div key={t.id} 
+                                className={`absolute left-1/2 top-1/2 pointer-events-auto ${activeItemId === t.id ? 'cursor-move ring-2 ring-purple-400 ring-dashed bg-white/50 rounded-lg' : ''}`}
+                                style={{ transform: `translate(-50%, -50%) translate(${t.x * pdfScaleFactor}px, ${t.y * pdfScaleFactor}px)`, width: `${(t.width || 250) * pdfScaleFactor}px` }}
+                                onMouseDown={(e) => startDrag(e, t.id)}
+                                onClick={(e) => e.stopPropagation()} 
+                                onDoubleClick={(e) => { e.stopPropagation(); setActiveItemId(t.id); setEditingItemId(t.id); }}
+                            >
+                                {editingItemId === t.id ? (
+                                    <div className="relative z-[70]">
+                                        <textarea 
+                                            autoFocus 
+                                            className="w-full p-2 bg-white border-2 border-purple-500 rounded-lg text-center font-hand text-lg shadow-xl" 
+                                            rows={3} 
+                                            value={t.content} 
+                                            onChange={(e) => updateCustomTextContent(t.id, e.target.value)}
+                                            onBlur={() => setEditingItemId(null)}
+                                        />
+                                        <button onClick={() => removeCustomText(t.id)} className="absolute -top-3 -right-3 bg-red-500 text-white rounded-full p-1 shadow hover:bg-red-600"><XCircle size={14}/></button>
+                                    </div>
+                                ) : (
+                                    <p className="font-hand select-none text-purple-900 drop-shadow-sm" style={{ fontSize: `${(t.scale * 20) * pdfScaleFactor}px`, lineHeight: 1.2, textAlign: 'center', wordWrap: 'break-word' }}>{t.content}</p>
+                                )}
+                                
+                                {activeItemId === t.id && !editingItemId && (
+                                    <>
+                                        <div onMouseDown={(e) => startResize(e, t.id, 'width')} className="absolute top-1/2 -right-4 w-6 h-12 bg-purple-200 rounded-full cursor-ew-resize flex items-center justify-center shadow border border-purple-400 opacity-80 hover:opacity-100"><ArrowRightLeft size={12}/></div>
+                                        <div onMouseDown={(e) => startResize(e, t.id, 'scale')} className="absolute -bottom-4 -right-4 w-8 h-8 bg-purple-600 text-white rounded-full shadow-xl flex items-center justify-center cursor-nwse-resize hover:scale-110"><Maximize size={16} /></div>
+                                    </>
+                                )}
+                            </div>
+                        ))}
+                    </div>
+                </div>
+            )}
+       </div>
+
+       <PrintTemplates 
+            ref={exportRef}
+            data={data}
+            themeAssets={themeAssets}
+            formatConfig={formatConfig}
+            grid={grid}
+            wmSheet1={wmSheet1}
+            wmSheet2={wmSheet2}
+            imgSheet2={imgSheet2}
+            txtSheet2={txtSheet2}
+            stickerGroup={stickerGroup}
+            customTexts={customTexts}
+            printRenderKey={printRenderKey}
+            currentSheetPage={currentSheetPage}
+            tagVariations={tagVariations}
+            tagMessages={tagMessages}
+            showBorders={showBorders}
+            isCrossword={isCrossword}
+            photos={photos}
+            currentYear={currentYear}
+            editableMessage={editableMessage}
+            pdfScaleFactor={pdfScaleFactor}
+       />
+    </div>
+  );
+};
+
+export default CrosswordGrid;
