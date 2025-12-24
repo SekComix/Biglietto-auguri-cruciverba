@@ -1,4 +1,3 @@
-
 export enum Direction {
   ACROSS = 'across',
   DOWN = 'down'
@@ -8,16 +7,17 @@ export type ThemeType = 'christmas' | 'easter' | 'birthday' | 'elegant' | 'gener
 
 export type ToneType = 'funny' | 'heartfelt' | 'rhyme' | 'surprise' | 'custom';
 
-export type CardFormat = 'a4' | 'a3' | 'square' | 'tags';
+// Aggiunto 'a6_2x' qui sotto
+export type CardFormat = 'a4' | 'a3' | 'square' | 'tags' | 'a6_2x';
 
 export interface WordEntry {
   id: string;
   word: string;
   clue: string;
   direction: Direction;
-  startX: number; // 0-indexed column
-  startY: number; // 0-indexed row
-  number: number; // The number displayed in the grid
+  startX: number; 
+  startY: number; 
+  number: number; 
 }
 
 export interface SolutionData {
@@ -31,10 +31,10 @@ export interface SolutionData {
 }
 
 export interface CustomImages {
-  extraImage?: string; // Base64 string (Logo, QR, Vignetta)
-  photos?: string[]; // Array of Base64 strings (Collage)
-  photo?: string; // Legacy support
-  brandLogo?: string; // Logo Autore/Copyright
+  extraImage?: string; 
+  photos?: string[]; 
+  photo?: string; 
+  brandLogo?: string; 
 }
 
 export interface CrosswordData {
@@ -44,7 +44,7 @@ export interface CrosswordData {
   eventDate: string;
   message: string;
   theme: ThemeType;
-  format: CardFormat; // NEW: Formato biglietto
+  format: CardFormat; 
   width: number;
   height: number;
   words: WordEntry[];
@@ -52,7 +52,6 @@ export interface CrosswordData {
   images?: CustomImages;
   stickers?: string[];
   hasWatermark?: boolean;
-  // Campi per la modifica
   originalInput?: string | ManualInput[];
   originalMode?: 'ai' | 'manual';
   originalHiddenSolution?: string;
