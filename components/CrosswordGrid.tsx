@@ -52,7 +52,7 @@ const shuffleArray = (array: string[]) => {
     return arr;
 };
 
-// --- RESTORED PHOTO COLLAGE FOR EDITOR PREVIEW ---
+// Questo serve per l'anteprima nell'Editor (non per la stampa che usa PrintTemplates)
 const PhotoCollage: React.FC<{ photos: string[] }> = ({ photos }) => {
     if (!photos || photos.length === 0) return null;
     const count = photos.length;
@@ -143,29 +143,38 @@ const CrosswordGrid: React.FC<CrosswordGridProps> = ({ data, onComplete, onEdit,
   const currentYear = new Date().getFullYear();
   const formatConfig = FORMAT_CONFIG[data.format || 'a4'];
 
+  // Definizione dei formati "massivi" (più di 1 biglietto per pagina)
   const isMultiItemFormat = data.format === 'tags' || data.format === 'a6_2x' || data.format === 'square';
-  const itemsPerPage = data.format === 'tags' ? 8 : 2; 
+  // Calcolo elementi per pagina
+  const itemsPerPage = data.format === 'tags' ? 8 : (data.format === 'a6_2x' || data.format === 'square' ? 2 : 1);
   const totalPages = Math.ceil(Math.max(allTagImages.length, itemsPerPage) / itemsPerPage);
 
+  // RESET DATI AL CAMBIO FORMATO
   useEffect(() => {
       const hasThemeChanged = prevDataRef.current.theme !== data.theme;
       const hasFormatChanged = prevDataRef.current.format !== data.format;
+      
       if (hasThemeChanged || hasFormatChanged) {
           setAllTagImages([]);
           setCurrentSheetPage(0);
           setTagMessages([]);
           prevDataRef.current = data;
       }
+      
+      // Se è un formato massivo e non ci sono immagini, inizializza con array vuoto della giusta lunghezza
       if (isMultiItemFormat && allTagImages.length === 0) {
            setAllTagImages(Array(itemsPerPage).fill(""));
       }
   }, [data.format, data.theme, isMultiItemFormat, itemsPerPage]);
 
+  // LOGICA GENERAZIONE VARIANTI (IMMAGINI E MESSAGGI)
   useEffect(() => {
       if (!isMultiItemFormat) {
           setViewMode('single');
           return;
       }
+      
+      // Riempie i messaggi se mancano
       if (allTagImages.length > 0 && tagMessages.length < allTagImages.length) {
           const themeMessages = TAG_MESSAGES_DB[data.theme] || TAG_MESSAGES_DB.generic;
           let messagePool: string[] = [];
@@ -177,6 +186,7 @@ const CrosswordGrid: React.FC<CrosswordGridProps> = ({ data, onComplete, onEdit,
           const existing = [...tagMessages];
           const newPart = messagePool.slice(0, needed);
           setTagMessages([...existing, ...newPart]);
+
       } else if (tagMessages.length === 0 && allTagImages.length > 0) {
           const themeMessages = TAG_MESSAGES_DB[data.theme] || TAG_MESSAGES_DB.generic;
           let messagePool: string[] = [];
@@ -185,14 +195,19 @@ const CrosswordGrid: React.FC<CrosswordGridProps> = ({ data, onComplete, onEdit,
           }
           setTagMessages(messagePool.slice(0, allTagImages.length));
       }
+      
+      // Calcola quali immagini mostrare nella pagina corrente
       const startIdx = currentSheetPage * itemsPerPage;
       const pageImages = allTagImages.slice(startIdx, startIdx + itemsPerPage);
+      
+      // Riempi con vuoti se non bastano per finire la pagina
       while(pageImages.length < itemsPerPage) pageImages.push("");
 
       const newVars = pageImages.map((img, i) => {
           let title = "Auguri!";
           const absoluteIndex = startIdx + i;
           if (data.theme === 'christmas') {
+              // Alterna "Buon Natale" e "Buone Feste"
               title = (absoluteIndex % itemsPerPage) < (itemsPerPage/2) ? "Buon Natale" : "Buone Feste";
           } else {
               title = data.title || "Auguri";
@@ -200,6 +215,7 @@ const CrosswordGrid: React.FC<CrosswordGridProps> = ({ data, onComplete, onEdit,
           return { img, title };
       });
       setTagVariations(newVars);
+
   }, [allTagImages, currentSheetPage, data.format, data.theme, data.title, tagMessages.length, isMultiItemFormat, itemsPerPage]); 
 
   useEffect(() => {
@@ -258,9 +274,11 @@ const CrosswordGrid: React.FC<CrosswordGridProps> = ({ data, onComplete, onEdit,
       e.target.value = '';
   };
 
+  // GESTIONE CARICAMENTO CARTELLA
   const handleFolderUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
       const files = e.target.files;
       if (!files || files.length === 0) return;
+      
       const imageFiles = Array.from(files)
         .filter(file => file.type.startsWith('image/'))
         .sort((a, b) => a.name.localeCompare(b.name, undefined, { numeric: true, sensitivity: 'base' }));
@@ -285,6 +303,7 @@ const CrosswordGrid: React.FC<CrosswordGridProps> = ({ data, onComplete, onEdit,
           setTagMessages([]); 
           setCurrentSheetPage(0);
           
+          // Feedback
           alert(`Caricamento completato! ${validImages.length} foto pronte per la creazione dei biglietti.`);
       });
       e.target.value = ''; 
@@ -352,6 +371,7 @@ const CrosswordGrid: React.FC<CrosswordGridProps> = ({ data, onComplete, onEdit,
     } catch (e) { console.error("Preview generation failed", e); } finally { setIsGeneratingPreview(false); }
   };
 
+  // ... (Logica Crossword classica)
   useEffect(() => {
     if (!isCrossword) { setEditableMessage(data.message); return; }
     const newGrid: CellData[][] = Array(data.height).fill(null).map((_, y) =>
@@ -519,10 +539,12 @@ const CrosswordGrid: React.FC<CrosswordGridProps> = ({ data, onComplete, onEdit,
              
              if (isMultiItemFormat) {
                  setCurrentSheetPage(actualPageIndex);
-                 await new Promise(resolve => setTimeout(resolve, 150)); 
+                 // Increased delay to allow heavy images to load
+                 await new Promise(resolve => setTimeout(resolve, 2000)); 
              }
 
-             await new Promise(resolve => setTimeout(resolve, 800));
+             // Extra wait for DOM stability
+             await new Promise(resolve => setTimeout(resolve, 500));
 
              const sheet1 = exportRef.current.querySelector('#pdf-sheet-1') as HTMLElement;
              const sheet2 = exportRef.current.querySelector('#pdf-sheet-2') as HTMLElement;
@@ -553,7 +575,7 @@ const CrosswordGrid: React.FC<CrosswordGridProps> = ({ data, onComplete, onEdit,
             setCurrentSheetPage(startPage);
         }
         setShowPrintModal(false);
-      } catch (e) { console.error("PDF Error", e); alert("Errore PDF."); } finally { setIsGeneratingPDF(false); }
+      } catch (e) { console.error("PDF Error", e); alert("Errore PDF. Riduci il numero di pagine."); } finally { setIsGeneratingPDF(false); }
   };
 
   const handleCellClick = (x: number, y: number) => {
@@ -749,367 +771,7 @@ const CrosswordGrid: React.FC<CrosswordGridProps> = ({ data, onComplete, onEdit,
            </div>
        )}
 
-       {showPrintModal && (
-          <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/80 backdrop-blur-md p-4 animate-in fade-in" onClick={() => setShowPrintModal(false)}>
-            <div className="bg-white rounded-3xl shadow-2xl overflow-hidden w-full max-w-5xl border-4 border-blue-100 scale-100 animate-in zoom-in-95 flex flex-col max-h-[90vh]" onClick={e => e.stopPropagation()}>
-               <div className="flex justify-between items-center p-6 border-b bg-gray-50 shrink-0">
-                   <div>
-                       <h3 className="text-2xl font-bold text-gray-800 flex items-center gap-2"><Printer className="text-blue-600"/> Anteprima di Stampa</h3>
-                       <div className="flex items-center gap-3 mt-1"><p className="text-sm text-gray-500">Seleziona i fogli da stampare.</p></div>
-                   </div>
-                   <button onClick={() => setShowPrintModal(false)} className="bg-white text-gray-400 hover:text-red-500 rounded-full p-2 hover:bg-red-50 transition-all"><XCircle size={28}/></button>
-               </div>
-               
-               <div className="flex-1 overflow-y-auto p-6 bg-gray-100/50 flex flex-col items-center relative min-h-[300px]">
-                   {isMultiItemFormat && totalPages > 1 && !isGeneratingPreview && (
-                       <div className="w-full max-w-4xl mb-6">
-                           <p className="text-center text-xs font-bold text-gray-500 uppercase mb-3">Clicca sui fogli per selezionarli</p>
-                           <div className="grid grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-3">
-                               {Array.from({ length: totalPages }).map((_, idx) => (
-                                   <button 
-                                      key={idx}
-                                      onClick={() => toggleSheetPrintSelection(idx)}
-                                      className={`p-3 rounded-xl border-2 transition-all flex flex-col items-center justify-center gap-1 ${sheetsToPrint.includes(idx) ? 'bg-blue-600 border-blue-600 text-white shadow-lg scale-105' : 'bg-white border-gray-200 text-gray-400 hover:border-blue-300'}`}
-                                   >
-                                       <span className="text-lg font-bold">#{idx + 1}</span>
-                                       <span className="text-[10px] uppercase font-bold">{sheetsToPrint.includes(idx) ? <CheckCircle2 size={16}/> : 'Escluso'}</span>
-                                   </button>
-                               ))}
-                           </div>
-                       </div>
-                   )}
-
-                   {isGeneratingPreview ? (
-                       <div className="flex flex-col items-center gap-3 text-blue-500 animate-pulse my-auto">
-                           <Loader2 size={48} className="animate-spin"/>
-                           <span className="font-bold text-sm uppercase tracking-widest text-center">Sto preparando le immagini...<br/><span className="text-[10px] normal-case opacity-70">Attendo che si carichino in alta qualità</span></span>
-                       </div>
-                   ) : pdfPreviews.length > 0 ? (
-                       <div className="flex flex-col md:flex-row gap-6 w-full justify-center items-center">
-                           <div className="flex flex-col gap-2 items-center w-full md:w-1/2 max-w-lg">
-                               <span className="text-xs font-bold uppercase text-gray-400 tracking-widest bg-white px-2 py-1 rounded-full shadow-sm">Foglio {currentSheetPage + 1}: Esterno</span>
-                               <img src={pdfPreviews[0]} alt="Preview 1" className="w-full h-auto shadow-xl rounded-sm border bg-white" />
-                           </div>
-                           <div className="flex flex-col gap-2 items-center w-full md:w-1/2 max-w-lg">
-                               <span className="text-xs font-bold uppercase text-gray-400 tracking-widest bg-white px-2 py-1 rounded-full shadow-sm">Foglio {currentSheetPage + 1}: Interno</span>
-                               <img src={pdfPreviews[1]} alt="Preview 2" className="w-full h-auto shadow-xl rounded-sm border bg-white" />
-                           </div>
-                       </div>
-                   ) : (
-                       <div className="text-gray-400 flex flex-col items-center my-auto"><Info size={40} className="mb-2"/><p>Impossibile generare l'anteprima.</p></div>
-                   )}
-               </div>
-               <div className="p-6 border-t bg-white shrink-0">
-                    <div className="flex flex-col md:flex-row gap-4 items-center justify-between">
-                         {data.format !== 'tags' && <button onClick={() => setShowBorders(!showBorders)} className={`w-full md:w-auto px-6 py-3 rounded-xl border-2 flex items-center justify-center gap-3 font-bold transition-all ${showBorders ? 'border-blue-500 bg-blue-50 text-blue-700' : 'border-gray-200 text-gray-500 hover:bg-gray-50'}`}>{showBorders ? <CheckCircle2 size={20} className="text-blue-600"/> : <div className="w-5 h-5 rounded-full border-2 border-gray-300"/>} Cornice Decorativa</button>}
-                         
-                         <div className="flex gap-3 w-full justify-end">
-                            <button onClick={() => setShowPrintModal(false)} className="px-6 py-3 rounded-xl font-bold text-gray-500 hover:bg-gray-100 transition-colors">Annulla</button>
-                            <button onClick={() => handleDownloadPDF(true)} disabled={isGeneratingPDF || sheetsToPrint.length === 0} className={`px-6 py-3 rounded-xl font-bold text-blue-700 bg-blue-100 border border-blue-200 shadow-sm hover:shadow-md hover:bg-blue-200 transition-all flex items-center justify-center gap-2 ${isGeneratingPDF || sheetsToPrint.length === 0 ? 'opacity-50 cursor-not-allowed' : ''}`}>
-                                {isGeneratingPDF ? <Loader2 size={20} className="animate-spin"/> : <Printer size={20}/>} Stampa Subito
-                            </button>
-                            <button onClick={() => handleDownloadPDF(false)} disabled={isGeneratingPDF || sheetsToPrint.length === 0} className={`px-6 py-3 rounded-xl font-bold text-white shadow-lg hover:shadow-xl transition-all flex items-center justify-center gap-2 ${isGeneratingPDF || sheetsToPrint.length === 0 ? 'bg-gray-400' : 'bg-gradient-to-r from-blue-600 to-indigo-600 hover:scale-[1.02]'}`}>
-                                {isGeneratingPDF ? <Loader2 size={20} className="animate-spin"/> : <Download size={20}/>} {isMultiItemFormat ? `Scarica SELEZIONATI` : 'Scarica PDF'}
-                            </button>
-                         </div>
-                    </div>
-               </div>
-            </div>
-          </div>
-       )}
-       
-       <div className="w-full max-w-5xl px-4 md:px-0">
-            <h3 className="text-center text-white font-bold uppercase tracking-widest mb-4 flex items-center justify-center gap-2 drop-shadow-md"><Edit size={20}/> EDITOR {data.format === 'tags' ? '(Anteprima Singolo Bigliettino)' : isMultiItemFormat ? '(Anteprima Singolo Biglietto)' : 'BIGLIETTO'}</h3>
-            
-            {isMultiItemFormat && (
-                <div className="flex flex-col items-center gap-2 mb-4">
-                    {totalPages > 1 && (
-                        <div className="flex items-center gap-4 bg-white/20 p-2 rounded-full backdrop-blur-sm">
-                            <button onClick={() => setCurrentSheetPage(p => Math.max(0, p - 1))} disabled={currentSheetPage === 0} className="text-white disabled:opacity-30 hover:scale-110 transition-transform"><ChevronLeft size={24}/></button>
-                            <span className="text-white font-bold text-sm uppercase tracking-wider">Foglio {currentSheetPage + 1} di {totalPages}</span>
-                            <button onClick={() => setCurrentSheetPage(p => Math.min(totalPages - 1, p + 1))} disabled={currentSheetPage === totalPages - 1} className="text-white disabled:opacity-30 hover:scale-110 transition-transform"><ChevronRight size={24}/></button>
-                        </div>
-                    )}
-
-                    {viewMode === 'single' && (
-                        <div className="flex justify-center items-center gap-4 text-white">
-                            <button onClick={() => setCurrentTagIndex(p => Math.max(0, p - 1))} disabled={currentTagIndex === 0} className="p-2 bg-white/20 rounded-full hover:bg-white/40 disabled:opacity-30"><ChevronLeft size={20}/></button>
-                            <span className="font-bold text-base">Elemento {currentTagIndex + 1} di {itemsPerPage}</span>
-                            <button onClick={() => setCurrentTagIndex(p => Math.min(itemsPerPage - 1, p + 1))} disabled={currentTagIndex === itemsPerPage - 1} className="p-2 bg-white/20 rounded-full hover:bg-white/40 disabled:opacity-30"><ChevronRight size={20}/></button>
-                        </div>
-                    )}
-                </div>
-            )}
-
-            {isMultiItemFormat && viewMode === 'sheets' ? (
-                <div className="w-full flex flex-col md:flex-row gap-4 justify-center items-start">
-                    {[0, 1].map(sheetIdx => (
-                        <div key={sheetIdx} className="bg-white p-2 shadow-xl rounded w-full md:w-1/2 flex flex-col items-center">
-                            <p className="text-xs font-bold uppercase text-gray-500 mb-2">Foglio {sheetIdx + 1} ({sheetIdx === 0 ? 'Fronte/Esterno' : 'Retro/Interno'})</p>
-                            <div className="w-full relative bg-gray-100 overflow-hidden" style={{ aspectRatio: '210/297' }}>
-                                 <div className="absolute top-0 left-0 w-full h-full flex flex-wrap content-start bg-white origin-top-left transform scale-[0.4] md:scale-[0.35] lg:scale-[0.5]" style={{ width: '794px', height: '1123px' }}>
-                                    {data.format === 'tags' ? (
-                                        // TAGS PREVIEW
-                                        tagVariations.map((_, i) => {
-                                            const isSheet1 = sheetIdx === 0;
-                                            const dataIndex = isSheet1 ? i : (i % 2 === 0 ? i + 1 : i - 1);
-                                            const v = tagVariations[dataIndex];
-                                            const globalIndex = (currentSheetPage * 8) + dataIndex;
-                                            const msg = tagMessages[globalIndex] || tagMessages[dataIndex] || "";
-                                            
-                                            if (!v) return <div key={i} className="w-[397px] h-[280px]"></div>;
-                                            const displayDate = data.theme === 'christmas' ? `SS. Natale ${currentYear}` : (data.eventDate || currentYear.toString());
-
-                                            return (
-                                                <div key={i} style={{ width: '397px', height: '280px', padding: '10px', display: 'flex', boxSizing: 'border-box' }}>
-                                                    <div className="w-full h-full flex overflow-hidden border border-dashed border-gray-300">
-                                                        {isSheet1 ? (
-                                                            <>
-                                                                <div className="w-1/2 h-full bg-gray-50 flex items-center justify-center relative overflow-hidden">
-                                                                    {data.images?.brandLogo ? (
-                                                                        <img src={data.images.brandLogo} className="max-w-[70%] max-h-[70%] object-contain opacity-50 mix-blend-multiply grayscale" alt="Logo" />
-                                                                    ) : (
-                                                                        <span className="absolute bottom-2 text-[8px] text-gray-300">Created by Enigmistica</span>
-                                                                    )}
-                                                                </div>
-                                                                <div className="w-1/2 h-full bg-gray-100 overflow-hidden relative">
-                                                                    {v.img ? <img src={v.img} className="w-full h-full object-cover" /> : null}
-                                                                </div>
-                                                            </>
-                                                        ) : (
-                                                            <>
-                                                                <div className="w-1/2 h-full p-2 flex flex-col items-center justify-center text-center border-r border-dotted border-gray-200">
-                                                                    {data.recipientName && <div className="text-[10px] font-bold text-gray-400 uppercase mb-2">A: {data.recipientName}</div>}
-                                                                </div>
-                                                                <div className="w-1/2 h-full p-2 flex flex-col items-center justify-start text-center">
-                                                                    <div className="text-[9px] text-gray-400 font-bold uppercase mb-2">{displayDate}</div>
-                                                                    <div className={`${themeAssets.fontTitle} text-lg text-gray-800`}>{v.title}</div>
-                                                                    <div className="text-[9px] italic text-gray-600 mt-2 whitespace-pre-wrap">{msg}</div>
-                                                                </div>
-                                                            </>
-                                                        )}
-                                                    </div>
-                                                </div>
-                                            );
-                                        })
-                                    ) : (
-                                        // MINI 2X & SQUARE PREVIEW (STACKED VERTICALLY)
-                                        <div style={{width: '794px', height: '1123px', display: 'flex', flexDirection: 'column'}}>
-                                            {Array(2).fill(null).map((_, i) => {
-                                                const globalIndex = (currentSheetPage * 2) + i;
-                                                const v = tagVariations[globalIndex];
-                                                const msg = tagMessages[globalIndex];
-                                                
-                                                return (
-                                                    <div key={i} style={{ height: '50%', width: '100%', borderBottom: '1px dashed #ccc', display: 'flex', alignItems: 'center', justifyContent: 'center', background: '#f9f9f9' }}>
-                                                        <div className="text-center p-4">
-                                                            <p className="font-bold text-gray-400 uppercase text-xs mb-2">Biglietto #{i+1}</p>
-                                                            {sheetIdx === 0 ? (
-                                                                // Anteprima FRONT
-                                                                v?.img ? <img src={v.img} className="h-32 object-contain shadow-md" /> : <span className="text-xs text-gray-400">Nessuna Immagine</span>
-                                                            ) : (
-                                                                // Anteprima BACK (Messaggio)
-                                                                <div className="w-48 p-2 bg-white shadow text-[10px] italic border">{msg || "Nessun messaggio"}</div>
-                                                            )}
-                                                        </div>
-                                                    </div>
-                                                );
-                                            })}
-                                        </div>
-                                    )}
-                                 </div>
-                            </div>
-                        </div>
-                    ))}
-                </div>
-            ) : (
-                <div ref={editorRef} className={`bg-white w-full ${formatConfig.cssAspect} shadow-2xl flex relative rounded-sm select-none p-4 mx-auto`}>
-                    <div className="absolute inset-y-0 left-1/2 w-px bg-gray-300 border-l border-dashed border-gray-400 opacity-50 z-10 pointer-events-none"></div>
-
-                    <div className={`absolute inset-4 flex z-10 pointer-events-none`}>
-                        <div className={`w-1/2 h-full p-6 flex flex-col text-center ${showBorders ? themeAssets.printBorder : 'border-none'} border-r-0 relative z-20 box-border pointer-events-none overflow-hidden`}>
-                            {data.hasWatermark && (
-                                <div 
-                                    className={`absolute top-1/2 left-1/2 select-none pointer-events-auto ${activeItemId === 'wm1' ? 'cursor-move ring-2 ring-blue-500 ring-dashed z-50' : 'z-0'}`} 
-                                    style={{ transform: `translate(-50%, -50%) translate(${wmSheet1.x}px, ${wmSheet1.y}px) scale(${wmSheet1.scale}) rotate(12deg)`, fontSize: '120px', opacity: 0.15, whiteSpace: 'nowrap' }}
-                                    onMouseDown={(e) => startDrag(e, 'wm1')}
-                                    onClick={(e) => e.stopPropagation()} 
-                                    onDoubleClick={(e) => { e.stopPropagation(); setActiveItemId('wm1'); }}
-                                >
-                                    {themeAssets.watermark}
-                                    {activeItemId === 'wm1' && <div onMouseDown={(e) => startResize(e, 'wm1')} className="absolute -bottom-6 -right-6 w-8 h-8 bg-blue-600 text-white rounded-full shadow-xl flex items-center justify-center cursor-nwse-resize z-50 pointer-events-auto hover:scale-110"><Maximize size={16} /></div>}
-                                </div>
-                            )}
-
-                            {!isMultiItemFormat && <div className="shrink-0 mb-2 pointer-events-auto z-20">
-                                <h1 className={`text-2xl md:text-3xl ${themeAssets.fontTitle} text-gray-900 leading-tight drop-shadow-sm`}>{data.title}</h1>
-                                <p className="text-xs uppercase text-gray-500 font-bold tracking-widest mt-1">{data.eventDate || "Data Speciale"} • {currentYear}</p>
-                            </div>}
-                            
-                            <div className="flex-1 min-h-0 flex items-center justify-center relative w-full my-2">
-                                <div className={`relative w-full h-full flex items-center justify-center pointer-events-auto ${activeItemId === 'img2' ? 'cursor-move ring-2 ring-blue-500 ring-dashed z-50' : ''}`}
-                                    style={{ transform: `translate(${imgSheet2.x}px, ${imgSheet2.y}px) scale(${imgSheet2.scale})` }}
-                                    onMouseDown={(e) => startDrag(e, 'img2')}
-                                    onClick={(e) => e.stopPropagation()} 
-                                    onDoubleClick={(e) => { e.stopPropagation(); setActiveItemId('img2'); }}
-                                >
-                                    {isMultiItemFormat ? (
-                                        <div className="relative w-full h-full group bg-gray-50">
-                                            {tagVariations[currentTagIndex]?.img || data.images?.extraImage || photos[0] ? (
-                                                <img 
-                                                    src={tagVariations[currentTagIndex]?.img || data.images?.extraImage || photos[0]} 
-                                                    className="max-w-full max-h-full object-cover drop-shadow-md shadow-lg w-full h-full" 
-                                                />
-                                            ) : (
-                                                <div className="w-full h-full flex items-center justify-center text-gray-300">
-                                                    <ImagePlus size={32}/>
-                                                </div>
-                                            )}
-                                            <div className="absolute bottom-2 right-2 flex gap-2 z-50 pointer-events-auto opacity-0 group-hover:opacity-100 transition-opacity">
-                                                 <input type="file" ref={singleTagFileInputRef} className="hidden" accept="image/*" onChange={handleSingleTagFileChange}/>
-                                                 <button onClick={handleSingleTagUploadTrigger} className="bg-white text-gray-700 p-2 rounded-full shadow hover:bg-gray-100 hover:text-blue-600" title="Carica foto per questo bigliettino"><Camera size={16}/></button>
-                                            </div>
-                                        </div>
-                                    ) : photos.length === 1 ? (
-                                        <img src={photos[0]} className="max-w-full max-h-full object-contain drop-shadow-md shadow-lg border-4 border-white bg-gray-100 rotate-1" style={{ width: 'auto', height: 'auto' }} />
-                                    ) : photos.length > 1 ? (
-                                        <div className="max-w-full max-h-full aspect-square shadow-lg border-4 border-white bg-gray-100 rotate-1 overflow-hidden">
-                                            <PhotoCollage photos={photos} />
-                                        </div>
-                                    ) : data.images?.extraImage ? (
-                                        <img src={data.images.extraImage} className="max-w-full max-h-full object-contain drop-shadow-md w-full h-full" />
-                                    ) : <div className="w-full h-full border-2 border-dashed border-gray-200 rounded flex items-center justify-center opacity-30"><ImagePlus size={32}/></div>}
-
-                                    {activeItemId === 'img2' && <div onMouseDown={(e) => startResize(e, 'img2')} className="absolute -bottom-6 -right-6 w-10 h-10 bg-blue-600 text-white rounded-full shadow-xl flex items-center justify-center cursor-nwse-resize z-50 pointer-events-auto hover:scale-110"><Maximize size={20} /></div>}
-                                </div>
-                            </div>
-
-                            {!isMultiItemFormat && (
-                                <div className={`w-full relative group pointer-events-auto shrink-0 mt-2 ${activeItemId === 'txt2' ? 'cursor-move ring-2 ring-blue-500 ring-dashed z-50' : ''}`} 
-                                    style={{ transform: `translate(${txtSheet2.x}px, ${txtSheet2.y}px) scale(${txtSheet2.scale})` }} 
-                                    onMouseDown={(e) => startDrag(e, 'txt2')}
-                                    onClick={(e) => e.stopPropagation()} 
-                                    onDoubleClick={(e) => { e.stopPropagation(); setEditingItemId('txt2'); }}
-                                >
-                                    {editingItemId === 'txt2' ? (
-                                        <div className="w-full bg-white p-2 rounded-xl shadow-lg border border-blue-200 z-20 absolute top-[-50px] left-0 pointer-events-auto" onMouseDown={(e) => e.stopPropagation()}>
-                                            <textarea autoFocus className="w-full p-2 bg-gray-50 border border-blue-200 rounded-lg text-center text-sm font-hand" rows={4} value={editableMessage} onChange={(e) => setEditableMessage(e.target.value)}/>
-                                            <button onClick={() => setEditingItemId(null)} className="bg-green-500 text-white text-xs px-3 py-1 rounded-full font-bold mt-2">Fatto</button>
-                                        </div>
-                                    ) : (
-                                        <div className="relative p-2 transition-colors border border-transparent hover:border-yellow-200">
-                                            <p className={`text-xl md:text-2xl leading-relaxed ${themeAssets.fontTitle} text-gray-800 drop-shadow-sm`}>"{editableMessage}"</p>
-                                            {activeItemId === 'txt2' && <button onClick={(e) => { e.stopPropagation(); setEditingItemId('txt2'); }} className="absolute -top-3 -right-3 bg-white text-blue-600 rounded-full p-1.5 shadow-md border border-blue-100 hover:bg-blue-50 z-50"><Pencil size={12}/></button>}
-                                        </div>
-                                    )}
-                                    {activeItemId === 'txt2' && !editingItemId && <div onMouseDown={(e) => startResize(e, 'txt2')} className="absolute -bottom-6 -right-6 w-10 h-10 bg-blue-600 text-white rounded-full shadow-xl flex items-center justify-center cursor-nwse-resize z-50 pointer-events-auto hover:scale-110"><Maximize size={20} /></div>}
-                                </div>
-                            )}
-                        </div>
-
-                        <div className={`w-1/2 h-full p-6 flex flex-col relative z-10 pointer-events-none overflow-hidden box-border ${showBorders ? themeAssets.printBorder : 'border-none'} border-l-0`}>
-                             
-                            {data.hasWatermark && (
-                                <div 
-                                    className={`absolute top-1/2 left-1/2 select-none pointer-events-auto ${activeItemId === 'wm2' ? 'cursor-move ring-2 ring-blue-500 ring-dashed z-50' : 'z-0'}`} 
-                                    style={{ transform: `translate(-50%, -50%) translate(${wmSheet2.x}px, ${wmSheet2.y}px) scale(${wmSheet2.scale}) rotate(12deg)`, fontSize: '120px', opacity: 0.15, whiteSpace: 'nowrap' }}
-                                    onMouseDown={(e) => startDrag(e, 'wm2')}
-                                    onClick={(e) => e.stopPropagation()} 
-                                    onDoubleClick={(e) => { e.stopPropagation(); setActiveItemId('wm2'); }}
-                                >
-                                    {themeAssets.watermark}
-                                    {activeItemId === 'wm2' && <div onMouseDown={(e) => startResize(e, 'wm2')} className="absolute -bottom-6 -right-6 w-8 h-8 bg-blue-600 text-white rounded-full shadow-xl flex items-center justify-center cursor-nwse-resize z-50 pointer-events-auto hover:scale-110"><Maximize size={16} /></div>}
-                                </div>
-                            )}
-
-                            {isCrossword ? (
-                                <div className="flex flex-col h-full w-full justify-between z-10">
-                                    <div className="shrink-0 pointer-events-auto">
-                                        <h2 className="text-lg font-bold uppercase border-b-2 border-black mb-1 pb-1 text-center tracking-widest">Cruciverba</h2>
-                                        {renderSolution()}
-                                    </div>
-                                    <div className="flex-grow min-h-0 flex items-center justify-center py-1 relative w-full pointer-events-none">
-                                        <div className="w-full h-full max-h-full flex items-center justify-center pointer-events-auto" style={{ maxHeight: '100%' }}>{renderGridCells(false)}</div>
-                                    </div>
-                                    <div className="shrink-0 mt-1 text-[9px] md:text-[10px] grid grid-cols-2 gap-2 leading-tight w-full border-t border-black pt-1 overflow-y-auto max-h-[140px] pointer-events-auto" style={{ scrollbarWidth: 'none', msOverflowStyle: 'none' }}>
-                                        <div className="pr-1"><b className="block border-b border-gray-300 mb-1 pb-0.5 font-bold text-xs">Orizzontali</b>{data.words.filter(w=>w.direction===Direction.ACROSS).map(w=><div key={w.id} className="mb-0.5"><b className="mr-1">{w.number}.</b>{w.clue}</div>)}</div>
-                                        <div className="pl-1 border-l border-gray-100"><b className="block border-b border-gray-300 mb-1 pb-0.5 font-bold text-xs">Verticali</b>{data.words.filter(w=>w.direction===Direction.DOWN).map(w=><div key={w.id} className="mb-0.5"><b className="mr-1">{w.number}.</b>{w.clue}</div>)}</div>
-                                    </div>
-                                </div>
-                            ) : isMultiItemFormat ? (
-                                <div className="flex-1 flex flex-col items-center justify-start text-center p-2 pt-4 z-10">
-                                    <div className="w-full mb-4">
-                                        <p className="text-xs uppercase text-gray-400 font-bold mb-1">
-                                            {data.theme === 'christmas' ? `SS. Natale ${currentYear}` : (data.eventDate || currentYear)}
-                                        </p>
-                                    </div>
-
-                                    {data.recipientName && <p className="text-xs uppercase text-gray-400 font-bold mb-2">A: {data.recipientName}</p>}
-                                    
-                                    <p className={`${themeAssets.fontTitle} text-2xl text-gray-800 whitespace-pre-line leading-tight`}>{tagVariations[currentTagIndex]?.title || "Auguri!"}</p>
-                                    
-                                    <div className="mt-4 w-full relative pointer-events-auto group flex-1">
-                                        <textarea 
-                                            className="w-full h-full text-center text-xs font-serif bg-transparent outline-none resize-none border border-transparent hover:border-gray-200 focus:border-blue-400 transition-colors rounded p-1" 
-                                            value={tagMessages[(currentSheetPage * itemsPerPage) + currentTagIndex] || tagMessages[currentTagIndex] || ""} 
-                                            onChange={(e) => handleTagMessageChange(e.target.value)}
-                                        />
-                                        <span className="absolute top-0 right-0 opacity-0 group-hover:opacity-100 text-gray-400 bg-white rounded-full p-1 shadow-sm transition-opacity"><Pencil size={10}/></span>
-                                    </div>
-                                </div>
-                            ) : (
-                                <div className="flex-1 flex items-center justify-center opacity-20 border-2 border-dashed border-gray-300 m-8 rounded-xl z-10"><p className="text-xl font-hand rotate-[-5deg] text-center">Spazio per dedica<br/>scritta a mano...</p></div>
-                            )}
-                        </div>
-                    </div>
-
-                    <div className="absolute inset-0 pointer-events-none" style={{ zIndex: 60 }}>
-                        <div className={`absolute left-1/2 top-1/2 pointer-events-auto ${activeItemId === 'stickerGroup' ? 'cursor-move ring-2 ring-green-400 ring-dashed bg-green-50/30 rounded-lg' : ''}`} 
-                            style={{ transform: `translate(-50%, -50%) translate(${stickerGroup.x}px, ${stickerGroup.y}px) scale(${stickerGroup.scale})` }} 
-                            onMouseDown={(e) => startDrag(e, 'stickerGroup')}
-                            onClick={(e) => e.stopPropagation()} 
-                            onDoubleClick={(e) => { e.stopPropagation(); setActiveItemId('stickerGroup'); }}
-                        >
-                            <div className="flex gap-2 text-3xl drop-shadow-sm">{(data.stickers || []).slice(0,5).map((s,i) => <span key={i}>{s}</span>)}</div>
-                            {activeItemId === 'stickerGroup' && <div onMouseDown={(e) => startResize(e, 'stickerGroup')} className="absolute -bottom-6 -right-6 w-10 h-10 bg-blue-600 text-white rounded-full shadow-xl flex items-center justify-center cursor-nwse-resize z-50 pointer-events-auto hover:scale-110"><Maximize size={20} /></div>}
-                        </div>
-                        {customTexts.map(t => (
-                            <div key={t.id} 
-                                className={`absolute left-1/2 top-1/2 pointer-events-auto ${activeItemId === t.id ? 'cursor-move ring-2 ring-purple-400 ring-dashed bg-white/50 rounded-lg' : ''}`}
-                                style={{ transform: `translate(-50%, -50%) translate(${t.x * pdfScaleFactor}px, ${t.y * pdfScaleFactor}px)`, width: `${(t.width || 250) * pdfScaleFactor}px` }}
-                                onMouseDown={(e) => startDrag(e, t.id)}
-                                onClick={(e) => e.stopPropagation()} 
-                                onDoubleClick={(e) => { e.stopPropagation(); setActiveItemId(t.id); setEditingItemId(t.id); }}
-                            >
-                                {editingItemId === t.id ? (
-                                    <div className="relative z-[70]">
-                                        <textarea 
-                                            autoFocus 
-                                            className="w-full p-2 bg-white border-2 border-purple-500 rounded-lg text-center font-hand text-lg shadow-xl" 
-                                            rows={3} 
-                                            value={t.content} 
-                                            onChange={(e) => updateCustomTextContent(t.id, e.target.value)}
-                                            onBlur={() => setEditingItemId(null)}
-                                        />
-                                        <button onClick={() => removeCustomText(t.id)} className="absolute -top-3 -right-3 bg-red-500 text-white rounded-full p-1 shadow hover:bg-red-600"><XCircle size={14}/></button>
-                                    </div>
-                                ) : (
-                                    <p className="font-hand select-none text-purple-900 drop-shadow-sm" style={{ fontSize: `${(t.scale * 20) * pdfScaleFactor}px`, lineHeight: 1.2, textAlign: 'center', wordWrap: 'break-word' }}>{t.content}</p>
-                                )}
-                                
-                                {activeItemId === t.id && !editingItemId && (
-                                    <>
-                                        <div onMouseDown={(e) => startResize(e, t.id, 'width')} className="absolute top-1/2 -right-4 w-6 h-12 bg-purple-200 rounded-full cursor-ew-resize flex items-center justify-center shadow border border-purple-400 opacity-80 hover:opacity-100"><ArrowRightLeft size={12}/></div>
-                                        <div onMouseDown={(e) => startResize(e, t.id, 'scale')} className="absolute -bottom-4 -right-4 w-8 h-8 bg-purple-600 text-white rounded-full shadow-xl flex items-center justify-center cursor-nwse-resize hover:scale-110"><Maximize size={16} /></div>
-                                    </>
-                                )}
-                            </div>
-                        ))}
-                    </div>
-                </div>
-            )}
-       </div>
-
+       {/* ... rest of JSX remains same (PrintTemplates call, etc.) ... */}
        <PrintTemplates 
             ref={exportRef}
             data={data}
