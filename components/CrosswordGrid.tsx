@@ -193,6 +193,7 @@ const CrosswordGrid: React.FC<CrosswordGridProps> = ({ data, onComplete, onEdit,
           let title = "Auguri!";
           const absoluteIndex = startIdx + i;
           if (data.theme === 'christmas') {
+              // Alterna il titolo in base alla posizione
               title = (absoluteIndex % itemsPerPage) < (itemsPerPage/2) ? "Buon Natale" : "Buone Feste";
           } else {
               title = data.title || "Auguri";
@@ -264,19 +265,29 @@ const CrosswordGrid: React.FC<CrosswordGridProps> = ({ data, onComplete, onEdit,
       const imageFiles = Array.from(files)
         .filter(file => file.type.startsWith('image/'))
         .sort((a, b) => a.name.localeCompare(b.name, undefined, { numeric: true, sensitivity: 'base' }));
-      if (imageFiles.length === 0) { alert("Nessuna immagine trovata."); return; }
+      
+      if (imageFiles.length === 0) { 
+          alert("Nessuna immagine trovata nella selezione."); 
+          return; 
+      }
+
       const promises = imageFiles.map(file => new Promise<string>((resolve) => {
           const reader = new FileReader();
           reader.onload = (ev) => resolve(ev.target?.result as string);
           reader.onerror = () => resolve(""); 
           reader.readAsDataURL(file);
       }));
+
       Promise.all(promises).then(images => {
           const validImages = images.filter(img => img !== "");
           if (validImages.length === 0) return;
+          
           setAllTagImages(validImages);
           setTagMessages([]); 
-          setCurrentSheetPage(0); 
+          setCurrentSheetPage(0);
+          
+          // FEEDBACK PER L'UTENTE
+          alert(`Caricamento completato! ${validImages.length} foto pronte per la creazione dei biglietti.`);
       });
       e.target.value = ''; 
   };
