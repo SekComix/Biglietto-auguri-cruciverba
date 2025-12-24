@@ -34,6 +34,9 @@ const STICKER_CATEGORIES: Record<string, string[]> = {
     'Extra': ['⭐', '🌟', '✨', '💫', '💎', '⚜️', '🍀', '🎵', '🎶', '☀️', '💣', '💯']
 };
 
+// Flatten stickers for fallback usage
+const STICKER_OPTIONS = Object.values(STICKER_CATEGORIES).flat();
+
 const AI_TONES = [
     { id: 'surprise', label: 'Sorpresa', icon: Sparkles, desc: 'Entusiasta e gioioso' },
     { id: 'funny', label: 'Simpatico', icon: Smile, desc: 'Divertente e leggero' },
@@ -83,10 +86,7 @@ export const Creator: React.FC<CreatorProps> = ({ onCreated, initialData }) => {
   const [hiddenSolution, setHiddenSolution] = useState('');
   const [extraImage, setExtraImage] = useState<string | undefined>(undefined);
   const [photos, setPhotos] = useState<string[]>([]); 
-  
-  // LOGO: Inizializza con logo.png
   const [brandLogo, setBrandLogo] = useState<string | undefined>('/logo.png');
-  
   const [selectedStickers, setSelectedStickers] = useState<string[]>([]);
   const [activeStickerTab, setActiveStickerTab] = useState('Natale');
   const [isGeneratingSuggestions, setIsGeneratingSuggestions] = useState(false);
@@ -102,7 +102,6 @@ export const Creator: React.FC<CreatorProps> = ({ onCreated, initialData }) => {
   const nameInputRef = useRef<HTMLInputElement>(null);
   const topicInputRef = useRef<HTMLTextAreaElement>(null);
 
-  // ORA ANCHE 'square' è un formato di massa
   const isMassFormat = format === 'tags' || format === 'a6_2x' || format === 'square';
 
   useEffect(() => {
@@ -115,10 +114,7 @@ export const Creator: React.FC<CreatorProps> = ({ onCreated, initialData }) => {
         setHasWatermark(!!initialData.hasWatermark);
         setExtraImage(initialData.images?.extraImage);
         setPhotos(initialData.images?.photos || []);
-        
-        // Se initialData ha un logo usalo, altrimenti usa /logo.png
         setBrandLogo(initialData.images?.brandLogo || '/logo.png');
-        
         setSelectedStickers(initialData.stickers || []);
         if (initialData.originalMode === 'manual') {
             setCreationMode('manual');
@@ -220,7 +216,7 @@ export const Creator: React.FC<CreatorProps> = ({ onCreated, initialData }) => {
 
   const removeImage = (type: 'extra' | 'photo' | 'brand') => {
       if (type === 'extra') setExtraImage(undefined);
-      else if (type === 'brand') setBrandLogo('/logo.png'); // Reset to default
+      else if (type === 'brand') setBrandLogo('/logo.png');
       else setPhotos([]);
   };
 
@@ -233,9 +229,7 @@ export const Creator: React.FC<CreatorProps> = ({ onCreated, initialData }) => {
   };
 
   const handleGenerateSuggestions = async () => {
-      if (!isMassFormat && !recipientName) { 
-          setError("Inserisci prima il nome del festeggiato"); setShowNameError(true); nameInputRef.current?.focus(); nameInputRef.current?.reportValidity(); return; 
-      }
+      if (!isMassFormat && !recipientName) { setError("Inserisci prima il nome del festeggiato"); setShowNameError(true); nameInputRef.current?.focus(); nameInputRef.current?.reportValidity(); return; }
       setIsGeneratingSuggestions(true); setSuggestedPhrases([]);
       try {
           const toneToUse = creationMode === 'freestyle' ? 'custom' : tone;
@@ -250,7 +244,6 @@ export const Creator: React.FC<CreatorProps> = ({ onCreated, initialData }) => {
     e.preventDefault();
     if (loading || processingImg) return; 
     setLoading(true); setStatusMsg(selectedActivity === 'crossword' ? "Costruisco la griglia..." : "Creo il biglietto..."); setError(null); setShowNameError(false); setShowTopicError(false);
-
     try {
       let inputData: string | ManualInput[] = topic;
       let finalTone: ToneType | undefined = tone;
@@ -273,12 +266,9 @@ export const Creator: React.FC<CreatorProps> = ({ onCreated, initialData }) => {
           if (selectedActivity === 'crossword' && !topic.trim()) { setShowTopicError(true); topicInputRef.current?.focus(); topicInputRef.current?.reportValidity(); throw new Error("Inserisci un argomento."); }
           if (!isMassFormat && selectedActivity === 'simple' && !topic.trim()) { setShowTopicError(true); topicInputRef.current?.focus(); topicInputRef.current?.reportValidity(); throw new Error("Scrivi o seleziona un messaggio."); }
       }
-
       if (!isMassFormat && !recipientName.trim()) { setShowNameError(true); nameInputRef.current?.focus(); nameInputRef.current?.reportValidity(); throw new Error("Inserisci il nome del festeggiato."); }
-
       const cleanSolution = hiddenSolution.trim().toUpperCase();
       const finalDate = eventDate.trim() || DEFAULT_DATES[theme] || 'Oggi';
-
       const data = await generateCrossword(
         finalMode, theme, inputData, cleanSolution || undefined,
         {
@@ -297,26 +287,49 @@ export const Creator: React.FC<CreatorProps> = ({ onCreated, initialData }) => {
     } catch (err: any) { console.error(err); setError(err.message || "Errore."); } finally { setLoading(false); }
   };
 
-  // ... (render logic unchanged)
+  const renderPhotoPreview = () => {
+    if (photos.length === 0) return null;
+    const count = photos.length;
+    let gridClass = 'grid-cols-1';
+    if (count === 2) gridClass = 'grid-cols-2';
+    else if (count > 2 && count <= 4) gridClass = 'grid-cols-2';
+    else if (count >= 5) gridClass = 'grid-cols-3';
+    return (
+        <div className={`grid gap-0.5 w-full h-full bg-white overflow-hidden ${gridClass} pointer-events-none`}>
+            {photos.map((p, i) => (
+                <div key={i} className="relative w-full h-full overflow-hidden aspect-square">
+                    <img src={p} className="w-full h-full object-cover" alt={`preview-${i}`} />
+                </div>
+            ))}
+        </div>
+    );
+  };
+
+  const ActivitySelector = () => (
+    <div className="grid grid-cols-2 gap-3 mb-4">
+        {ACTIVITY_MODULES.map(act => {
+            const isDisabled = act.id === 'crossword' && (format === 'square' || isMassFormat);
+            return (
+            <button key={act.id} type="button" disabled={isDisabled} onClick={() => handleActivityChange(act.id)} className={`p-3 rounded-xl border flex items-center gap-3 transition-all ${isDisabled ? 'opacity-50 cursor-not-allowed bg-gray-50 border-gray-100' : selectedActivity === act.id ? 'bg-white border-blue-500 shadow-md ring-2 ring-blue-100' : 'bg-white/40 border-gray-200 hover:bg-white'}`} title={isDisabled ? "Non disponibile per questo formato" : ""}>
+                <div className={`p-2 rounded-full ${selectedActivity === act.id && !isDisabled ? 'bg-blue-100 text-blue-600' : 'bg-gray-100 text-gray-500'}`}><act.icon size={18} /></div>
+                <div className="text-left"><div className={`text-sm font-bold ${selectedActivity === act.id && !isDisabled ? 'text-gray-800' : 'text-gray-500'}`}>{act.label}</div><div className="text-[10px] text-gray-400 leading-tight">{act.desc}</div></div>
+            </button>
+        )})}
+    </div>
+  );
+
   return (
     <form onSubmit={handleGenerate} className={`max-w-3xl mx-auto bg-white/95 backdrop-blur p-6 md:p-8 rounded-3xl shadow-2xl border-2 border-white/50 relative overflow-hidden transition-all`}>
-      {error && (
-        <div onClick={() => setError(null)} className="fixed top-4 left-1/2 -translate-x-1/2 z-[100] bg-red-600 text-white px-6 py-4 rounded-full shadow-2xl flex items-center gap-3 cursor-pointer hover:bg-red-700 transition-colors animate-in fade-in slide-in-from-top-5">
-            <AlertCircle size={24} /><span className="font-bold text-sm">{error}</span><X size={16} className="ml-auto opacity-70" />
-        </div>
-      )}
-      {loading && (
-        <div className="absolute inset-0 bg-white/95 z-50 flex items-center justify-center backdrop-blur-sm cursor-wait">
-             <div className="text-center p-8 bg-white rounded-3xl shadow-xl border-4 border-blue-100 max-w-sm mx-4"><Loader2 className="w-16 h-16 text-blue-600 animate-spin mx-auto mb-4" /><h3 className="text-xl font-bold text-gray-800 mb-2">Un attimo...</h3><p className="text-gray-500 text-sm">{statusMsg}</p></div>
-        </div>
-      )}
+      {error && (<div onClick={() => setError(null)} className="fixed top-4 left-1/2 -translate-x-1/2 z-[100] bg-red-600 text-white px-6 py-4 rounded-full shadow-2xl flex items-center gap-3 cursor-pointer hover:bg-red-700 transition-colors animate-in fade-in slide-in-from-top-5"><AlertCircle size={24} /><span className="font-bold text-sm">{error}</span><X size={16} className="ml-auto opacity-70" /></div>)}
+      {loading && (<div className="absolute inset-0 bg-white/95 z-50 flex items-center justify-center backdrop-blur-sm cursor-wait"><div className="text-center p-8 bg-white rounded-3xl shadow-xl border-4 border-blue-100 max-w-sm mx-4"><Loader2 className="w-16 h-16 text-blue-600 animate-spin mx-auto mb-4" /><h3 className="text-xl font-bold text-gray-800 mb-2">Un attimo...</h3><p className="text-gray-500 text-sm">{statusMsg}</p></div></div>)}
       <div className={`transition-opacity duration-500 ${loading ? 'opacity-20 pointer-events-none' : 'opacity-100'}`}>
           <div className="text-center mb-8 relative">
             <h2 className="font-bold text-3xl md:text-4xl text-gray-800 mb-2 font-body">Crea il Tuo Biglietto</h2>
             <button type="button" onClick={handleQuickTest} className="absolute top-0 right-0 bg-yellow-400 text-yellow-900 text-[10px] font-bold px-2 py-1 rounded-full flex items-center gap-1 hover:bg-yellow-300 transition-colors shadow-sm"><Zap size={10} fill="currentColor"/> Test Rapido</button>
           </div>
-
+          {/* ... (rest of the form remains mostly the same, ensuring all closing tags are correct) ... */}
           <div className="mb-6">
+            <label className="block text-xs font-bold text-gray-400 mb-3 uppercase tracking-wider text-center">1. Destinatario & Evento</label>
             <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-5 gap-3 mb-4">
               {THEMES.map((t) => (<button key={t.id} type="button" onClick={() => setTheme(t.id)} className={`flex flex-col items-center justify-center p-2 rounded-xl transition-all ${theme === t.id ? `${t.color} text-white scale-105 shadow-lg` : 'bg-gray-100 hover:bg-gray-200'}`}><t.icon size={20} className="mb-1" /><span className="text-[10px] font-bold">{t.label}</span></button>))}
             </div>
@@ -339,6 +352,7 @@ export const Creator: React.FC<CreatorProps> = ({ onCreated, initialData }) => {
           </div>
 
           <div className="mb-6">
+            <label className="block text-xs font-bold text-gray-400 mb-3 uppercase tracking-wider text-center">2. Personalizza Contenuto</label>
             <div className="bg-gray-100 p-1 rounded-xl flex mb-4 text-sm font-bold text-gray-600 shadow-inner">
                 <button type="button" onClick={() => setCreationMode('guided')} className={`flex-1 py-3 rounded-lg flex items-center justify-center gap-2 ${creationMode === 'guided' ? 'bg-white text-blue-600 shadow-sm' : ''}`}><Wand2 size={16}/> Assistente</button>
                 <button type="button" onClick={() => setCreationMode('freestyle')} className={`flex-1 py-3 rounded-lg flex items-center justify-center gap-2 ${creationMode === 'freestyle' ? 'bg-white text-purple-600 shadow-sm' : ''}`}><BrainCircuit size={16}/> Prompt AI</button>
@@ -356,20 +370,8 @@ export const Creator: React.FC<CreatorProps> = ({ onCreated, initialData }) => {
                     {suggestedPhrases.length > 0 && <div className="mt-3 grid gap-2">{suggestedPhrases.map((phrase, i) => (<button key={i} type="button" onClick={() => { setTopic(phrase); setSuggestedPhrases([]); }} className="text-left text-xs p-2 bg-white border border-gray-200 rounded-lg hover:border-blue-400">{phrase}</button>))}</div>}
                 </div>
             )}
-            
-            {creationMode === 'freestyle' && (
-                <div className="bg-purple-50/50 rounded-xl p-4 border border-purple-100"><textarea ref={topicInputRef} required={!isMassFormat} rows={5} className={`w-full p-4 border-2 bg-white rounded-xl outline-none resize-none ${showTopicError ? 'border-red-500' : 'border-purple-200 focus:ring-purple-400'}`} placeholder="Scrivi il prompt..." value={topic} onChange={(e) => setTopic(e.target.value)}/></div>
-            )}
-
-            {creationMode === 'manual' && (
-                <div className="bg-orange-50/50 rounded-xl p-4 border border-orange-100">
-                    {selectedActivity === 'crossword' ? (
-                        <div className="space-y-2">{manualWords.map((item, idx) => (<div key={idx} className="flex gap-2"><input placeholder="PAROLA" value={item.word} onChange={(e) => handleManualChange(idx, 'word', e.target.value)} className="w-1/3 p-2 border rounded-lg font-bold uppercase" /><input placeholder="Indizio" value={item.clue} onChange={(e) => handleManualChange(idx, 'clue', e.target.value)} className="flex-1 p-2 border rounded-lg" />{manualWords.length > 2 && <button type="button" onClick={() => removeRow(idx)}><Trash2 size={16}/></button>}</div>))}<button type="button" onClick={addRow} className="text-orange-600 text-xs font-bold mt-2"><Plus size={14} className="inline"/> Aggiungi riga</button></div>
-                    ) : (
-                        <textarea ref={topicInputRef} required={!isMassFormat} rows={4} className={`w-full p-3 border rounded-xl outline-none bg-white ${showTopicError ? 'border-red-500' : 'border-orange-200 focus:ring-orange-500'}`} placeholder="Scrivi qui i tuoi auguri..." value={topic} onChange={(e) => setTopic(e.target.value)}/>
-                    )}
-                </div>
-            )}
+            {creationMode === 'freestyle' && (<div className="bg-purple-50/50 rounded-xl p-4 border border-purple-100"><textarea ref={topicInputRef} required={!isMassFormat} rows={5} className={`w-full p-4 border-2 bg-white rounded-xl outline-none resize-none ${showTopicError ? 'border-red-500' : 'border-purple-200'}`} placeholder="Prompt AI..." value={topic} onChange={(e) => setTopic(e.target.value)}/></div>)}
+            {creationMode === 'manual' && (<div className="bg-orange-50/50 rounded-xl p-4 border border-orange-100">{selectedActivity === 'crossword' ? <div className="space-y-2">{manualWords.map((item, idx) => (<div key={idx} className="flex gap-2"><input value={item.word} onChange={(e) => handleManualChange(idx, 'word', e.target.value)} className="w-1/3 p-2 border rounded-lg uppercase" /><input value={item.clue} onChange={(e) => handleManualChange(idx, 'clue', e.target.value)} className="flex-1 p-2 border rounded-lg" /></div>))}<button type="button" onClick={addRow} className="text-orange-600 text-xs font-bold mt-2"><Plus size={14}/> Aggiungi</button></div> : <textarea ref={topicInputRef} required={!isMassFormat} rows={4} className="w-full p-3 border rounded-xl" placeholder="Scrivi il tuo messaggio..." value={topic} onChange={(e) => setTopic(e.target.value)}/>}</div>)}
           </div>
 
           <div className="mb-6">
@@ -398,10 +400,11 @@ export const Creator: React.FC<CreatorProps> = ({ onCreated, initialData }) => {
                  </div>
             </div>
           </div>
-
+          
           <div className="mb-6 bg-gray-50 p-3 rounded-xl border border-gray-100">
              <div className="flex justify-between items-center mb-2"><label className="text-xs font-bold text-gray-400 uppercase">Decorazioni</label><span className={`text-xs font-bold ${selectedStickers.length >= 5 ? 'text-red-500' : 'text-blue-500'}`}>{selectedStickers.length}/5</span></div>
-             <div className="flex flex-wrap gap-2 justify-center max-h-32 overflow-y-auto p-1 bg-white rounded-lg border-inner">{STICKER_OPTIONS.map(s => <button key={s} type="button" onClick={() => toggleSticker(s)} disabled={!selectedStickers.includes(s) && selectedStickers.length >= 5} className={`text-2xl p-2 rounded-full ${selectedStickers.includes(s) ? 'bg-blue-50 shadow-md ring-2 ring-blue-200' : 'opacity-60'}`}>{s}</button>)}</div>
+             <div className="flex gap-2 overflow-x-auto pb-2 mb-2 custom-scrollbar">{Object.keys(STICKER_CATEGORIES).map(cat => <button key={cat} type="button" onClick={() => setActiveStickerTab(cat)} className={`text-xs px-2 py-1 rounded-full ${activeStickerTab === cat ? 'bg-blue-600 text-white' : 'bg-white text-gray-600'}`}>{cat}</button>)}</div>
+             <div className="flex flex-wrap gap-2 justify-center max-h-32 overflow-y-auto p-1 custom-scrollbar bg-white rounded-lg border-inner shadow-inner">{STICKER_CATEGORIES[activeStickerTab].map(s => <button key={s} type="button" onClick={() => toggleSticker(s)} disabled={!selectedStickers.includes(s) && selectedStickers.length >= 5} className={`text-2xl p-2 rounded-full ${selectedStickers.includes(s) ? 'bg-blue-50 shadow-md ring-2 ring-blue-200' : 'opacity-60'}`}>{s}</button>)}</div>
           </div>
 
           <button type="submit" disabled={loading || !!processingImg} className={`w-full py-4 rounded-xl text-white font-bold text-lg shadow-xl flex items-center justify-center gap-2 transition-all active:scale-95 ${loading || !!processingImg ? 'bg-gray-400 cursor-not-allowed' : 'bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700'}`}><Wand2 /> {initialData ? "RIGENERA BIGLIETTO" : "GENERA BIGLIETTO"}</button>
