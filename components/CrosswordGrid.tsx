@@ -645,7 +645,15 @@ const CrosswordGrid: React.FC<CrosswordGridProps> = ({ data, onComplete, onEdit,
             <button onClick={() => setShowGraphicsModal(true)} className="bg-white px-3 py-2 rounded-full shadow border text-sm flex items-center gap-2 font-bold hover:bg-pink-50 text-pink-600 active:scale-95 border-pink-200"><Palette size={16} /> Grafica</button>
             {isMultiItemFormat && (
                 <div className="flex bg-gray-100 rounded-full p-1 border border-gray-300">
-                    <input type="file" ref={folderInputRef} accept="image/*" multiple className="hidden" onChange={handleFolderUpload} />
+                    <input 
+                        type="file" 
+                        ref={folderInputRef}
+                        // @ts-ignore
+                        webkitdirectory="" directory="" multiple 
+                        accept="image/png, image/jpeg, image/jpg, image/webp"
+                        className="hidden" 
+                        onChange={handleFolderUpload} 
+                    />
                     <input type="file" ref={albumUploadRef} className="hidden" accept=".json" onChange={handleAlbumLoad} />
 
                     <div className="flex items-center gap-1 mr-2 px-2 border-r border-gray-300">
@@ -958,7 +966,7 @@ const CrosswordGrid: React.FC<CrosswordGridProps> = ({ data, onComplete, onEdit,
                                             )}
                                             <div className="absolute bottom-2 right-2 flex gap-2 z-50 pointer-events-auto opacity-0 group-hover:opacity-100 transition-opacity">
                                                  <input type="file" ref={singleTagFileInputRef} className="hidden" accept="image/*" onChange={handleSingleTagFileChange}/>
-                                                 <button onClick={handleSingleTagUploadTrigger} className="bg-white text-gray-700 p-2 rounded-full shadow hover:bg-gray-100 hover:text-blue-600" title="Carica foto per questo biglietto"><Camera size={16}/></button>
+                                                 <button onClick={handleSingleTagUploadTrigger} className="bg-white text-gray-700 p-2 rounded-full shadow hover:bg-gray-100 hover:text-blue-600" title="Carica foto per questo bigliettino"><Camera size={16}/></button>
                                             </div>
                                         </div>
                                     ) : photos.length === 1 ? (
