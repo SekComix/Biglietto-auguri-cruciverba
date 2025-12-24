@@ -36,7 +36,6 @@ const STICKER_OPTIONS = ['🎅', '🎄', '🎁', '❄️', '⛄', '🎂', '🎈'
 const FORMAT_CONFIG: Record<CardFormat, { label: string, cssAspect: string, width: number, height: number, pdfFormat: any, pdfOrientation: 'p' | 'l', pdfWidth: number, pdfHeight: number }> = {
     'a4': { label: 'A4 Standard', cssAspect: 'aspect-[297/210]', width: 1123, height: 794, pdfFormat: 'a4', pdfOrientation: 'l', pdfWidth: 1123, pdfHeight: 794 },
     'a3': { label: 'A3 Maxi', cssAspect: 'aspect-[297/210]', width: 1587, height: 1123, pdfFormat: 'a3', pdfOrientation: 'l', pdfWidth: 1587, pdfHeight: 1123 },
-    // CORRETTO: Square e Mini 2x devono essere PORTRAIT (Verticali) per mostrare 2 biglietti uno sopra l'altro
     'square': { label: 'Quadrato (2x)', cssAspect: 'aspect-[210/297]', width: 794, height: 1123, pdfFormat: 'a4', pdfOrientation: 'p', pdfWidth: 794, pdfHeight: 1123 },
     'tags': { label: 'Bigliettini', cssAspect: 'aspect-[210/297]', width: 794, height: 1123, pdfFormat: 'a4', pdfOrientation: 'p', pdfWidth: 794, pdfHeight: 1123 },
     'a6_2x': { label: 'Mini (2 su 1)', cssAspect: 'aspect-[210/297]', width: 794, height: 1123, pdfFormat: 'a4', pdfOrientation: 'p', pdfWidth: 794, pdfHeight: 1123 }
@@ -53,6 +52,7 @@ const shuffleArray = (array: string[]) => {
     return arr;
 };
 
+// --- RESTORED PHOTO COLLAGE FOR EDITOR PREVIEW ---
 const PhotoCollage: React.FC<{ photos: string[] }> = ({ photos }) => {
     if (!photos || photos.length === 0) return null;
     const count = photos.length;
@@ -166,6 +166,11 @@ const CrosswordGrid: React.FC<CrosswordGridProps> = ({ data, onComplete, onEdit,
 
   // LOGICA GENERAZIONE VARIANTI (IMMAGINI E MESSAGGI)
   useEffect(() => {
+      if (!isMultiItemFormat) {
+          setViewMode('single');
+          return;
+      }
+      
       // -- LOGICA MESSAGGI --
       let currentMsgs = [...tagMessages];
       if (data.message && (currentMsgs.length === 0 || currentMsgs[0] !== data.message)) {
@@ -292,16 +297,12 @@ const CrosswordGrid: React.FC<CrosswordGridProps> = ({ data, onComplete, onEdit,
           if (validImages.length === 0) return;
           
           setAllTagImages(validImages);
-          
-          // Se l'AI ha generato un messaggio, usalo per popolare
           if (tagMessages.length < validImages.length && data.message) {
               const newMsgs = Array(validImages.length).fill(data.message);
               setTagMessages(newMsgs);
           } else {
-             // Altrimenti resetta per random
              setTagMessages([]); 
           }
-          
           setCurrentSheetPage(0);
           alert(`Caricamento completato! ${validImages.length} foto pronte.`);
       });
@@ -1006,22 +1007,49 @@ const CrosswordGrid: React.FC<CrosswordGridProps> = ({ data, onComplete, onEdit,
                                 >
                                     {isMultiItemFormat ? (
                                         // SINGLE VIEW FOR MINI/SQUARE/TAGS - FIXED
-                                        <div className="relative w-full h-full group bg-gray-50 flex flex-col items-center justify-center">
-                                            {/* Show current item for this index */}
-                                            {/* FALLBACK: Se non c'è immagine specifica, usa quella generica */}
-                                            {(tagVariations[currentTagIndex]?.img || data.images?.extraImage) ? (
-                                                <img 
-                                                    src={tagVariations[currentTagIndex]?.img || data.images?.extraImage} 
-                                                    className="max-w-full max-h-full object-cover drop-shadow-md shadow-lg" 
-                                                />
-                                            ) : (
-                                                <div className="w-full h-full flex items-center justify-center text-gray-300">
-                                                    <ImagePlus size={32}/>
-                                                </div>
-                                            )}
-                                            <div className="absolute bottom-2 right-2 flex gap-2 z-50 pointer-events-auto opacity-0 group-hover:opacity-100 transition-opacity">
-                                                 <input type="file" ref={singleTagFileInputRef} className="hidden" accept="image/*" onChange={handleSingleTagFileChange}/>
-                                                 <button onClick={handleSingleTagUploadTrigger} className="bg-white text-gray-700 p-2 rounded-full shadow hover:bg-gray-100 hover:text-blue-600" title="Carica foto per questo bigliettino"><Camera size={16}/></button>
+                                        // UPDATED: Now shows FULL FRONT/BACK logic like A4, but vertically stacked if needed
+                                        // For editing purposes, we show it split vertically (Cover Top, Inside Bottom) or Side-by-Side depending on aspect
+                                        // Actually, let's keep it simple: Show standard booklet view but populated with specific index data
+                                        <div className="w-full h-full flex flex-col md:flex-row gap-4">
+                                            {/* LEFT: FRONT COVER */}
+                                            <div className="w-full md:w-1/2 h-full bg-gray-50 flex items-center justify-center relative overflow-hidden border border-dashed border-gray-300">
+                                                 <div className="absolute top-2 left-2 text-[10px] uppercase font-bold text-gray-400 z-10">Copertina (Fronte)</div>
+                                                 {/* Show current item for this index */}
+                                                 {/* FALLBACK: Se non c'è immagine specifica, usa quella generica */}
+                                                 {(tagVariations[currentTagIndex]?.img || data.images?.extraImage) ? (
+                                                     <img 
+                                                         src={tagVariations[currentTagIndex]?.img || data.images?.extraImage} 
+                                                         className="max-w-full max-h-full object-contain drop-shadow-md shadow-lg" 
+                                                     />
+                                                 ) : (
+                                                     <div className="w-full h-full flex items-center justify-center text-gray-300">
+                                                         <ImagePlus size={32}/>
+                                                     </div>
+                                                 )}
+                                                 {/* Controls for changing this specific image */}
+                                                 <div className="absolute bottom-2 right-2 flex gap-2 z-50 pointer-events-auto opacity-0 group-hover:opacity-100 transition-opacity">
+                                                      <input type="file" ref={singleTagFileInputRef} className="hidden" accept="image/*" onChange={handleSingleTagFileChange}/>
+                                                      <button onClick={handleSingleTagUploadTrigger} className="bg-white text-gray-700 p-2 rounded-full shadow hover:bg-gray-100 hover:text-blue-600" title="Carica foto per questo biglietto"><Camera size={16}/></button>
+                                                 </div>
+                                            </div>
+
+                                            {/* RIGHT: INSIDE RIGHT */}
+                                            <div className="w-full md:w-1/2 h-full bg-white flex items-center justify-center relative overflow-hidden border border-dashed border-gray-300 p-4">
+                                                 <div className="absolute top-2 left-2 text-[10px] uppercase font-bold text-gray-400 z-10">Interno (Destra)</div>
+                                                 {isCrossword ? (
+                                                     <div className="w-full h-full flex flex-col">
+                                                         <div className="flex-shrink-0 text-center font-bold uppercase text-xs mb-2">Cruciverba</div>
+                                                         <div className="flex-grow bg-gray-50 flex items-center justify-center text-gray-400 text-xs">Griglia</div>
+                                                     </div>
+                                                 ) : (
+                                                     // Show message for this index
+                                                     <textarea 
+                                                         className="w-full h-full text-center text-sm font-serif bg-transparent outline-none resize-none border-none focus:ring-0" 
+                                                         value={tagMessages[(currentSheetPage * itemsPerPage) + currentTagIndex] || tagMessages[currentTagIndex] || ""} 
+                                                         onChange={(e) => handleTagMessageChange(e.target.value)}
+                                                         placeholder="Scrivi qui il messaggio..."
+                                                     />
+                                                 )}
                                             </div>
                                         </div>
                                     ) : photos.length === 1 ? (
@@ -1034,7 +1062,7 @@ const CrosswordGrid: React.FC<CrosswordGridProps> = ({ data, onComplete, onEdit,
                                         <img src={data.images.extraImage} className="max-w-full max-h-full object-contain drop-shadow-md w-full h-full" />
                                     ) : <div className="w-full h-full border-2 border-dashed border-gray-200 rounded flex items-center justify-center opacity-30"><ImagePlus size={32}/></div>}
 
-                                    {activeItemId === 'img2' && <div onMouseDown={(e) => startResize(e, 'img2')} className="absolute -bottom-6 -right-6 w-10 h-10 bg-blue-600 text-white rounded-full shadow-xl flex items-center justify-center cursor-nwse-resize z-50 pointer-events-auto hover:scale-110"><Maximize size={20} /></div>}
+                                    {activeItemId === 'img2' && !isMultiItemFormat && <div onMouseDown={(e) => startResize(e, 'img2')} className="absolute -bottom-6 -right-6 w-10 h-10 bg-blue-600 text-white rounded-full shadow-xl flex items-center justify-center cursor-nwse-resize z-50 pointer-events-auto hover:scale-110"><Maximize size={20} /></div>}
                                 </div>
                             </div>
 
@@ -1091,26 +1119,11 @@ const CrosswordGrid: React.FC<CrosswordGridProps> = ({ data, onComplete, onEdit,
                                     </div>
                                 </div>
                             ) : isMultiItemFormat ? (
-                                <div className="flex-1 flex flex-col items-center justify-start text-center p-2 pt-4 z-10">
-                                    <div className="w-full mb-4">
-                                        <p className="text-xs uppercase text-gray-400 font-bold mb-1">
-                                            {data.theme === 'christmas' ? `SS. Natale ${currentYear}` : (data.eventDate || currentYear)}
-                                        </p>
-                                    </div>
-
-                                    {data.recipientName && <p className="text-xs uppercase text-gray-400 font-bold mb-2">A: {data.recipientName}</p>}
-                                    
-                                    <p className={`${themeAssets.fontTitle} text-2xl text-gray-800 whitespace-pre-line leading-tight`}>{tagVariations[currentTagIndex]?.title || "Auguri!"}</p>
-                                    
-                                    <div className="mt-4 w-full relative pointer-events-auto group flex-1">
-                                        <textarea 
-                                            className="w-full h-full text-center text-xs font-serif bg-transparent outline-none resize-none border border-transparent hover:border-gray-200 focus:border-blue-400 transition-colors rounded p-1" 
-                                            value={tagMessages[(currentSheetPage * itemsPerPage) + currentTagIndex] || tagMessages[currentTagIndex] || ""} 
-                                            onChange={(e) => handleTagMessageChange(e.target.value)}
-                                        />
-                                        <span className="absolute top-0 right-0 opacity-0 group-hover:opacity-100 text-gray-400 bg-white rounded-full p-1 shadow-sm transition-opacity"><Pencil size={10}/></span>
-                                    </div>
-                                </div>
+                                // For MULTI formats (Mini/Square), the right side is handled inside the img2 container above for Single view
+                                // or handled by Sheets view.
+                                // We keep this empty or as a placeholder to maintain layout structure if needed, 
+                                // BUT since we redesigned Single View to have 2 columns inside img2 container, we can leave this empty or minimal.
+                                <div className="hidden"></div>
                             ) : (
                                 <div className="flex-1 flex items-center justify-center opacity-20 border-2 border-dashed border-gray-300 m-8 rounded-xl z-10"><p className="text-xl font-hand rotate-[-5deg] text-center">Spazio per dedica<br/>scritta a mano...</p></div>
                             )}
