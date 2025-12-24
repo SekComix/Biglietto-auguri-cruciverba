@@ -204,6 +204,7 @@ export const PrintTemplates = forwardRef<HTMLDivElement, PrintTemplatesProps>((p
     );
 
     // --- RENDER CONTENT PER IL FORMATO MINI (2 A6 SU UN A4) ---
+    // FIXED: Uses Flexbox centering instead of transforms to ensure html2canvas captures correctly
     const renderMini2x = () => (
         <div key={`${printRenderKey}-${currentSheetPage}`}>
             {/* SHEET 1: COPERTINE ESTERNE (Fronte/Retro) */}
@@ -215,8 +216,8 @@ export const PrintTemplates = forwardRef<HTMLDivElement, PrintTemplatesProps>((p
                     const overrideImg = v ? v.img : undefined;
 
                     return (
-                        <div key={i} style={{ height: '50%', width: '100%', borderBottom: i === 0 ? '1px dashed #ccc' : 'none', position: 'relative', overflow: 'hidden' }}>
-                            <div style={{ width: '1123px', height: '794px', transform: 'scale(0.707) translate(-21%, -21%)', transformOrigin: 'top left' }}>
+                        <div key={i} style={{ height: '50%', width: '100%', borderBottom: i === 0 ? '1px dashed #ccc' : 'none', position: 'relative', overflow: 'hidden', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                            <div style={{ width: '1123px', height: '794px', transform: 'scale(0.707)', transformOrigin: 'center center' }}>
                                 {renderStandardSheet1(overrideImg)}
                             </div>
                         </div>
@@ -231,8 +232,8 @@ export const PrintTemplates = forwardRef<HTMLDivElement, PrintTemplatesProps>((p
                     const msg = tagMessages[globalIndex]; // Messaggio Dedica
                     
                     return (
-                        <div key={i} style={{ height: '50%', width: '100%', borderBottom: i === 0 ? '1px dashed #ccc' : 'none', position: 'relative', overflow: 'hidden' }}>
-                            <div style={{ width: '1123px', height: '794px', transform: 'scale(0.707) translate(-21%, -21%)', transformOrigin: 'top left' }}>
+                        <div key={i} style={{ height: '50%', width: '100%', borderBottom: i === 0 ? '1px dashed #ccc' : 'none', position: 'relative', overflow: 'hidden', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                            <div style={{ width: '1123px', height: '794px', transform: 'scale(0.707)', transformOrigin: 'center center' }}>
                                 {renderStandardSheet2(msg)}
                             </div>
                         </div>
