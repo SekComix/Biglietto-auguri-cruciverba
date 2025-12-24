@@ -36,7 +36,7 @@ const STICKER_OPTIONS = ['🎅', '🎄', '🎁', '❄️', '⛄', '🎂', '🎈'
 const FORMAT_CONFIG: Record<CardFormat, { label: string, cssAspect: string, width: number, height: number, pdfFormat: any, pdfOrientation: 'p' | 'l', pdfWidth: number, pdfHeight: number }> = {
     'a4': { label: 'A4 Standard', cssAspect: 'aspect-[297/210]', width: 1123, height: 794, pdfFormat: 'a4', pdfOrientation: 'l', pdfWidth: 1123, pdfHeight: 794 },
     'a3': { label: 'A3 Maxi', cssAspect: 'aspect-[297/210]', width: 1587, height: 1123, pdfFormat: 'a3', pdfOrientation: 'l', pdfWidth: 1587, pdfHeight: 1123 },
-    'square': { label: 'Quadrato', cssAspect: 'aspect-[2/1]', width: 1134, height: 567, pdfFormat: [300, 150], pdfOrientation: 'l', pdfWidth: 1134, pdfHeight: 567 },
+    'square': { label: 'Quadrato (2x)', cssAspect: 'aspect-[297/210]', width: 1123, height: 794, pdfFormat: 'a4', pdfOrientation: 'p', pdfWidth: 794, pdfHeight: 1123 }, // Modificato per essere A4 Portrait
     'tags': { label: 'Bigliettini', cssAspect: 'aspect-[10/7]', width: 500, height: 350, pdfFormat: 'a4', pdfOrientation: 'p', pdfWidth: 794, pdfHeight: 1123 },
     'a6_2x': { label: 'Mini (2 su 1)', cssAspect: 'aspect-[297/210]', width: 1123, height: 794, pdfFormat: 'a4', pdfOrientation: 'p', pdfWidth: 794, pdfHeight: 1123 }
 };
@@ -143,8 +143,8 @@ const CrosswordGrid: React.FC<CrosswordGridProps> = ({ data, onComplete, onEdit,
   const currentYear = new Date().getFullYear();
   const formatConfig = FORMAT_CONFIG[data.format || 'a4'];
 
-  const isMultiItemFormat = data.format === 'tags' || data.format === 'a6_2x';
-  const itemsPerPage = data.format === 'tags' ? 8 : (data.format === 'a6_2x' ? 2 : 1);
+  const isMultiItemFormat = data.format === 'tags' || data.format === 'a6_2x' || data.format === 'square';
+  const itemsPerPage = data.format === 'tags' ? 8 : 2; // Square e Mini2x sono entrambi 2
   const totalPages = Math.ceil(Math.max(allTagImages.length, itemsPerPage) / itemsPerPage);
 
   useEffect(() => {
@@ -193,7 +193,6 @@ const CrosswordGrid: React.FC<CrosswordGridProps> = ({ data, onComplete, onEdit,
           let title = "Auguri!";
           const absoluteIndex = startIdx + i;
           if (data.theme === 'christmas') {
-              // Alterna il titolo in base alla posizione
               title = (absoluteIndex % itemsPerPage) < (itemsPerPage/2) ? "Buon Natale" : "Buone Feste";
           } else {
               title = data.title || "Auguri";
@@ -286,7 +285,6 @@ const CrosswordGrid: React.FC<CrosswordGridProps> = ({ data, onComplete, onEdit,
           setTagMessages([]); 
           setCurrentSheetPage(0);
           
-          // FEEDBACK PER L'UTENTE
           alert(`Caricamento completato! ${validImages.length} foto pronte per la creazione dei biglietti.`);
       });
       e.target.value = ''; 
@@ -313,7 +311,6 @@ const CrosswordGrid: React.FC<CrosswordGridProps> = ({ data, onComplete, onEdit,
       e.target.value = '';
   };
 
-  // --- TRIGGER INSTRUCTION MODAL ---
   const handlePrePrint = () => {
       setShowInstructionModal(true);
   };
@@ -355,8 +352,10 @@ const CrosswordGrid: React.FC<CrosswordGridProps> = ({ data, onComplete, onEdit,
     } catch (e) { console.error("Preview generation failed", e); } finally { setIsGeneratingPreview(false); }
   };
 
+  // ... (rest remains standard)
   useEffect(() => {
     if (!isCrossword) { setEditableMessage(data.message); return; }
+    // ... crossword grid logic ...
     const newGrid: CellData[][] = Array(data.height).fill(null).map((_, y) =>
       Array(data.width).fill(null).map((_, x) => ({ x, y, userChar: '', partOfWords: [] }))
     );
@@ -494,70 +493,22 @@ const CrosswordGrid: React.FC<CrosswordGridProps> = ({ data, onComplete, onEdit,
       );
   };
 
-  const toggleSheetPrintSelection = (index: number) => {
-      setSheetsToPrint(prev => {
-          if (prev.includes(index)) return prev.filter(i => i !== index);
-          return [...prev, index].sort((a,b) => a-b);
-      });
-  };
-
-  const handleDownloadPDF = async (directPrint = false) => {
-      if (!exportRef.current) return;
-      if (sheetsToPrint.length === 0) { alert("Seleziona almeno un foglio da stampare."); return; }
-
-      const startPage = currentSheetPage;
-
-      setIsGeneratingPDF(true);
-      const width = formatConfig.pdfWidth;
-      exportRef.current.style.width = `${width}px`;
-      
-      try {
-        // @ts-ignore
-        const doc = new jsPDF({ orientation: formatConfig.pdfOrientation, unit: 'mm', format: formatConfig.pdfFormat });
-        const pdfWidth = doc.internal.pageSize.getWidth();
-        const pdfHeight = doc.internal.pageSize.getHeight();
-        
-        let pageCount = 0;
-        for (const actualPageIndex of sheetsToPrint) {
-             
-             if (isMultiItemFormat) {
-                 setCurrentSheetPage(actualPageIndex);
-                 await new Promise(resolve => setTimeout(resolve, 150)); 
-             }
-
-             await new Promise(resolve => setTimeout(resolve, 800));
-
-             const sheet1 = exportRef.current.querySelector('#pdf-sheet-1') as HTMLElement;
-             const sheet2 = exportRef.current.querySelector('#pdf-sheet-2') as HTMLElement;
-             if (!sheet1 || !sheet2) throw new Error("Elements not found");
-
-             const options = { scale: 2, useCORS: true, logging: false, backgroundColor: '#ffffff', windowWidth: Math.max(1600, width + 100) };
-             const canvas1 = await html2canvas(sheet1, options);
-             const canvas2 = await html2canvas(sheet2, options);
-             
-             if (pageCount > 0) doc.addPage();
-             doc.addImage(canvas1.toDataURL('image/jpeg', 0.95), 'JPEG', 0, 0, pdfWidth, pdfHeight);
-             doc.addPage();
-             doc.addImage(canvas2.toDataURL('image/jpeg', 0.95), 'JPEG', 0, 0, pdfWidth, pdfHeight);
-             
-             pageCount++;
-        }
-
-        if (directPrint) {
-            doc.autoPrint(); 
-            const blob = doc.output('blob');
-            const url = URL.createObjectURL(blob);
-            window.open(url, '_blank'); 
-        } else {
-            doc.save(`${data.title.replace(/[^a-z0-9]/gi, '_').toLowerCase()}.pdf`);
-        }
-        
-        if (isMultiItemFormat) {
-            setCurrentSheetPage(startPage);
-        }
-        setShowPrintModal(false);
-      } catch (e) { console.error("PDF Error", e); alert("Errore PDF."); } finally { setIsGeneratingPDF(false); }
-  };
+  const renderGridCells = (isPrint = false) => (
+    <div className={`grid gap-[1px] bg-black/10 p-2 rounded-lg pointer-events-auto`} style={{ gridTemplateColumns: `repeat(${data.width}, minmax(0, 1fr))`, aspectRatio: `${data.width}/${data.height}`, width: '100%', maxHeight: '100%', margin: '0 auto' }}>
+      {grid.map((row, y) => row.map((cell, x) => {
+          const isSelected = !isPrint && selectedCell?.x === x && selectedCell?.y === y;
+          const displayChar = isPrint ? '' : (revealAnswers ? cell.char : cell.userChar); 
+          if (!cell.char) return <div key={`${x}-${y}`} className={`bg-black/5 rounded-sm`} />;
+          return (
+            <div key={`${x}-${y}-${revealAnswers}`} onClick={() => !isPrint && handleCellClick(x, y)} className={`relative flex items-center justify-center w-full h-full text-xl font-bold cursor-pointer rounded-sm`} style={{ backgroundColor: cell.isSolutionCell ? '#FEF08A' : (isSelected && !revealAnswers && !isPrint ? '#DBEAFE' : '#FFFFFF'), boxSizing: 'border-box' }}>
+              {cell.number && <span className={`absolute top-0 left-0 leading-none ${isPrint ? 'text-[8px] p-[1px] font-bold text-gray-500' : 'text-[9px] p-0.5 text-gray-500'}`}>{cell.number}</span>}
+              {cell.isSolutionCell && cell.solutionIndex !== undefined && <div className={`absolute bottom-0 right-0 leading-none font-bold text-gray-600 bg-white/60 rounded-tl-sm z-10 ${isPrint ? 'text-[8px] p-[1px]' : 'text-[9px] p-0.5'}`}>{getSolutionLabel(cell.solutionIndex)}</div>}
+              {isPrint ? <span className="font-bold text-lg"></span> : (isSelected && !revealAnswers ? <input ref={(el) => { inputRefs.current[y][x] = el; }} maxLength={1} className="w-full h-full text-center bg-transparent outline-none uppercase" value={cell.userChar} onChange={(e) => handleInput(x, y, e.target.value)} /> : <div className={`w-full h-full flex items-center justify-center uppercase ${revealAnswers ? 'text-green-600' : ''}`}>{displayChar}</div>)}
+            </div>
+          );
+      }))}
+    </div>
+  );
 
   const handleCellClick = (x: number, y: number) => {
     if (!grid[y][x].char) return;
@@ -620,23 +571,6 @@ const CrosswordGrid: React.FC<CrosswordGridProps> = ({ data, onComplete, onEdit,
      }
   };
 
-  const renderGridCells = (isPrint = false) => (
-    <div className={`grid gap-[1px] bg-black/10 p-2 rounded-lg pointer-events-auto`} style={{ gridTemplateColumns: `repeat(${data.width}, minmax(0, 1fr))`, aspectRatio: `${data.width}/${data.height}`, width: '100%', maxHeight: '100%', margin: '0 auto' }}>
-      {grid.map((row, y) => row.map((cell, x) => {
-          const isSelected = !isPrint && selectedCell?.x === x && selectedCell?.y === y;
-          const displayChar = isPrint ? '' : (revealAnswers ? cell.char : cell.userChar); 
-          if (!cell.char) return <div key={`${x}-${y}`} className={`bg-black/5 rounded-sm`} />;
-          return (
-            <div key={`${x}-${y}-${revealAnswers}`} onClick={() => !isPrint && handleCellClick(x, y)} className={`relative flex items-center justify-center w-full h-full text-xl font-bold cursor-pointer rounded-sm`} style={{ backgroundColor: cell.isSolutionCell ? '#FEF08A' : (isSelected && !revealAnswers && !isPrint ? '#DBEAFE' : '#FFFFFF'), boxSizing: 'border-box' }}>
-              {cell.number && <span className={`absolute top-0 left-0 leading-none ${isPrint ? 'text-[8px] p-[1px] font-bold text-gray-500' : 'text-[9px] p-0.5 text-gray-500'}`}>{cell.number}</span>}
-              {cell.isSolutionCell && cell.solutionIndex !== undefined && <div className={`absolute bottom-0 right-0 leading-none font-bold text-gray-600 bg-white/60 rounded-tl-sm z-10 ${isPrint ? 'text-[8px] p-[1px]' : 'text-[9px] p-0.5'}`}>{getSolutionLabel(cell.solutionIndex)}</div>}
-              {isPrint ? <span className="font-bold text-lg"></span> : (isSelected && !revealAnswers ? <input ref={(el) => { inputRefs.current[y][x] = el; }} maxLength={1} className="w-full h-full text-center bg-transparent outline-none uppercase" value={cell.userChar} onChange={(e) => handleInput(x, y, e.target.value)} /> : <div className={`w-full h-full flex items-center justify-center uppercase ${revealAnswers ? 'text-green-600' : ''}`}>{displayChar}</div>)}
-            </div>
-          );
-      }))}
-    </div>
-  );
-
   return (
     <div className="flex flex-col items-center gap-8 w-full pb-20" onClick={handleGlobalClick}>
        
@@ -645,15 +579,7 @@ const CrosswordGrid: React.FC<CrosswordGridProps> = ({ data, onComplete, onEdit,
             <button onClick={() => setShowGraphicsModal(true)} className="bg-white px-3 py-2 rounded-full shadow border text-sm flex items-center gap-2 font-bold hover:bg-pink-50 text-pink-600 active:scale-95 border-pink-200"><Palette size={16} /> Grafica</button>
             {isMultiItemFormat && (
                 <div className="flex bg-gray-100 rounded-full p-1 border border-gray-300">
-                    <input 
-                        type="file" 
-                        ref={folderInputRef}
-                        // @ts-ignore
-                        webkitdirectory="" directory="" multiple 
-                        accept="image/png, image/jpeg, image/jpg, image/webp"
-                        className="hidden" 
-                        onChange={handleFolderUpload} 
-                    />
+                    <input type="file" ref={folderInputRef} accept="image/*" multiple className="hidden" onChange={handleFolderUpload} />
                     <input type="file" ref={albumUploadRef} className="hidden" accept=".json" onChange={handleAlbumLoad} />
 
                     <div className="flex items-center gap-1 mr-2 px-2 border-r border-gray-300">
@@ -743,6 +669,10 @@ const CrosswordGrid: React.FC<CrosswordGridProps> = ({ data, onComplete, onEdit,
                         </div>
                         <button onClick={() => handleGraphicChange('watermark', null)} className={`w-full py-2 rounded-lg font-bold border flex items-center justify-center gap-2 ${data.hasWatermark ? 'bg-blue-50 border-blue-300 text-blue-600' : 'bg-white border-gray-300 text-gray-500'}`}>Filigrana: {data.hasWatermark ? 'SI' : 'NO'}</button>
                     </div>
+                    {/* Pulsante Cornice per i formati massivi (tranne tags) */}
+                    {isMultiItemFormat && data.format !== 'tags' && (
+                        <button onClick={() => setShowBorders(!showBorders)} className={`w-full mt-2 py-2 rounded-lg font-bold border flex items-center justify-center gap-2 ${showBorders ? 'bg-blue-50 border-blue-300 text-blue-600' : 'bg-white border-gray-300 text-gray-500'}`}>{showBorders ? <CheckCircle2 size={16}/> : <div className="w-4 h-4 rounded-full border border-gray-400"/>} Cornice Decorativa</button>
+                    )}
                     <button onClick={() => setShowGraphicsModal(false)} className="w-full mt-4 py-2 bg-gray-800 text-white rounded-lg font-bold">Chiudi</button>
                </div>
            </div>
@@ -800,7 +730,7 @@ const CrosswordGrid: React.FC<CrosswordGridProps> = ({ data, onComplete, onEdit,
                </div>
                <div className="p-6 border-t bg-white shrink-0">
                     <div className="flex flex-col md:flex-row gap-4 items-center justify-between">
-                         {data.format !== 'tags' && <button onClick={() => setShowBorders(!showBorders)} className={`w-full md:w-auto px-6 py-3 rounded-xl border-2 flex items-center justify-center gap-3 font-bold transition-all ${showBorders ? 'border-blue-500 bg-blue-50 text-blue-700' : 'border-gray-200 text-gray-500 hover:bg-gray-50'}`}>{showBorders ? <CheckCircle2 size={20} className="text-blue-600"/> : <div className="w-5 h-5 rounded-full border-2 border-gray-300"/>} Cornice Decorativa</button>}
+                         {!isMultiItemFormat && <button onClick={() => setShowBorders(!showBorders)} className={`w-full md:w-auto px-6 py-3 rounded-xl border-2 flex items-center justify-center gap-3 font-bold transition-all ${showBorders ? 'border-blue-500 bg-blue-50 text-blue-700' : 'border-gray-200 text-gray-500 hover:bg-gray-50'}`}>{showBorders ? <CheckCircle2 size={20} className="text-blue-600"/> : <div className="w-5 h-5 rounded-full border-2 border-gray-300"/>} Cornice Decorativa</button>}
                          
                          <div className="flex gap-3 w-full justify-end">
                             <button onClick={() => setShowPrintModal(false)} className="px-6 py-3 rounded-xl font-bold text-gray-500 hover:bg-gray-100 transition-colors">Annulla</button>
@@ -818,7 +748,7 @@ const CrosswordGrid: React.FC<CrosswordGridProps> = ({ data, onComplete, onEdit,
        )}
        
        <div className="w-full max-w-5xl px-4 md:px-0">
-            <h3 className="text-center text-white font-bold uppercase tracking-widest mb-4 flex items-center justify-center gap-2 drop-shadow-md"><Edit size={20}/> EDITOR {data.format === 'tags' ? '(Anteprima Singolo Bigliettino)' : data.format === 'a6_2x' ? '(Anteprima Singolo Biglietto)' : 'BIGLIETTO'}</h3>
+            <h3 className="text-center text-white font-bold uppercase tracking-widest mb-4 flex items-center justify-center gap-2 drop-shadow-md"><Edit size={20}/> EDITOR {data.format === 'tags' ? '(Anteprima Singolo Bigliettino)' : isMultiItemFormat ? '(Anteprima Singolo Biglietto)' : 'BIGLIETTO'}</h3>
             
             {isMultiItemFormat && (
                 <div className="flex flex-col items-center gap-2 mb-4">
@@ -892,7 +822,7 @@ const CrosswordGrid: React.FC<CrosswordGridProps> = ({ data, onComplete, onEdit,
                                             );
                                         })
                                     ) : (
-                                        // MINI 2X PREVIEW (STACKED VERTICALLY)
+                                        // MINI 2X & SQUARE PREVIEW (STACKED VERTICALLY)
                                         <div style={{width: '794px', height: '1123px', display: 'flex', flexDirection: 'column'}}>
                                             {Array(2).fill(null).map((_, i) => {
                                                 const globalIndex = (currentSheetPage * 2) + i;
