@@ -49,8 +49,10 @@ interface PrintTemplatesProps {
     // State logici
     printRenderKey: number;
     currentSheetPage: number;
-    tagVariations: Array<{img: string, title: string}>;
+    // NUOVI PROPS FONDAMENTALI PER I DATI GREZZI
+    allTagImages: string[];
     tagMessages: string[];
+    // ---
     showBorders: boolean;
     isCrossword: boolean;
     photos: string[];
@@ -63,7 +65,8 @@ export const PrintTemplates = forwardRef<HTMLDivElement, PrintTemplatesProps>((p
     const {
         data, themeAssets, formatConfig, grid,
         wmSheet1, wmSheet2, imgSheet2, txtSheet2, stickerGroup, customTexts,
-        printRenderKey, currentSheetPage, tagVariations, tagMessages,
+        printRenderKey, currentSheetPage, 
+        allTagImages, tagMessages, // Uso diretto degli array completi
         showBorders, isCrossword, photos, currentYear, editableMessage, pdfScaleFactor
     } = props;
 
@@ -114,7 +117,6 @@ export const PrintTemplates = forwardRef<HTMLDivElement, PrintTemplatesProps>((p
     );
 
     // --- HELPER RENDER PER MINI 2x / STANDARD ---
-    // overrideImage: usato per passare l'immagine specifica nel loop massivo
     const renderStandardSheet1 = (overrideImage?: string) => (
         <div style={{ width: '1123px', height: '794px', display: 'flex', position: 'relative', backgroundColor: 'white', overflow: 'hidden', boxSizing: 'border-box', padding: '25px' }}>
             {data.hasWatermark && (
@@ -126,7 +128,6 @@ export const PrintTemplates = forwardRef<HTMLDivElement, PrintTemplatesProps>((p
             </div>
             
             <div style={{ width: '49%', marginLeft: '1%', height: '100%', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', textAlign: 'center', position: 'relative', zIndex: 10, boxSizing: 'border-box', borderLeft: 'none', border: showBorders ? themeAssets.pdfBorder : 'none' }}>
-                {/* LOGICA IMMAGINE: Priorità a overrideImage (dal loop massivo) */}
                 {overrideImage ? (
                     <div style={{ width: '100%', height: '100%', padding: '40px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
                         <img src={overrideImage} style={{ maxWidth: '100%', maxHeight: '100%', objectFit: 'contain' }} />
@@ -140,7 +141,6 @@ export const PrintTemplates = forwardRef<HTMLDivElement, PrintTemplatesProps>((p
         </div>
     );
 
-    // overrideMessage: usato per passare il messaggio specifico nel loop massivo
     const renderStandardSheet2 = (overrideMessage?: string) => (
         <div style={{ width: '1123px', height: '794px', display: 'flex', position: 'relative', backgroundColor: 'white', overflow: 'hidden', boxSizing: 'border-box', padding: '25px' }}>
             {data.hasWatermark && (
@@ -153,7 +153,7 @@ export const PrintTemplates = forwardRef<HTMLDivElement, PrintTemplatesProps>((p
                         <h1 className={themeAssets.fontTitle} style={{ fontSize: '40px', marginBottom: '5px', lineHeight: 1.2 }}>{data.title}</h1>
                         <p style={{ fontSize: '14px', textTransform: 'uppercase', color: '#666', letterSpacing: '2px' }}>{data.eventDate || "Data Speciale"} • {currentYear}</p>
                     </div>
-                    {/* Nel Mini 2x, le foto interne NON sono variabili per ora */}
+                    
                     <div style={{ flex: '1 1 auto', display: 'flex', alignItems: 'center', justifyContent: 'center', width: '100%', overflow: 'hidden', minHeight: 0, margin: '10px 0', position: 'relative' }}>
                         <div style={{ width: '100%', height: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', transform: `translate(${imgSheet2.x * pdfScaleFactor}px, ${imgSheet2.y * pdfScaleFactor}px) scale(${imgSheet2.scale})` }}>
                             {photos.length === 1 ? (
@@ -167,7 +167,6 @@ export const PrintTemplates = forwardRef<HTMLDivElement, PrintTemplatesProps>((p
                     </div>
                     <div style={{ flexShrink: 0, width: '100%', position: 'relative', minHeight: '50px' }}>
                         <div style={{ transform: `translate(${txtSheet2.x * pdfScaleFactor}px, ${txtSheet2.y * pdfScaleFactor}px) scale(${txtSheet2.scale})` }}>
-                            {/* MESSAGGIO: Usa override se presente */}
                             <p className={themeAssets.fontTitle} style={{ fontSize: '24px', lineHeight: 1.5 }}>"{overrideMessage || editableMessage}"</p>
                         </div>
                     </div>
@@ -215,14 +214,18 @@ export const PrintTemplates = forwardRef<HTMLDivElement, PrintTemplatesProps>((p
             {/* SHEET 1: COPERTINE ESTERNE */}
             <div id="pdf-sheet-1" style={{ width: '794px', height: '1123px', display: 'flex', flexDirection: 'column', backgroundColor: 'white', boxSizing: 'border-box' }}>
                 {Array(2).fill(null).map((_, i) => {
-                    // FIX INDICI: Usa l'array variations LOCALE alla pagina.
-                    const v = tagVariations[i]; 
-                    const overrideImg = v ? v.img : undefined;
-
+                    // CALCOLO DEGLI INDICI ASSOLUTI
+                    const itemsPerPage = 2;
+                    const globalIndex = (currentSheetPage * itemsPerPage) + i;
+                    
+                    // Recupero immagine e titolo (se esistono nell'array globale)
+                    // NOTA: allTagImages contiene tutte le foto caricate
+                    const img = allTagImages[globalIndex];
+                    
                     return (
                         <div key={i} style={{ height: '50%', width: '100%', borderBottom: i === 0 ? '1px dashed #ccc' : 'none', position: 'relative', overflow: 'hidden', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
                             <div style={{ width: '1123px', height: '794px', transform: 'scale(0.707)', transformOrigin: 'center center' }}>
-                                {renderStandardSheet1(overrideImg)}
+                                {renderStandardSheet1(img)}
                             </div>
                         </div>
                     );
@@ -232,8 +235,10 @@ export const PrintTemplates = forwardRef<HTMLDivElement, PrintTemplatesProps>((p
             {/* SHEET 2: INTERNI */}
             <div id="pdf-sheet-2" style={{ width: '794px', height: '1123px', display: 'flex', flexDirection: 'column', backgroundColor: 'white', boxSizing: 'border-box' }}>
                 {Array(2).fill(null).map((_, i) => {
-                    // FIX INDICI: Per i messaggi invece usiamo l'indice globale perché i messaggi non vengono rigenerati
-                    const globalIndex = (currentSheetPage * 2) + i;
+                    const itemsPerPage = 2;
+                    const globalIndex = (currentSheetPage * itemsPerPage) + i;
+                    
+                    // Recupero messaggio corrispondente
                     const msg = tagMessages[globalIndex] || "";
                     
                     return (
@@ -255,8 +260,17 @@ export const PrintTemplates = forwardRef<HTMLDivElement, PrintTemplatesProps>((p
                 <div key={`${printRenderKey}-${currentSheetPage}`}>
                     <div id="pdf-sheet-1" style={{ width: '794px', height: '1123px', display: 'flex', flexWrap: 'wrap', alignContent: 'flex-start', padding: '0', margin: '0', backgroundColor: 'white', boxSizing: 'border-box' }}>
                         {Array(8).fill(null).map((_, i) => {
-                             const v = tagVariations[i];
-                             if (!v) return <div key={i} style={{ width: '397px', height: '280px' }}></div>;
+                             // TAGS: Logica specifica (8x)
+                             const itemsPerPage = 8;
+                             const globalIndex = (currentSheetPage * itemsPerPage) + i;
+                             const img = allTagImages[globalIndex];
+                             const msg = tagMessages[globalIndex] || "";
+                             const title = data.theme === 'christmas' ? ((globalIndex % itemsPerPage) < (itemsPerPage/2) ? "Buon Natale" : "Buone Feste") : (data.title || "Auguri");
+
+                             if (globalIndex >= allTagImages.length && !img) return <div key={i} style={{ width: '397px', height: '280px' }}></div>;
+                             
+                             const displayDate = data.theme === 'christmas' ? `SS. Natale ${currentYear}` : (data.eventDate || currentYear.toString());
+
                              return (
                             <div key={i} style={{ width: '397px', height: '280px', boxSizing: 'border-box', padding: '10px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
                                 <div style={{ width: '100%', height: '100%', display: 'flex', overflow: 'hidden', border: '1px dashed #e5e7eb' }}>
@@ -270,8 +284,8 @@ export const PrintTemplates = forwardRef<HTMLDivElement, PrintTemplatesProps>((p
                                          )}
                                      </div>
                                      <div style={{ width: '50%', height: '100%', position: 'relative', overflow: 'hidden', backgroundColor: '#f3f4f6' }}>
-                                          {v.img ? (
-                                              <img src={v.img} crossOrigin="anonymous" loading="eager" style={{ width: '100%', height: '100%', objectFit: 'cover' }} onError={(e) => { e.currentTarget.style.display = 'none'; if(e.currentTarget.parentElement) e.currentTarget.parentElement.style.backgroundColor = '#e5e7eb'; }} />
+                                          {img ? (
+                                              <img src={img} crossOrigin="anonymous" loading="eager" style={{ width: '100%', height: '100%', objectFit: 'cover' }} onError={(e) => { e.currentTarget.style.display = 'none'; if(e.currentTarget.parentElement) e.currentTarget.parentElement.style.backgroundColor = '#e5e7eb'; }} />
                                           ) : <div style={{width:'100%', height:'100%', background: '#eee'}}></div>}
                                      </div>
                                 </div>
@@ -281,12 +295,16 @@ export const PrintTemplates = forwardRef<HTMLDivElement, PrintTemplatesProps>((p
 
                     <div id="pdf-sheet-2" style={{ width: '794px', height: '1123px', display: 'flex', flexWrap: 'wrap', alignContent: 'flex-start', padding: '0', margin: '0', backgroundColor: 'white', boxSizing: 'border-box' }}>
                         {Array(8).fill(null).map((_, i) => {
+                            // SWAP COLUMNS LOGIC for Duplex Printing (Long Edge)
                             const dataIndex = i % 2 === 0 ? i + 1 : i - 1;
-                            const v = tagVariations[dataIndex];
-                            const globalIndex = (currentSheetPage * 8) + dataIndex;
-                            const msg = tagMessages[globalIndex] || tagMessages[dataIndex] || "";
+                            const itemsPerPage = 8;
+                            const globalIndex = (currentSheetPage * itemsPerPage) + dataIndex;
+                            const img = allTagImages[globalIndex];
+                            const msg = tagMessages[globalIndex] || "";
+                            const title = data.theme === 'christmas' ? ((globalIndex % itemsPerPage) < (itemsPerPage/2) ? "Buon Natale" : "Buone Feste") : (data.title || "Auguri");
 
-                            if (!v) return <div key={i} style={{ width: '397px', height: '280px' }}></div>;
+                            if (globalIndex >= allTagImages.length && !img) return <div key={i} style={{ width: '397px', height: '280px' }}></div>;
+                            
                             const displayDate = data.theme === 'christmas' ? `SS. Natale ${currentYear}` : (data.eventDate || currentYear.toString());
 
                             return (
@@ -297,7 +315,7 @@ export const PrintTemplates = forwardRef<HTMLDivElement, PrintTemplatesProps>((p
                                         </div>
                                         <div style={{ width: '50%', height: '100%', padding: '5px', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'start', textAlign: 'center', boxSizing: 'border-box' }}>
                                             <div style={{ fontSize: '8px', textTransform: 'uppercase', color: '#9ca3af', fontWeight: 'bold', marginBottom: '5px' }}>{displayDate}</div>
-                                            <div className={themeAssets.fontTitle} style={{ fontSize: '16px', color: '#1f2937', lineHeight: '1', marginBottom: '5px' }}>{v.title}</div>
+                                            <div className={themeAssets.fontTitle} style={{ fontSize: '16px', color: '#1f2937', lineHeight: '1', marginBottom: '5px' }}>{title}</div>
                                             <div style={{ fontSize: '9px', fontStyle: 'italic', color: '#4b5563', whiteSpace: 'pre-wrap', wordBreak: 'break-word', width: '100%' }}>{msg}</div>
                                         </div>
                                     </div>
@@ -307,7 +325,7 @@ export const PrintTemplates = forwardRef<HTMLDivElement, PrintTemplatesProps>((p
                     </div>
                 </div>
             ) : (data.format === 'a6_2x' || data.format === 'square') ? (
-                // MINI A6 LAYOUT OR SQUARE (2 su A4) - ORA CENTRATI PERFETTAMENTE
+                // MINI A6 LAYOUT OR SQUARE (2 su A4)
                 renderMini2x()
             ) : (
                 // STANDARD CARD LAYOUT (A4/A3)
