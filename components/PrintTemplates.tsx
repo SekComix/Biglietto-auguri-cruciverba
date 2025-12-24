@@ -113,8 +113,8 @@ export const PrintTemplates = forwardRef<HTMLDivElement, PrintTemplatesProps>((p
         </div>
     );
 
-    // --- HELPER RENDER PER MINI 2x ---
-    // Questi helper accettano "override" per immagini e messaggi, per supportare la generazione seriale
+    // --- HELPER RENDER PER MINI 2x / STANDARD ---
+    // overrideImage: usato per passare l'immagine specifica nel loop massivo
     const renderStandardSheet1 = (overrideImage?: string) => (
         <div style={{ width: '1123px', height: '794px', display: 'flex', position: 'relative', backgroundColor: 'white', overflow: 'hidden', boxSizing: 'border-box', padding: '25px' }}>
             {data.hasWatermark && (
@@ -126,16 +126,21 @@ export const PrintTemplates = forwardRef<HTMLDivElement, PrintTemplatesProps>((p
             </div>
             
             <div style={{ width: '49%', marginLeft: '1%', height: '100%', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', textAlign: 'center', position: 'relative', zIndex: 10, boxSizing: 'border-box', borderLeft: 'none', border: showBorders ? themeAssets.pdfBorder : 'none' }}>
-                {/* Usa overrideImage (dalla cartella random) se c'è, altrimenti usa extraImage (copertina manuale) */}
-                {overrideImage || data.images?.extraImage ? (
+                {/* LOGICA IMMAGINE: Se c'è override (dal loop) usa quello, altrimenti extraImage, altrimenti placeholder */}
+                {overrideImage ? (
                     <div style={{ width: '100%', height: '100%', padding: '40px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                        <img src={overrideImage || data.images?.extraImage} style={{ maxWidth: '100%', maxHeight: '100%', objectFit: 'contain' }} />
+                        <img src={overrideImage} style={{ maxWidth: '100%', maxHeight: '100%', objectFit: 'contain' }} />
+                    </div>
+                ) : data.images?.extraImage ? (
+                     <div style={{ width: '100%', height: '100%', padding: '40px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                        <img src={data.images.extraImage} style={{ maxWidth: '100%', maxHeight: '100%', objectFit: 'contain' }} />
                     </div>
                 ) : <div style={{ fontSize: '120px', opacity: 0.8 }}>{themeAssets.decoration}</div>}
             </div>
         </div>
     );
 
+    // overrideMessage: usato per passare il messaggio specifico nel loop massivo
     const renderStandardSheet2 = (overrideMessage?: string) => (
         <div style={{ width: '1123px', height: '794px', display: 'flex', position: 'relative', backgroundColor: 'white', overflow: 'hidden', boxSizing: 'border-box', padding: '25px' }}>
             {data.hasWatermark && (
@@ -148,7 +153,7 @@ export const PrintTemplates = forwardRef<HTMLDivElement, PrintTemplatesProps>((p
                         <h1 className={themeAssets.fontTitle} style={{ fontSize: '40px', marginBottom: '5px', lineHeight: 1.2 }}>{data.title}</h1>
                         <p style={{ fontSize: '14px', textTransform: 'uppercase', color: '#666', letterSpacing: '2px' }}>{data.eventDate || "Data Speciale"} • {currentYear}</p>
                     </div>
-                    {/* Nel Mini 2x, le foto interne NON sono variabili per ora, usiamo quelle fisse se presenti, o vuoto */}
+                    {/* Nel Mini 2x, le foto interne NON sono variabili per ora */}
                     <div style={{ flex: '1 1 auto', display: 'flex', alignItems: 'center', justifyContent: 'center', width: '100%', overflow: 'hidden', minHeight: 0, margin: '10px 0', position: 'relative' }}>
                         <div style={{ width: '100%', height: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', transform: `translate(${imgSheet2.x * pdfScaleFactor}px, ${imgSheet2.y * pdfScaleFactor}px) scale(${imgSheet2.scale})` }}>
                             {photos.length === 1 ? (
@@ -209,9 +214,14 @@ export const PrintTemplates = forwardRef<HTMLDivElement, PrintTemplatesProps>((p
             {/* SHEET 1: COPERTINE ESTERNE (Fronte/Retro) */}
             <div id="pdf-sheet-1" style={{ width: '794px', height: '1123px', display: 'flex', flexDirection: 'column', backgroundColor: 'white', boxSizing: 'border-box' }}>
                 {Array(2).fill(null).map((_, i) => {
-                    // Calcolo indici per pesca dati seriale
                     const globalIndex = (currentSheetPage * 2) + i;
-                    const v = tagVariations[globalIndex]; // Immagine Copertina
+                    
+                    // FIX: Qui usiamo 'i' per l'immagine perché tagVariations è rigenerato per pagina
+                    const v = tagVariations[i]; 
+                    
+                    // FIX: Qui usiamo 'globalIndex' per i messaggi perché tagMessages è l'array completo
+                    const msg = tagMessages[globalIndex] || ""; 
+                    
                     const overrideImg = v ? v.img : undefined;
 
                     return (
@@ -228,7 +238,8 @@ export const PrintTemplates = forwardRef<HTMLDivElement, PrintTemplatesProps>((p
             <div id="pdf-sheet-2" style={{ width: '794px', height: '1123px', display: 'flex', flexDirection: 'column', backgroundColor: 'white', boxSizing: 'border-box' }}>
                 {Array(2).fill(null).map((_, i) => {
                     const globalIndex = (currentSheetPage * 2) + i;
-                    const msg = tagMessages[globalIndex]; // Messaggio Dedica
+                    // FIX: Anche qui 'globalIndex' per il messaggio
+                    const msg = tagMessages[globalIndex] || "";
                     
                     return (
                         <div key={i} style={{ height: '50%', width: '100%', borderBottom: i === 0 ? '1px dashed #ccc' : 'none', position: 'relative', overflow: 'hidden', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
@@ -302,7 +313,7 @@ export const PrintTemplates = forwardRef<HTMLDivElement, PrintTemplatesProps>((p
                     </div>
                 </div>
             ) : (data.format === 'a6_2x' || data.format === 'square') ? (
-                // MINI A6 LAYOUT OR SQUARE (2 su A4)
+                // MINI A6 LAYOUT OR SQUARE (2 su A4) - ORA CENTRATI PERFETTAMENTE
                 renderMini2x()
             ) : (
                 // STANDARD CARD LAYOUT (A4/A3)
