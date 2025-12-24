@@ -138,57 +138,72 @@ const CrosswordGrid: React.FC<CrosswordGridProps> = ({ data, onComplete, onEdit,
   const editorRef = useRef<HTMLDivElement>(null);
 
   const themeAssets = THEME_ASSETS[data.theme] || THEME_ASSETS.generic;
-  const isCrossword = data.type === 'crossword' && data.format !== 'square' && data.format !== 'tags';
+  const isCrossword = data.type === 'crossword' && data.format !== 'tags';
   const photos = data.images?.photos || [];
   const currentYear = new Date().getFullYear();
   const formatConfig = FORMAT_CONFIG[data.format || 'a4'];
 
   const isMultiItemFormat = data.format === 'tags' || data.format === 'a6_2x' || data.format === 'square';
-  const itemsPerPage = data.format === 'tags' ? 8 : 2; // Square e Mini2x sono entrambi 2
+  const itemsPerPage = data.format === 'tags' ? 8 : 2; 
   const totalPages = Math.ceil(Math.max(allTagImages.length, itemsPerPage) / itemsPerPage);
 
+  // RESET DATI AL CAMBIO FORMATO
   useEffect(() => {
       const hasThemeChanged = prevDataRef.current.theme !== data.theme;
       const hasFormatChanged = prevDataRef.current.format !== data.format;
+      
       if (hasThemeChanged || hasFormatChanged) {
-          setAllTagImages([]);
+          // Se cambiamo formato, resettiamo la modalità "massiva" ma teniamo l'immagine di copertina
+          // come "seme" per l'array se siamo in manuale
+          setAllTagImages([]); 
           setCurrentSheetPage(0);
           setTagMessages([]);
           prevDataRef.current = data;
       }
-      if (isMultiItemFormat && allTagImages.length === 0) {
-           setAllTagImages(Array(itemsPerPage).fill(""));
-      }
   }, [data.format, data.theme, isMultiItemFormat, itemsPerPage]);
 
-  // LOGICA MESSAGGI E IMMAGINI
+  // LOGICA GENERAZIONE VARIANTI (IMMAGINI E MESSAGGI)
   useEffect(() => {
+      // Se NON siamo in massivo (quindi siamo Mini 2x MANUALE)
+      // Dobbiamo assicurarci che tagVariations e tagMessages siano popolati con i dati "singoli" duplicati
       if (!isMultiItemFormat) {
           setViewMode('single');
           return;
       }
-      
-      // FIX: Se l'AI ha generato un messaggio (data.message) e i messaggi tag sono vuoti, usalo per tutti
-      if (data.message && data.message.length > 5 && tagMessages.length === 0) {
-           const initialMessages = Array(Math.max(allTagImages.length, 20)).fill(data.message);
-           setTagMessages(initialMessages);
-      } else if (allTagImages.length > 0 && tagMessages.length < allTagImages.length) {
-          // Riempimento random se mancano
+
+      // -- LOGICA MESSAGGI --
+      let currentMsgs = [...tagMessages];
+      // 1. Se c'è un messaggio AI fresco (data.message) e l'array è vuoto o diverso, aggiornalo
+      if (data.message && (currentMsgs.length === 0 || currentMsgs[0] !== data.message)) {
+          // Popola con il messaggio AI ripetuto
+          const count = Math.max(allTagImages.length, itemsPerPage * 5); 
+          currentMsgs = Array(count).fill(data.message);
+          setTagMessages(currentMsgs);
+      }
+      // 2. Fallback: Se non c'è messaggio AI, usa quelli random del DB
+      else if (currentMsgs.length < allTagImages.length) {
           const themeMessages = TAG_MESSAGES_DB[data.theme] || TAG_MESSAGES_DB.generic;
           let messagePool: string[] = [];
-          while (messagePool.length < allTagImages.length) {
+          while (messagePool.length < Math.max(allTagImages.length, itemsPerPage)) {
               messagePool = [...messagePool, ...shuffleArray(themeMessages)];
           }
-          const currentLength = tagMessages.length;
-          const needed = allTagImages.length - currentLength;
-          const existing = [...tagMessages];
-          const newPart = messagePool.slice(0, needed);
-          setTagMessages([...existing, ...newPart]);
+          currentMsgs = messagePool;
+          setTagMessages(currentMsgs);
+      }
+
+      // -- LOGICA IMMAGINI --
+      // Se allTagImages è vuoto (non hai caricato la cartella), usiamo l'immagine singola (manuale)
+      // ma dobbiamo "fingere" di avere un array per far funzionare la paginazione dell'editor
+      let displayImages = allTagImages;
+      if (displayImages.length === 0) {
+          // Creiamo un array fittizio di "placeholder" che useranno l'immagine manuale nel render
+          displayImages = Array(itemsPerPage).fill(data.images?.extraImage || ""); 
       }
       
       const startIdx = currentSheetPage * itemsPerPage;
-      // FIX: Assicura che l'array tagliato sia corretto anche per l'ultima pagina
-      const pageImages = allTagImages.slice(startIdx, startIdx + itemsPerPage);
+      const pageImages = displayImages.slice(startIdx, startIdx + itemsPerPage);
+      
+      // Riempi con vuoti se non bastano per finire la pagina
       while(pageImages.length < itemsPerPage) pageImages.push("");
 
       const newVars = pageImages.map((img, i) => {
@@ -199,10 +214,12 @@ const CrosswordGrid: React.FC<CrosswordGridProps> = ({ data, onComplete, onEdit,
           } else {
               title = data.title || "Auguri";
           }
-          return { img, title };
+          // Se img è vuota (perché siamo in manuale e non c'è extraImage), sarà undefined
+          return { img: img || data.images?.extraImage, title };
       });
       setTagVariations(newVars);
-  }, [allTagImages, currentSheetPage, data.format, data.theme, data.title, tagMessages.length, isMultiItemFormat, itemsPerPage, data.message]); 
+
+  }, [allTagImages, currentSheetPage, data.format, data.theme, data.title, tagMessages.length, isMultiItemFormat, itemsPerPage, data.message, data.images?.extraImage]); 
 
   useEffect(() => {
     if (editableMessage !== data.message) {
@@ -263,9 +280,16 @@ const CrosswordGrid: React.FC<CrosswordGridProps> = ({ data, onComplete, onEdit,
   const handleFolderUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
       const files = e.target.files;
       if (!files || files.length === 0) return;
+      
+      // LIMITAZIONE SICUREZZA: Max 40 foto (20 pagine) per evitare crash
+      if (files.length > 40) {
+          alert("Attenzione: Hai selezionato troppe foto. Ne verranno caricate solo le prime 40 per evitare blocchi.");
+      }
+      
       const imageFiles = Array.from(files)
         .filter(file => file.type.startsWith('image/'))
-        .sort((a, b) => a.name.localeCompare(b.name, undefined, { numeric: true, sensitivity: 'base' }));
+        .sort((a, b) => a.name.localeCompare(b.name, undefined, { numeric: true, sensitivity: 'base' }))
+        .slice(0, 40);
       
       if (imageFiles.length === 0) { 
           alert("Nessuna immagine trovata nella selezione."); 
@@ -284,14 +308,13 @@ const CrosswordGrid: React.FC<CrosswordGridProps> = ({ data, onComplete, onEdit,
           if (validImages.length === 0) return;
           
           setAllTagImages(validImages);
-          // Non cancelliamo i messaggi se ci sono già, li integriamo
-          if (tagMessages.length < validImages.length && data.message) {
-              const newMsgs = Array(validImages.length).fill(data.message);
-              setTagMessages(newMsgs);
-          }
+          
+          // Resetta messaggi per rigenerarli
+          setTagMessages([]); 
+          
           setCurrentSheetPage(0);
           
-          alert(`Caricamento completato! ${validImages.length} foto pronte per la creazione dei biglietti.`);
+          alert(`Caricamento completato! ${validImages.length} foto pronte.`);
       });
       e.target.value = ''; 
   };
@@ -306,6 +329,7 @@ const CrosswordGrid: React.FC<CrosswordGridProps> = ({ data, onComplete, onEdit,
                   const globalIndex = (currentSheetPage * itemsPerPage) + currentTagIndex;
                   setAllTagImages(prev => {
                       const clone = [...prev];
+                      // Espandi array se necessario (modalità manuale che diventa ibrida)
                       while(clone.length <= globalIndex) clone.push("");
                       clone[globalIndex] = result;
                       return clone;
@@ -323,7 +347,14 @@ const CrosswordGrid: React.FC<CrosswordGridProps> = ({ data, onComplete, onEdit,
 
   const handleConfirmPrint = () => {
       setShowInstructionModal(false);
-      setSheetsToPrint([currentSheetPage]);
+      
+      if (isMultiItemFormat && totalPages > 1) {
+          const allPages = Array.from({ length: totalPages }, (_, i) => i);
+          setSheetsToPrint(allPages);
+      } else {
+          setSheetsToPrint([currentSheetPage]);
+      }
+      
       setPrintRenderKey(p => p + 1); 
       setShowPrintModal(true);
   };
@@ -497,6 +528,23 @@ const CrosswordGrid: React.FC<CrosswordGridProps> = ({ data, onComplete, onEdit,
       );
   };
 
+  const renderGridCells = (isPrint = false) => (
+    <div className={`grid gap-[1px] bg-black/10 p-2 rounded-lg pointer-events-auto`} style={{ gridTemplateColumns: `repeat(${data.width}, minmax(0, 1fr))`, aspectRatio: `${data.width}/${data.height}`, width: '100%', maxHeight: '100%', margin: '0 auto' }}>
+      {grid.map((row, y) => row.map((cell, x) => {
+          const isSelected = !isPrint && selectedCell?.x === x && selectedCell?.y === y;
+          const displayChar = isPrint ? '' : (revealAnswers ? cell.char : cell.userChar); 
+          if (!cell.char) return <div key={`${x}-${y}`} className={`bg-black/5 rounded-sm`} />;
+          return (
+            <div key={`${x}-${y}-${revealAnswers}`} onClick={() => !isPrint && handleCellClick(x, y)} className={`relative flex items-center justify-center w-full h-full text-xl font-bold cursor-pointer rounded-sm`} style={{ backgroundColor: cell.isSolutionCell ? '#FEF08A' : (isSelected && !revealAnswers && !isPrint ? '#DBEAFE' : '#FFFFFF'), boxSizing: 'border-box' }}>
+              {cell.number && <span className={`absolute top-0 left-0 leading-none ${isPrint ? 'text-[8px] p-[1px] font-bold text-gray-500' : 'text-[9px] p-0.5 text-gray-500'}`}>{cell.number}</span>}
+              {cell.isSolutionCell && cell.solutionIndex !== undefined && <div className={`absolute bottom-0 right-0 leading-none font-bold text-gray-600 bg-white/60 rounded-tl-sm z-10 ${isPrint ? 'text-[8px] p-[1px]' : 'text-[9px] p-0.5'}`}>{getSolutionLabel(cell.solutionIndex)}</div>}
+              {isPrint ? <span className="font-bold text-lg"></span> : (isSelected && !revealAnswers ? <input ref={(el) => { inputRefs.current[y][x] = el; }} maxLength={1} className="w-full h-full text-center bg-transparent outline-none uppercase" value={cell.userChar} onChange={(e) => handleInput(x, y, e.target.value)} /> : <div className={`w-full h-full flex items-center justify-center uppercase ${revealAnswers ? 'text-green-600' : ''}`}>{displayChar}</div>)}
+            </div>
+          );
+      }))}
+    </div>
+  );
+
   const toggleSheetPrintSelection = (index: number) => {
       setSheetsToPrint(prev => {
           if (prev.includes(index)) return prev.filter(i => i !== index);
@@ -624,23 +672,6 @@ const CrosswordGrid: React.FC<CrosswordGridProps> = ({ data, onComplete, onEdit,
          }
      }
   };
-
-  const renderGridCells = (isPrint = false) => (
-    <div className={`grid gap-[1px] bg-black/10 p-2 rounded-lg pointer-events-auto`} style={{ gridTemplateColumns: `repeat(${data.width}, minmax(0, 1fr))`, aspectRatio: `${data.width}/${data.height}`, width: '100%', maxHeight: '100%', margin: '0 auto' }}>
-      {grid.map((row, y) => row.map((cell, x) => {
-          const isSelected = !isPrint && selectedCell?.x === x && selectedCell?.y === y;
-          const displayChar = isPrint ? '' : (revealAnswers ? cell.char : cell.userChar); 
-          if (!cell.char) return <div key={`${x}-${y}`} className={`bg-black/5 rounded-sm`} />;
-          return (
-            <div key={`${x}-${y}-${revealAnswers}`} onClick={() => !isPrint && handleCellClick(x, y)} className={`relative flex items-center justify-center w-full h-full text-xl font-bold cursor-pointer rounded-sm`} style={{ backgroundColor: cell.isSolutionCell ? '#FEF08A' : (isSelected && !revealAnswers && !isPrint ? '#DBEAFE' : '#FFFFFF'), boxSizing: 'border-box' }}>
-              {cell.number && <span className={`absolute top-0 left-0 leading-none ${isPrint ? 'text-[8px] p-[1px] font-bold text-gray-500' : 'text-[9px] p-0.5 text-gray-500'}`}>{cell.number}</span>}
-              {cell.isSolutionCell && cell.solutionIndex !== undefined && <div className={`absolute bottom-0 right-0 leading-none font-bold text-gray-600 bg-white/60 rounded-tl-sm z-10 ${isPrint ? 'text-[8px] p-[1px]' : 'text-[9px] p-0.5'}`}>{getSolutionLabel(cell.solutionIndex)}</div>}
-              {isPrint ? <span className="font-bold text-lg"></span> : (isSelected && !revealAnswers ? <input ref={(el) => { inputRefs.current[y][x] = el; }} maxLength={1} className="w-full h-full text-center bg-transparent outline-none uppercase" value={cell.userChar} onChange={(e) => handleInput(x, y, e.target.value)} /> : <div className={`w-full h-full flex items-center justify-center uppercase ${revealAnswers ? 'text-green-600' : ''}`}>{displayChar}</div>)}
-            </div>
-          );
-      }))}
-    </div>
-  );
 
   return (
     <div className="flex flex-col items-center gap-8 w-full pb-20" onClick={handleGlobalClick}>
