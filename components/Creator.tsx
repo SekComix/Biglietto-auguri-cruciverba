@@ -115,6 +115,9 @@ export const Creator: React.FC<CreatorProps> = ({ onCreated, initialData }) => {
   const nameInputRef = useRef<HTMLInputElement>(null);
   const topicInputRef = useRef<HTMLTextAreaElement>(null);
 
+  // Helper per verificare se il formato corrente permette generazione massiva (no input obbligatori)
+  const isMassFormat = format === 'tags' || format === 'a6_2x';
+
   useEffect(() => {
     if (initialData) {
         setSelectedActivity(initialData.type); 
@@ -180,8 +183,8 @@ export const Creator: React.FC<CreatorProps> = ({ onCreated, initialData }) => {
 
   const handleFormatChange = (newFormat: CardFormat) => {
       setFormat(newFormat);
-      // Se si sceglie Quadrato o Bigliettini, si disabilita il cruciverba
-      if (newFormat === 'square' || newFormat === 'tags') {
+      // Se si sceglie Quadrato, Bigliettini o Mini 2x, si disabilita il cruciverba
+      if (newFormat === 'square' || newFormat === 'tags' || newFormat === 'a6_2x') {
           setSelectedActivity('simple');
       }
   };
@@ -189,7 +192,7 @@ export const Creator: React.FC<CreatorProps> = ({ onCreated, initialData }) => {
   const handleActivityChange = (activityId: string) => {
       setSelectedActivity(activityId);
       // Se si sceglie Cruciverba ma si è in formato non compatibile, passa ad A4
-      if (activityId === 'crossword' && (format === 'square' || format === 'tags')) {
+      if (activityId === 'crossword' && (format === 'square' || format === 'tags' || format === 'a6_2x')) {
           setFormat('a4');
       }
   };
@@ -293,8 +296,8 @@ export const Creator: React.FC<CreatorProps> = ({ onCreated, initialData }) => {
   };
 
   const handleGenerateSuggestions = async () => {
-      // Name is mandatory only if NOT in tags mode
-      if (format !== 'tags' && !recipientName) { 
+      // Name is mandatory only if NOT in mass format modes
+      if (!isMassFormat && !recipientName) { 
           setError("Inserisci prima il nome del festeggiato"); 
           setShowNameError(true);
           // Trigger browser validation popup
@@ -306,7 +309,7 @@ export const Creator: React.FC<CreatorProps> = ({ onCreated, initialData }) => {
       setSuggestedPhrases([]);
       try {
           const toneToUse = creationMode === 'freestyle' ? 'custom' : tone;
-          // For tags, allow empty prompt (will generate generic greetings)
+          // For tags/mass, allow empty prompt (will generate generic greetings)
           const promptToUse = creationMode === 'freestyle' ? topic : undefined;
           const effectiveRecipient = recipientName || "una persona speciale";
           
@@ -343,8 +346,8 @@ export const Creator: React.FC<CreatorProps> = ({ onCreated, initialData }) => {
              if (validWords.length < 2) throw new Error("Inserisci almeno 2 parole complete.");
              inputData = validWords;
           } else {
-             // For tags, manual input can be empty (we use default messages)
-             if (format !== 'tags' && !topic.trim()) {
+             // For mass formats, manual input can be empty (we use default messages)
+             if (!isMassFormat && !topic.trim()) {
                  setShowTopicError(true);
                  // Validation popup
                  topicInputRef.current?.focus();
@@ -353,8 +356,8 @@ export const Creator: React.FC<CreatorProps> = ({ onCreated, initialData }) => {
              }
           }
       } else if (creationMode === 'freestyle') {
-          // For tags, freestyle prompt can be empty (generates based on theme)
-          if (format !== 'tags' && !topic.trim()) {
+          // For mass formats, freestyle prompt can be empty (generates based on theme)
+          if (!isMassFormat && !topic.trim()) {
               setShowTopicError(true);
               topicInputRef.current?.focus();
               topicInputRef.current?.reportValidity();
@@ -370,8 +373,8 @@ export const Creator: React.FC<CreatorProps> = ({ onCreated, initialData }) => {
               topicInputRef.current?.reportValidity();
               throw new Error("Inserisci un argomento (es. Zio Mario).");
           }
-          // For tags, simple message topic can be empty
-          if (format !== 'tags' && finalContentType === 'simple' && !topic.trim()) {
+          // For mass formats, simple message topic can be empty
+          if (!isMassFormat && finalContentType === 'simple' && !topic.trim()) {
               setShowTopicError(true);
               topicInputRef.current?.focus();
               topicInputRef.current?.reportValidity();
@@ -379,8 +382,8 @@ export const Creator: React.FC<CreatorProps> = ({ onCreated, initialData }) => {
           }
       }
 
-      // Name validation only if NOT tags
-      if (format !== 'tags' && !recipientName.trim()) {
+      // Name validation only if NOT mass format
+      if (!isMassFormat && !recipientName.trim()) {
           setShowNameError(true);
           nameInputRef.current?.focus();
           nameInputRef.current?.reportValidity();
@@ -440,7 +443,7 @@ export const Creator: React.FC<CreatorProps> = ({ onCreated, initialData }) => {
   const ActivitySelector = () => (
     <div className="grid grid-cols-2 gap-3 mb-4">
         {ACTIVITY_MODULES.map(act => {
-            const isDisabled = act.id === 'crossword' && (format === 'square' || format === 'tags');
+            const isDisabled = act.id === 'crossword' && (format === 'square' || isMassFormat);
             return (
             <button
                 key={act.id}
@@ -541,16 +544,16 @@ export const Creator: React.FC<CreatorProps> = ({ onCreated, initialData }) => {
             </div>
 
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div className={format === 'tags' ? 'opacity-70' : ''}>
+                <div className={isMassFormat ? 'opacity-70' : ''}>
                     <label className={`block text-xs font-bold mb-2 uppercase ${showNameError ? 'text-red-500' : 'text-gray-400'}`}>
-                        Per chi è? {format !== 'tags' ? '*' : '(Opzionale)'}
+                        Per chi è? {isMassFormat ? '(Opzionale)' : '*'}
                     </label>
                     <input 
                         ref={nameInputRef} 
-                        required={format !== 'tags'} 
+                        required={!isMassFormat} 
                         type="text" 
-                        placeholder={format === 'tags' ? "Lascia vuoto per biglietto generico" : "Nome"} 
-                        className={`w-full p-3 border-2 rounded-xl font-bold outline-none transition-colors ${showNameError ? 'border-red-500 bg-red-50 animate-pulse' : (!recipientName && error && format !== 'tags' ? 'border-red-400 bg-red-50' : 'border-gray-200 focus:border-blue-400')}`} 
+                        placeholder={isMassFormat ? "Lascia vuoto per biglietto generico" : "Nome"} 
+                        className={`w-full p-3 border-2 rounded-xl font-bold outline-none transition-colors ${showNameError ? 'border-red-500 bg-red-50 animate-pulse' : (!recipientName && error && !isMassFormat ? 'border-red-400 bg-red-50' : 'border-gray-200 focus:border-blue-400')}`} 
                         value={recipientName} 
                         onChange={(e) => setRecipientName(e.target.value)} 
                     />
@@ -596,17 +599,17 @@ export const Creator: React.FC<CreatorProps> = ({ onCreated, initialData }) => {
                         <label className={`block text-xs font-bold mb-2 uppercase ${showTopicError ? 'text-red-500' : 'text-gray-400'}`}>
                             {selectedActivity === 'crossword' 
                                 ? "Argomento del Cruciverba * (es. Calcio, Cucina):" 
-                                : `Messaggio o Istruzioni ${format !== 'tags' ? '*' : '(Opzionale)'}:`
+                                : `Messaggio o Istruzioni ${!isMassFormat ? '*' : '(Opzionale)'}:`
                             }
                         </label>
                         <textarea
                             ref={topicInputRef}
                             required={selectedActivity === 'crossword'}
                             rows={3}
-                            className={`w-full p-3 border rounded-xl focus:ring-2 outline-none resize-none bg-white transition-all ${showTopicError ? 'border-red-500 ring-2 ring-red-200' : (!topic && error && format !== 'tags' ? 'border-red-400 bg-red-50' : 'border-gray-200 focus:ring-blue-500')}`}
+                            className={`w-full p-3 border rounded-xl focus:ring-2 outline-none resize-none bg-white transition-all ${showTopicError ? 'border-red-500 ring-2 ring-red-200' : (!topic && error && !isMassFormat ? 'border-red-400 bg-red-50' : 'border-gray-200 focus:ring-blue-500')}`}
                             placeholder={selectedActivity === 'crossword' 
                                 ? "Es: Zio Mario, ama il calcio, la pizza e dormire..." 
-                                : format === 'tags' 
+                                : isMassFormat 
                                     ? "Lascia vuoto per frasi a sorpresa..." 
                                     : "Es: Auguri per i 50 anni, ringrazia per la festa..."
                             }
@@ -639,7 +642,7 @@ export const Creator: React.FC<CreatorProps> = ({ onCreated, initialData }) => {
                         <label className="text-sm font-bold text-purple-900">Istruzioni Libere (Prompt)</label>
                     </div>
                     <p className="text-xs text-purple-700 mb-3">Scrivi qui esattamente cosa vuoi che faccia l'IA.</p>
-                    <textarea ref={topicInputRef} required={format !== 'tags'} rows={5} className={`w-full p-4 border-2 bg-white rounded-xl outline-none resize-none text-purple-900 placeholder-purple-300 font-medium ${showTopicError ? 'border-red-500 ring-2 ring-red-200' : (!topic && error && format !== 'tags' ? 'border-red-400 bg-red-50' : 'border-purple-200 focus:ring-2 focus:ring-purple-400')}`} placeholder={format === 'tags' ? "Lascia vuoto per default o scrivi un prompt..." : "Es: Crea un cruciverba per Mario..."} value={topic} onChange={(e) => setTopic(e.target.value)}/>
+                    <textarea ref={topicInputRef} required={!isMassFormat} rows={5} className={`w-full p-4 border-2 bg-white rounded-xl outline-none resize-none text-purple-900 placeholder-purple-300 font-medium ${showTopicError ? 'border-red-500 ring-2 ring-red-200' : (!topic && error && !isMassFormat ? 'border-red-400 bg-red-50' : 'border-purple-200 focus:ring-2 focus:ring-purple-400')}`} placeholder={isMassFormat ? "Lascia vuoto per default o scrivi un prompt..." : "Es: Crea un cruciverba per Mario..."} value={topic} onChange={(e) => setTopic(e.target.value)}/>
                     {showTopicError && <p className="text-[10px] text-red-500 font-bold mt-1 text-right">Compila questo campo per generare</p>}
                 </div>
             )}
@@ -665,7 +668,7 @@ export const Creator: React.FC<CreatorProps> = ({ onCreated, initialData }) => {
                     ) : (
                         <div>
                             <label className="block text-xs font-bold text-orange-400 mb-2 uppercase">Scrivi il tuo messaggio:</label>
-                            <textarea ref={topicInputRef} required={format !== 'tags'} rows={4} className={`w-full p-3 border rounded-xl outline-none resize-none bg-white ${showTopicError ? 'border-red-500 ring-2 ring-red-200' : (!topic && error && format !== 'tags' ? 'border-red-400 bg-red-50' : 'border-orange-200 focus:ring-2 focus:ring-orange-500')}`} placeholder={format === 'tags' ? "Lascia vuoto per default..." : "Scrivi qui i tuoi auguri..."} value={topic} onChange={(e) => setTopic(e.target.value)}/>
+                            <textarea ref={topicInputRef} required={!isMassFormat} rows={4} className={`w-full p-3 border rounded-xl outline-none resize-none bg-white ${showTopicError ? 'border-red-500 ring-2 ring-red-200' : (!topic && error && !isMassFormat ? 'border-red-400 bg-red-50' : 'border-orange-200 focus:ring-2 focus:ring-orange-500')}`} placeholder={isMassFormat ? "Lascia vuoto per default..." : "Scrivi qui i tuoi auguri..."} value={topic} onChange={(e) => setTopic(e.target.value)}/>
                             {showTopicError && <p className="text-[10px] text-red-500 font-bold mt-1 text-right">Compila questo campo per generare</p>}
                         </div>
                     )}
