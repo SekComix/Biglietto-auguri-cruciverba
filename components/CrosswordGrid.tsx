@@ -37,7 +37,8 @@ const FORMAT_CONFIG: Record<CardFormat, { label: string, cssAspect: string, widt
     'a4': { label: 'A4 Standard', cssAspect: 'aspect-[297/210]', width: 1123, height: 794, pdfFormat: 'a4', pdfOrientation: 'l', pdfWidth: 1123, pdfHeight: 794 },
     'a3': { label: 'A3 Maxi', cssAspect: 'aspect-[297/210]', width: 1587, height: 1123, pdfFormat: 'a3', pdfOrientation: 'l', pdfWidth: 1587, pdfHeight: 1123 },
     'square': { label: 'Quadrato', cssAspect: 'aspect-[2/1]', width: 1134, height: 567, pdfFormat: [300, 150], pdfOrientation: 'l', pdfWidth: 1134, pdfHeight: 567 },
-    'tags': { label: 'Bigliettini', cssAspect: 'aspect-[10/7]', width: 500, height: 350, pdfFormat: 'a4', pdfOrientation: 'p', pdfWidth: 794, pdfHeight: 1123 } 
+    'tags': { label: 'Bigliettini', cssAspect: 'aspect-[10/7]', width: 500, height: 350, pdfFormat: 'a4', pdfOrientation: 'p', pdfWidth: 794, pdfHeight: 1123 },
+    'a6_2x': { label: 'Mini (2 su 1)', cssAspect: 'aspect-[297/210]', width: 1123, height: 794, pdfFormat: 'a4', pdfOrientation: 'p', pdfWidth: 794, pdfHeight: 1123 }
 };
 
 const getSolutionLabel = (index: number) => String.fromCharCode(64 + index);
@@ -486,6 +487,7 @@ const CrosswordGrid: React.FC<CrosswordGridProps> = ({ data, onComplete, onEdit,
       if (sheetsToPrint.length === 0) { alert("Seleziona almeno un foglio da stampare."); return; }
 
       const startPage = currentSheetPage;
+
       setIsGeneratingPDF(true);
       const width = formatConfig.pdfWidth;
       exportRef.current.style.width = `${width}px`;
@@ -558,7 +560,7 @@ const CrosswordGrid: React.FC<CrosswordGridProps> = ({ data, onComplete, onEdit,
   };
 
   const toggleFormat = () => {
-    const formats: CardFormat[] = ['a4', 'a3', 'square', 'tags'];
+    const formats: CardFormat[] = ['a4', 'a3', 'square', 'tags', 'a6_2x'];
     const currentIndex = formats.indexOf(data.format || 'a4');
     const nextIndex = (currentIndex + 1) % formats.length;
     onUpdate({ format: formats[nextIndex] });
@@ -635,7 +637,7 @@ const CrosswordGrid: React.FC<CrosswordGridProps> = ({ data, onComplete, onEdit,
                     <button onClick={() => setViewMode('sheets')} className={`px-3 py-1 rounded-full text-xs font-bold flex items-center gap-1 transition-all ${viewMode === 'sheets' ? 'bg-white shadow text-purple-600' : 'text-gray-500 hover:bg-gray-200'}`}><Eye size={14}/> FOGLI A4</button>
                 </div>
             )}
-            <button onClick={toggleFormat} className="bg-white px-3 py-2 rounded-full shadow border text-sm flex items-center gap-2 font-bold hover:bg-blue-50 text-blue-700 active:scale-95 border-blue-200" title="Cambia formato"><BoxSelect size={16}/> {data.format === 'square' ? 'Quadrato' : data.format === 'tags' ? 'Bigliettini' : (data.format || 'a4').toUpperCase()}</button>
+            <button onClick={toggleFormat} className="bg-white px-3 py-2 rounded-full shadow border text-sm flex items-center gap-2 font-bold hover:bg-blue-50 text-blue-700 active:scale-95 border-blue-200" title="Cambia formato"><BoxSelect size={16}/> {data.format === 'square' ? 'Quadrato' : data.format === 'tags' ? 'Bigliettini' : data.format === 'a6_2x' ? 'Mini (2 su 1)' : (data.format || 'a4').toUpperCase()}</button>
             <button onClick={addCustomText} className="bg-white px-3 py-2 rounded-full shadow border text-sm flex items-center gap-2 font-bold hover:bg-purple-50 text-purple-700 active:scale-95 border-purple-200"><Type size={16}/> Testo</button>
             {isCrossword && <button onClick={() => setRevealAnswers(!revealAnswers)} className={`px-4 py-2 rounded-full shadow border text-sm flex items-center gap-2 font-bold active:scale-95 ${revealAnswers ? 'bg-yellow-100 text-yellow-800' : 'bg-white text-gray-700'}`}>{revealAnswers ? <EyeOff size={16}/> : <Eye size={16}/>}</button>}
             <button onClick={handleOpenPrintModal} disabled={isGeneratingPDF} className={`text-white px-6 py-2 rounded-full shadow-lg text-sm flex items-center gap-2 font-bold active:scale-95 ${isGeneratingPDF ? 'bg-gray-400' : 'bg-gradient-to-r from-green-600 to-emerald-600'}`}>{isGeneratingPDF ? <Loader2 size={16} className="animate-spin"/> : <Printer size={16} />} ANTEPRIMA E STAMPA</button>
