@@ -203,8 +203,7 @@ export const PrintTemplates = forwardRef<HTMLDivElement, PrintTemplatesProps>((p
         </div>
     );
 
-    // --- RENDER CONTENT PER IL FORMATO MINI (2 A6 SU UN A4) ---
-    // FIXED: Uses Flexbox centering instead of transforms to ensure html2canvas captures correctly
+    // --- RENDER CONTENT PER IL FORMATO MINI E QUADRATO (2 SU UN A4) ---
     const renderMini2x = () => (
         <div key={`${printRenderKey}-${currentSheetPage}`}>
             {/* SHEET 1: COPERTINE ESTERNE (Fronte/Retro) */}
@@ -302,11 +301,11 @@ export const PrintTemplates = forwardRef<HTMLDivElement, PrintTemplatesProps>((p
                         })}
                     </div>
                 </div>
-            ) : data.format === 'a6_2x' ? (
-                // MINI A6 LAYOUT (2 su A4)
+            ) : (data.format === 'a6_2x' || data.format === 'square') ? (
+                // MINI A6 LAYOUT OR SQUARE (2 su A4)
                 renderMini2x()
             ) : (
-                // STANDARD CARD LAYOUT (A4/A3/SQUARE)
+                // STANDARD CARD LAYOUT (A4/A3)
                 <div key={printRenderKey}>
                     <div id="pdf-sheet-1" style={{ width: `${formatConfig.pdfWidth}px`, height: `${formatConfig.pdfHeight}px` }}>{renderStandardSheet1()}</div>
                     <div id="pdf-sheet-2" style={{ width: `${formatConfig.pdfWidth}px`, height: `${formatConfig.pdfHeight}px` }}>{renderStandardSheet2()}</div>
