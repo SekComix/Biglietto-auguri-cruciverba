@@ -52,6 +52,26 @@ const shuffleArray = (array: string[]) => {
     return arr;
 };
 
+// --- RESTORED PHOTO COLLAGE FOR EDITOR PREVIEW ---
+const PhotoCollage: React.FC<{ photos: string[] }> = ({ photos }) => {
+    if (!photos || photos.length === 0) return null;
+    const count = photos.length;
+    let gridClass = 'grid-cols-1';
+    if (count === 2) gridClass = 'grid-cols-2';
+    else if (count > 2 && count <= 4) gridClass = 'grid-cols-2';
+    else if (count >= 5) gridClass = 'grid-cols-3';
+
+    return (
+        <div className={`grid gap-0.5 w-full h-full bg-white overflow-hidden ${gridClass}`}>
+            {photos.map((p, i) => (
+                <div key={i} className="relative w-full h-full overflow-hidden">
+                    <img src={p} className="w-full h-full object-cover" alt={`mem-${i}`} />
+                </div>
+            ))}
+        </div>
+    );
+};
+
 interface PositionableItem {
     id: string;
     type: string;
@@ -73,7 +93,7 @@ const CrosswordGrid: React.FC<CrosswordGridProps> = ({ data, onComplete, onEdit,
   const [showPrintModal, setShowPrintModal] = useState(false);
   const [showGraphicsModal, setShowGraphicsModal] = useState(false);
   const [showHelpModal, setShowHelpModal] = useState(false);
-  const [showInstructionModal, setShowInstructionModal] = useState(false); // NEW: Istruzioni stampa
+  const [showInstructionModal, setShowInstructionModal] = useState(false);
   
   const [viewMode, setViewMode] = useState<'single' | 'sheets'>('single');
 
@@ -860,9 +880,6 @@ const CrosswordGrid: React.FC<CrosswordGridProps> = ({ data, onComplete, onEdit,
                                                 const v = tagVariations[globalIndex];
                                                 const msg = tagMessages[globalIndex];
                                                 
-                                                // Simula lo sheet renderizzato ma in piccolo per l'anteprima
-                                                // Nota: Qui usiamo un placeholder visuale perché non possiamo riusare facilmente i componenti PrintTemplates dentro questo loop senza rifattorizzare tutto.
-                                                // Mostriamo un box che rappresenta il biglietto.
                                                 return (
                                                     <div key={i} style={{ height: '50%', width: '100%', borderBottom: '1px dashed #ccc', display: 'flex', alignItems: 'center', justifyContent: 'center', background: '#f9f9f9' }}>
                                                         <div className="text-center p-4">
