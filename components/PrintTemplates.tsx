@@ -113,9 +113,10 @@ export const PrintTemplates = forwardRef<HTMLDivElement, PrintTemplatesProps>((p
         </div>
     );
 
-    // --- RENDER CONTENT PER FOGLIO SINGOLO (STANDARD A4) ---
-    const renderStandardSheet1 = () => (
-        <div id="pdf-sheet-1" style={{ width: `${formatConfig.pdfWidth}px`, height: `${formatConfig.pdfHeight}px`, display: 'flex', position: 'relative', backgroundColor: 'white', overflow: 'hidden', boxSizing: 'border-box', padding: '25px' }}>
+    // --- HELPER RENDER PER MINI 2x ---
+    // Questi helper accettano "override" per immagini e messaggi, per supportare la generazione seriale
+    const renderStandardSheet1 = (overrideImage?: string) => (
+        <div style={{ width: '1123px', height: '794px', display: 'flex', position: 'relative', backgroundColor: 'white', overflow: 'hidden', boxSizing: 'border-box', padding: '25px' }}>
             {data.hasWatermark && (
                 <div style={{ position: 'absolute', top: '50%', left: '50%', transform: `translate(-50%, -50%) translate(${wmSheet1.x * pdfScaleFactor}px, ${wmSheet1.y * pdfScaleFactor}px) scale(${wmSheet1.scale}) rotate(12deg)`, fontSize: '130px', opacity: 0.20, zIndex: 0, whiteSpace: 'nowrap' }}>{themeAssets.watermark}</div>
             )}
@@ -125,17 +126,18 @@ export const PrintTemplates = forwardRef<HTMLDivElement, PrintTemplatesProps>((p
             </div>
             
             <div style={{ width: '49%', marginLeft: '1%', height: '100%', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', textAlign: 'center', position: 'relative', zIndex: 10, boxSizing: 'border-box', borderLeft: 'none', border: showBorders ? themeAssets.pdfBorder : 'none' }}>
-                {data.images?.extraImage ? (
+                {/* Usa overrideImage (dalla cartella random) se c'è, altrimenti usa extraImage (copertina manuale) */}
+                {overrideImage || data.images?.extraImage ? (
                     <div style={{ width: '100%', height: '100%', padding: '40px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                        <img src={data.images.extraImage} style={{ maxWidth: '100%', maxHeight: '100%', objectFit: 'contain' }} />
+                        <img src={overrideImage || data.images?.extraImage} style={{ maxWidth: '100%', maxHeight: '100%', objectFit: 'contain' }} />
                     </div>
                 ) : <div style={{ fontSize: '120px', opacity: 0.8 }}>{themeAssets.decoration}</div>}
             </div>
         </div>
     );
 
-    const renderStandardSheet2 = () => (
-        <div id="pdf-sheet-2" style={{ width: `${formatConfig.pdfWidth}px`, height: `${formatConfig.pdfHeight}px`, display: 'flex', position: 'relative', backgroundColor: 'white', overflow: 'hidden', boxSizing: 'border-box', padding: '25px' }}>
+    const renderStandardSheet2 = (overrideMessage?: string) => (
+        <div style={{ width: '1123px', height: '794px', display: 'flex', position: 'relative', backgroundColor: 'white', overflow: 'hidden', boxSizing: 'border-box', padding: '25px' }}>
             {data.hasWatermark && (
                 <div style={{ position: 'absolute', top: '50%', left: '50%', transform: `translate(-50%, -50%) translate(${wmSheet2.x * pdfScaleFactor}px, ${wmSheet2.y * pdfScaleFactor}px) scale(${wmSheet2.scale}) rotate(12deg)`, fontSize: '130px', opacity: 0.20, zIndex: 0, whiteSpace: 'nowrap' }}>{themeAssets.watermark}</div>
             )}
@@ -146,6 +148,7 @@ export const PrintTemplates = forwardRef<HTMLDivElement, PrintTemplatesProps>((p
                         <h1 className={themeAssets.fontTitle} style={{ fontSize: '40px', marginBottom: '5px', lineHeight: 1.2 }}>{data.title}</h1>
                         <p style={{ fontSize: '14px', textTransform: 'uppercase', color: '#666', letterSpacing: '2px' }}>{data.eventDate || "Data Speciale"} • {currentYear}</p>
                     </div>
+                    {/* Nel Mini 2x, le foto interne NON sono variabili per ora, usiamo quelle fisse se presenti, o vuoto */}
                     <div style={{ flex: '1 1 auto', display: 'flex', alignItems: 'center', justifyContent: 'center', width: '100%', overflow: 'hidden', minHeight: 0, margin: '10px 0', position: 'relative' }}>
                         <div style={{ width: '100%', height: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', transform: `translate(${imgSheet2.x * pdfScaleFactor}px, ${imgSheet2.y * pdfScaleFactor}px) scale(${imgSheet2.scale})` }}>
                             {photos.length === 1 ? (
@@ -159,7 +162,7 @@ export const PrintTemplates = forwardRef<HTMLDivElement, PrintTemplatesProps>((p
                     </div>
                     <div style={{ flexShrink: 0, width: '100%', position: 'relative', minHeight: '50px' }}>
                         <div style={{ transform: `translate(${txtSheet2.x * pdfScaleFactor}px, ${txtSheet2.y * pdfScaleFactor}px) scale(${txtSheet2.scale})` }}>
-                            <p className={themeAssets.fontTitle} style={{ fontSize: '24px', lineHeight: 1.5 }}>"{editableMessage}"</p>
+                            <p className={themeAssets.fontTitle} style={{ fontSize: '24px', lineHeight: 1.5 }}>"{overrideMessage || editableMessage}"</p>
                         </div>
                     </div>
                 </div>
@@ -201,36 +204,40 @@ export const PrintTemplates = forwardRef<HTMLDivElement, PrintTemplatesProps>((p
     );
 
     // --- RENDER CONTENT PER IL FORMATO MINI (2 A6 SU UN A4) ---
-    // Questo duplica semplicemente il renderStandardSheet ma lo impacchetta in un contenitore A4 Portrait
     const renderMini2x = () => (
-        <div key={printRenderKey}>
-            {/* SHEET 1: DUE COPERTINE ESTERNE (Fronte/Retro) impilate */}
+        <div key={`${printRenderKey}-${currentSheetPage}`}>
+            {/* SHEET 1: COPERTINE ESTERNE (Fronte/Retro) */}
             <div id="pdf-sheet-1" style={{ width: '794px', height: '1123px', display: 'flex', flexDirection: 'column', backgroundColor: 'white', boxSizing: 'border-box' }}>
-                <div style={{ height: '50%', width: '100%', borderBottom: '1px dashed #ccc', position: 'relative', overflow: 'hidden' }}>
-                    {/* Renderizza una versione scalata e adattata dello Sheet 1 Standard */}
-                    <div style={{ width: '1123px', height: '794px', transform: 'scale(0.707) translate(-21%, -21%)', transformOrigin: 'top left' }}>
-                        {renderStandardSheet1()}
-                    </div>
-                </div>
-                <div style={{ height: '50%', width: '100%', position: 'relative', overflow: 'hidden' }}>
-                    <div style={{ width: '1123px', height: '794px', transform: 'scale(0.707) translate(-21%, -21%)', transformOrigin: 'top left' }}>
-                        {renderStandardSheet1()}
-                    </div>
-                </div>
+                {Array(2).fill(null).map((_, i) => {
+                    // Calcolo indici per pesca dati seriale
+                    const globalIndex = (currentSheetPage * 2) + i;
+                    const v = tagVariations[globalIndex]; // Immagine Copertina
+                    const overrideImg = v ? v.img : undefined;
+
+                    return (
+                        <div key={i} style={{ height: '50%', width: '100%', borderBottom: i === 0 ? '1px dashed #ccc' : 'none', position: 'relative', overflow: 'hidden' }}>
+                            <div style={{ width: '1123px', height: '794px', transform: 'scale(0.707) translate(-21%, -21%)', transformOrigin: 'top left' }}>
+                                {renderStandardSheet1(overrideImg)}
+                            </div>
+                        </div>
+                    );
+                })}
             </div>
 
-            {/* SHEET 2: DUE INTERNI impilati */}
+            {/* SHEET 2: INTERNI */}
             <div id="pdf-sheet-2" style={{ width: '794px', height: '1123px', display: 'flex', flexDirection: 'column', backgroundColor: 'white', boxSizing: 'border-box' }}>
-                <div style={{ height: '50%', width: '100%', borderBottom: '1px dashed #ccc', position: 'relative', overflow: 'hidden' }}>
-                    <div style={{ width: '1123px', height: '794px', transform: 'scale(0.707) translate(-21%, -21%)', transformOrigin: 'top left' }}>
-                        {renderStandardSheet2()}
-                    </div>
-                </div>
-                <div style={{ height: '50%', width: '100%', position: 'relative', overflow: 'hidden' }}>
-                    <div style={{ width: '1123px', height: '794px', transform: 'scale(0.707) translate(-21%, -21%)', transformOrigin: 'top left' }}>
-                        {renderStandardSheet2()}
-                    </div>
-                </div>
+                {Array(2).fill(null).map((_, i) => {
+                    const globalIndex = (currentSheetPage * 2) + i;
+                    const msg = tagMessages[globalIndex]; // Messaggio Dedica
+                    
+                    return (
+                        <div key={i} style={{ height: '50%', width: '100%', borderBottom: i === 0 ? '1px dashed #ccc' : 'none', position: 'relative', overflow: 'hidden' }}>
+                            <div style={{ width: '1123px', height: '794px', transform: 'scale(0.707) translate(-21%, -21%)', transformOrigin: 'top left' }}>
+                                {renderStandardSheet2(msg)}
+                            </div>
+                        </div>
+                    );
+                })}
             </div>
         </div>
     );
@@ -300,8 +307,8 @@ export const PrintTemplates = forwardRef<HTMLDivElement, PrintTemplatesProps>((p
             ) : (
                 // STANDARD CARD LAYOUT (A4/A3/SQUARE)
                 <div key={printRenderKey}>
-                    {renderStandardSheet1()}
-                    {renderStandardSheet2()}
+                    <div id="pdf-sheet-1" style={{ width: `${formatConfig.pdfWidth}px`, height: `${formatConfig.pdfHeight}px` }}>{renderStandardSheet1()}</div>
+                    <div id="pdf-sheet-2" style={{ width: `${formatConfig.pdfWidth}px`, height: `${formatConfig.pdfHeight}px` }}>{renderStandardSheet2()}</div>
                 </div>
             )}
        </div>
