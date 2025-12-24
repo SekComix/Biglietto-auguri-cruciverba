@@ -144,7 +144,7 @@ const CrosswordGrid: React.FC<CrosswordGridProps> = ({ data, onComplete, onEdit,
   const formatConfig = FORMAT_CONFIG[data.format || 'a4'];
 
   const isMultiItemFormat = data.format === 'tags' || data.format === 'a6_2x' || data.format === 'square';
-  const itemsPerPage = data.format === 'tags' ? 8 : 2; 
+  const itemsPerPage = data.format === 'tags' ? 8 : (data.format === 'a6_2x' || data.format === 'square' ? 2 : 1);
   const totalPages = Math.ceil(Math.max(allTagImages.length, itemsPerPage) / itemsPerPage);
 
   // RESET DATI AL CAMBIO FORMATO
@@ -153,35 +153,31 @@ const CrosswordGrid: React.FC<CrosswordGridProps> = ({ data, onComplete, onEdit,
       const hasFormatChanged = prevDataRef.current.format !== data.format;
       
       if (hasThemeChanged || hasFormatChanged) {
-          // Se cambiamo formato, resettiamo la modalità "massiva" ma teniamo l'immagine di copertina
-          // come "seme" per l'array se siamo in manuale
-          setAllTagImages([]); 
+          setAllTagImages([]);
           setCurrentSheetPage(0);
           setTagMessages([]);
           prevDataRef.current = data;
+      }
+      
+      if (isMultiItemFormat && allTagImages.length === 0) {
+           setAllTagImages(Array(itemsPerPage).fill(""));
       }
   }, [data.format, data.theme, isMultiItemFormat, itemsPerPage]);
 
   // LOGICA GENERAZIONE VARIANTI (IMMAGINI E MESSAGGI)
   useEffect(() => {
-      // Se NON siamo in massivo (quindi siamo Mini 2x MANUALE)
-      // Dobbiamo assicurarci che tagVariations e tagMessages siano popolati con i dati "singoli" duplicati
       if (!isMultiItemFormat) {
           setViewMode('single');
           return;
       }
-
+      
       // -- LOGICA MESSAGGI --
       let currentMsgs = [...tagMessages];
-      // 1. Se c'è un messaggio AI fresco (data.message) e l'array è vuoto o diverso, aggiornalo
       if (data.message && (currentMsgs.length === 0 || currentMsgs[0] !== data.message)) {
-          // Popola con il messaggio AI ripetuto
           const count = Math.max(allTagImages.length, itemsPerPage * 5); 
           currentMsgs = Array(count).fill(data.message);
           setTagMessages(currentMsgs);
-      }
-      // 2. Fallback: Se non c'è messaggio AI, usa quelli random del DB
-      else if (currentMsgs.length < allTagImages.length) {
+      } else if (currentMsgs.length < allTagImages.length) {
           const themeMessages = TAG_MESSAGES_DB[data.theme] || TAG_MESSAGES_DB.generic;
           let messagePool: string[] = [];
           while (messagePool.length < Math.max(allTagImages.length, itemsPerPage)) {
@@ -190,20 +186,15 @@ const CrosswordGrid: React.FC<CrosswordGridProps> = ({ data, onComplete, onEdit,
           currentMsgs = messagePool;
           setTagMessages(currentMsgs);
       }
-
+      
       // -- LOGICA IMMAGINI --
-      // Se allTagImages è vuoto (non hai caricato la cartella), usiamo l'immagine singola (manuale)
-      // ma dobbiamo "fingere" di avere un array per far funzionare la paginazione dell'editor
       let displayImages = allTagImages;
       if (displayImages.length === 0) {
-          // Creiamo un array fittizio di "placeholder" che useranno l'immagine manuale nel render
           displayImages = Array(itemsPerPage).fill(data.images?.extraImage || ""); 
       }
       
       const startIdx = currentSheetPage * itemsPerPage;
       const pageImages = displayImages.slice(startIdx, startIdx + itemsPerPage);
-      
-      // Riempi con vuoti se non bastano per finire la pagina
       while(pageImages.length < itemsPerPage) pageImages.push("");
 
       const newVars = pageImages.map((img, i) => {
@@ -214,8 +205,8 @@ const CrosswordGrid: React.FC<CrosswordGridProps> = ({ data, onComplete, onEdit,
           } else {
               title = data.title || "Auguri";
           }
-          // Se img è vuota (perché siamo in manuale e non c'è extraImage), sarà undefined
-          return { img: img || data.images?.extraImage, title };
+          // FIX: Aggiunta stringa vuota per evitare undefined e risolvere errore TS2345
+          return { img: img || data.images?.extraImage || "", title };
       });
       setTagVariations(newVars);
 
@@ -281,7 +272,7 @@ const CrosswordGrid: React.FC<CrosswordGridProps> = ({ data, onComplete, onEdit,
       const files = e.target.files;
       if (!files || files.length === 0) return;
       
-      // LIMITAZIONE SICUREZZA: Max 40 foto (20 pagine) per evitare crash
+      // Limitazione a 40 foto
       if (files.length > 40) {
           alert("Attenzione: Hai selezionato troppe foto. Ne verranno caricate solo le prime 40 per evitare blocchi.");
       }
@@ -308,10 +299,7 @@ const CrosswordGrid: React.FC<CrosswordGridProps> = ({ data, onComplete, onEdit,
           if (validImages.length === 0) return;
           
           setAllTagImages(validImages);
-          
-          // Resetta messaggi per rigenerarli
           setTagMessages([]); 
-          
           setCurrentSheetPage(0);
           
           alert(`Caricamento completato! ${validImages.length} foto pronte.`);
@@ -329,7 +317,6 @@ const CrosswordGrid: React.FC<CrosswordGridProps> = ({ data, onComplete, onEdit,
                   const globalIndex = (currentSheetPage * itemsPerPage) + currentTagIndex;
                   setAllTagImages(prev => {
                       const clone = [...prev];
-                      // Espandi array se necessario (modalità manuale che diventa ibrida)
                       while(clone.length <= globalIndex) clone.push("");
                       clone[globalIndex] = result;
                       return clone;
