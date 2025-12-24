@@ -1,8 +1,10 @@
 import React, { forwardRef } from 'react';
 import { CrosswordData, CellData, Direction, ThemeType, CardFormat } from '../types';
-import { Direction as DirEnum } from '../types'; // Alias per evitare conflitti
+import { Direction as DirEnum } from '../types'; 
 
-// --- REPLICA DEI COMPONENTI UTILI PER LA STAMPA ---
+// --- COMPONENTI DI SUPPORTO PER LA STAMPA ---
+
+const getSolutionLabel = (index: number) => String.fromCharCode(64 + index);
 
 const PhotoCollage: React.FC<{ photos: string[] }> = ({ photos }) => {
     if (!photos || photos.length === 0) return null;
@@ -22,10 +24,6 @@ const PhotoCollage: React.FC<{ photos: string[] }> = ({ photos }) => {
         </div>
     );
 };
-
-const getSolutionLabel = (index: number) => String.fromCharCode(64 + index);
-
-// --- PROPS DEFINITION ---
 
 interface PositionableItem {
     id: string;
@@ -61,8 +59,6 @@ interface PrintTemplatesProps {
     pdfScaleFactor: number;
 }
 
-// --- IL COMPONENTE PRINCIPALE ---
-
 export const PrintTemplates = forwardRef<HTMLDivElement, PrintTemplatesProps>((props, ref) => {
     const {
         data, themeAssets, formatConfig, grid,
@@ -73,7 +69,6 @@ export const PrintTemplates = forwardRef<HTMLDivElement, PrintTemplatesProps>((p
 
     const printFontSize = data.words.length > 10 ? '7.5px' : '9px';
 
-    // Helper interno per renderizzare la soluzione nella stampa
     const renderSolution = () => {
         if (!data.solution) return null;
         // @ts-ignore
@@ -81,7 +76,6 @@ export const PrintTemplates = forwardRef<HTMLDivElement, PrintTemplatesProps>((p
         const chars = rawString.split('');
         let letterIndexCounter = 0;
         const len = chars.length;
-        // Dimensioni fisse per stampa
         const boxSize = len > 15 ? '14px' : (len > 10 ? '16px' : '20px');
         const fontSize = len > 15 ? '8px' : (len > 10 ? '10px' : '12px');
         const numFontSize = len > 15 ? '6px' : (len > 10 ? '7px' : '8px');
@@ -104,7 +98,6 @@ export const PrintTemplates = forwardRef<HTMLDivElement, PrintTemplatesProps>((p
         );
     };
 
-    // Helper interno per renderizzare la griglia nella stampa
     const renderGridCells = () => (
         <div className={`grid gap-[1px] bg-black/10 p-2 rounded-lg pointer-events-auto`} style={{ gridTemplateColumns: `repeat(${data.width}, minmax(0, 1fr))`, aspectRatio: `${data.width}/${data.height}`, width: '100%', maxHeight: '100%', margin: '0 auto' }}>
             {grid.map((row, y) => row.map((cell, x) => {
@@ -120,10 +113,132 @@ export const PrintTemplates = forwardRef<HTMLDivElement, PrintTemplatesProps>((p
         </div>
     );
 
+    // --- RENDER CONTENT PER FOGLIO SINGOLO (STANDARD A4) ---
+    const renderStandardSheet1 = () => (
+        <div id="pdf-sheet-1" style={{ width: `${formatConfig.pdfWidth}px`, height: `${formatConfig.pdfHeight}px`, display: 'flex', position: 'relative', backgroundColor: 'white', overflow: 'hidden', boxSizing: 'border-box', padding: '25px' }}>
+            {data.hasWatermark && (
+                <div style={{ position: 'absolute', top: '50%', left: '50%', transform: `translate(-50%, -50%) translate(${wmSheet1.x * pdfScaleFactor}px, ${wmSheet1.y * pdfScaleFactor}px) scale(${wmSheet1.scale}) rotate(12deg)`, fontSize: '130px', opacity: 0.20, zIndex: 0, whiteSpace: 'nowrap' }}>{themeAssets.watermark}</div>
+            )}
+            <div style={{ width: '49%', marginRight: '1%', height: '100%', padding: '30px', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', textAlign: 'center', position: 'relative', zIndex: 10, boxSizing: 'border-box', borderRight: 'none', border: showBorders ? themeAssets.pdfBorder : 'none' }}>
+                <div style={{ fontSize: '80px', opacity: 0.2, marginBottom: '20px' }}>{themeAssets.decoration}</div>
+                {data.images?.brandLogo && <div style={{ position: 'absolute', bottom: '40px', left: '50%', transform: 'translateX(-50%)', display: 'flex', flexDirection: 'column', alignItems: 'center', opacity: 0.8 }}><p style={{ fontSize: '10px', textTransform: 'uppercase', letterSpacing: '2px', color: '#9ca3af', marginBottom: '5px' }}>Created by</p><img src={data.images.brandLogo} style={{ height: '40px', objectFit: 'contain' }} /></div>}
+            </div>
+            
+            <div style={{ width: '49%', marginLeft: '1%', height: '100%', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', textAlign: 'center', position: 'relative', zIndex: 10, boxSizing: 'border-box', borderLeft: 'none', border: showBorders ? themeAssets.pdfBorder : 'none' }}>
+                {data.images?.extraImage ? (
+                    <div style={{ width: '100%', height: '100%', padding: '40px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                        <img src={data.images.extraImage} style={{ maxWidth: '100%', maxHeight: '100%', objectFit: 'contain' }} />
+                    </div>
+                ) : <div style={{ fontSize: '120px', opacity: 0.8 }}>{themeAssets.decoration}</div>}
+            </div>
+        </div>
+    );
+
+    const renderStandardSheet2 = () => (
+        <div id="pdf-sheet-2" style={{ width: `${formatConfig.pdfWidth}px`, height: `${formatConfig.pdfHeight}px`, display: 'flex', position: 'relative', backgroundColor: 'white', overflow: 'hidden', boxSizing: 'border-box', padding: '25px' }}>
+            {data.hasWatermark && (
+                <div style={{ position: 'absolute', top: '50%', left: '50%', transform: `translate(-50%, -50%) translate(${wmSheet2.x * pdfScaleFactor}px, ${wmSheet2.y * pdfScaleFactor}px) scale(${wmSheet2.scale}) rotate(12deg)`, fontSize: '130px', opacity: 0.20, zIndex: 0, whiteSpace: 'nowrap' }}>{themeAssets.watermark}</div>
+            )}
+            
+            <div style={{ width: '49%', marginRight: '1%', height: '100%', position: 'relative', zIndex: 10, boxSizing: 'border-box', overflow: 'hidden', borderRight: 'none', border: showBorders ? themeAssets.pdfBorder : 'none' }}>
+                <div style={{ width: '100%', height: '100%', padding: '30px', display: 'flex', flexDirection: 'column', alignItems: 'center', textAlign: 'center', justifyContent: 'space-between' }}>
+                    <div style={{marginBottom: '10px', width: '100%', flexShrink: 0}}>
+                        <h1 className={themeAssets.fontTitle} style={{ fontSize: '40px', marginBottom: '5px', lineHeight: 1.2 }}>{data.title}</h1>
+                        <p style={{ fontSize: '14px', textTransform: 'uppercase', color: '#666', letterSpacing: '2px' }}>{data.eventDate || "Data Speciale"} • {currentYear}</p>
+                    </div>
+                    <div style={{ flex: '1 1 auto', display: 'flex', alignItems: 'center', justifyContent: 'center', width: '100%', overflow: 'hidden', minHeight: 0, margin: '10px 0', position: 'relative' }}>
+                        <div style={{ width: '100%', height: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', transform: `translate(${imgSheet2.x * pdfScaleFactor}px, ${imgSheet2.y * pdfScaleFactor}px) scale(${imgSheet2.scale})` }}>
+                            {photos.length === 1 ? (
+                                <img src={photos[0]} style={{ maxWidth: '100%', maxHeight: '100%', width: 'auto', height: 'auto', objectFit: 'contain', border: '5px solid white', boxShadow: '0 4px 6px rgba(0,0,0,0.1)', backgroundColor: '#f3f4f6', transform: 'rotate(1deg)' }} />
+                            ) : photos.length > 1 ? (
+                                <div style={{ width: 'auto', height: 'auto', maxWidth: '100%', maxHeight: '100%', aspectRatio: '1/1', border: '5px solid white', boxShadow: '0 4px 6px rgba(0,0,0,0.1)', overflow: 'hidden', backgroundColor: '#f3f4f6', transform: 'rotate(1deg)' }}>
+                                    <PhotoCollage photos={photos} />
+                                </div>
+                            ) : null}
+                        </div>
+                    </div>
+                    <div style={{ flexShrink: 0, width: '100%', position: 'relative', minHeight: '50px' }}>
+                        <div style={{ transform: `translate(${txtSheet2.x * pdfScaleFactor}px, ${txtSheet2.y * pdfScaleFactor}px) scale(${txtSheet2.scale})` }}>
+                            <p className={themeAssets.fontTitle} style={{ fontSize: '24px', lineHeight: 1.5 }}>"{editableMessage}"</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <div style={{ width: '49%', marginLeft: '1%', height: '100%', position: 'relative', zIndex: 10, boxSizing: 'border-box', overflow: 'hidden', borderLeft: 'none', border: showBorders ? themeAssets.pdfBorder : 'none' }}>
+                <div style={{ width: '100%', height: '100%', padding: '40px', paddingRight: '50px', display: 'flex', flexDirection: 'column' }}>
+                    {isCrossword ? (
+                    <div style={{ flex: 1, display: 'flex', flexDirection: 'column', height: '100%', overflow: 'hidden' }}>
+                        <div style={{ flexShrink: 0 }}>
+                                <h2 style={{ fontSize: '20px', fontWeight: 'bold', textTransform: 'uppercase', borderBottom: '2px solid black', marginBottom: '10px', paddingBottom: '5px', textAlign: 'center', letterSpacing: '2px' }}>Cruciverba</h2>
+                                {renderSolution()}
+                        </div>
+                        <div style={{ flex: '1 1 auto', minHeight: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '10px 0', overflow: 'hidden' }}>
+                            <div style={{ width: '100%', height: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                                {renderGridCells()}
+                            </div>
+                        </div>
+                        <div style={{ flexShrink: 0, fontSize: printFontSize, display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px', lineHeight: 1.1, borderTop: '2px solid black', paddingTop: '10px' }}>
+                                <div><b style={{ display: 'block', borderBottom: '1px solid #ccc', marginBottom: '4px', paddingBottom: '2px', textTransform: 'uppercase', fontWeight: 'bold' }}>Orizzontali</b>{data.words.filter(w=>w.direction===DirEnum.ACROSS).map(w=><div key={w.id} style={{ marginBottom: '2px', whiteSpace: 'normal' }}><b style={{ marginRight: '4px' }}>{w.number}.</b>{w.clue}</div>)}</div>
+                                <div><b style={{ display: 'block', borderBottom: '1px solid #ccc', marginBottom: '4px', paddingBottom: '2px', textTransform: 'uppercase', fontWeight: 'bold' }}>Verticali</b>{data.words.filter(w=>w.direction===DirEnum.DOWN).map(w=><div key={w.id} style={{ marginBottom: '2px', whiteSpace: 'normal' }}><b style={{ marginRight: '4px' }}>{w.number}.</b>{w.clue}</div>)}</div>
+                        </div>
+                    </div>
+                ) : <div style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', border: '2px dashed #ccc', borderRadius: '10px', opacity: 0.3 }}></div>}
+                </div>
+            </div>
+
+            <div style={{ position: 'absolute', left: '50%', top: '50%', transform: `translate(-50%, -50%) translate(${stickerGroup.x * pdfScaleFactor}px, ${stickerGroup.y * pdfScaleFactor}px) scale(${stickerGroup.scale})`, pointerEvents: 'none', zIndex: 50 }}>
+                <div style={{display:'flex', gap:'10px', fontSize:'50px'}}>{(data.stickers || []).slice(0,5).map((s,i) => <span key={i}>{s}</span>)}</div>
+            </div>
+            {customTexts.map(t => (
+                <div key={t.id} style={{ position: 'absolute', left: '50%', top: '50%', transform: `translate(-50%, -50%) translate(${t.x * pdfScaleFactor}px, ${t.y * pdfScaleFactor}px)`, pointerEvents: 'none', zIndex: 50 }}>
+                    <div style={{ width: `${(t.width || 250) * pdfScaleFactor}px` }}>
+                        <p className="font-hand" style={{ fontSize: `${(t.scale * 20) * pdfScaleFactor}px`, lineHeight: 1.2, color: '#581c87', textAlign: 'center', wordWrap: 'break-word' }}>{t.content}</p>
+                    </div>
+                </div>
+            ))}
+        </div>
+    );
+
+    // --- RENDER CONTENT PER IL FORMATO MINI (2 A6 SU UN A4) ---
+    // Questo duplica semplicemente il renderStandardSheet ma lo impacchetta in un contenitore A4 Portrait
+    const renderMini2x = () => (
+        <div key={printRenderKey}>
+            {/* SHEET 1: DUE COPERTINE ESTERNE (Fronte/Retro) impilate */}
+            <div id="pdf-sheet-1" style={{ width: '794px', height: '1123px', display: 'flex', flexDirection: 'column', backgroundColor: 'white', boxSizing: 'border-box' }}>
+                <div style={{ height: '50%', width: '100%', borderBottom: '1px dashed #ccc', position: 'relative', overflow: 'hidden' }}>
+                    {/* Renderizza una versione scalata e adattata dello Sheet 1 Standard */}
+                    <div style={{ width: '1123px', height: '794px', transform: 'scale(0.707) translate(-21%, -21%)', transformOrigin: 'top left' }}>
+                        {renderStandardSheet1()}
+                    </div>
+                </div>
+                <div style={{ height: '50%', width: '100%', position: 'relative', overflow: 'hidden' }}>
+                    <div style={{ width: '1123px', height: '794px', transform: 'scale(0.707) translate(-21%, -21%)', transformOrigin: 'top left' }}>
+                        {renderStandardSheet1()}
+                    </div>
+                </div>
+            </div>
+
+            {/* SHEET 2: DUE INTERNI impilati */}
+            <div id="pdf-sheet-2" style={{ width: '794px', height: '1123px', display: 'flex', flexDirection: 'column', backgroundColor: 'white', boxSizing: 'border-box' }}>
+                <div style={{ height: '50%', width: '100%', borderBottom: '1px dashed #ccc', position: 'relative', overflow: 'hidden' }}>
+                    <div style={{ width: '1123px', height: '794px', transform: 'scale(0.707) translate(-21%, -21%)', transformOrigin: 'top left' }}>
+                        {renderStandardSheet2()}
+                    </div>
+                </div>
+                <div style={{ height: '50%', width: '100%', position: 'relative', overflow: 'hidden' }}>
+                    <div style={{ width: '1123px', height: '794px', transform: 'scale(0.707) translate(-21%, -21%)', transformOrigin: 'top left' }}>
+                        {renderStandardSheet2()}
+                    </div>
+                </div>
+            </div>
+        </div>
+    );
+
     return (
         <div ref={ref} style={{ position: 'fixed', top: 0, left: '-9999px', zIndex: -100 }}>
             {data.format === 'tags' ? (
-                // TAGS LAYOUT: 8 Items Grid on A4 PORTRAIT (794x1123px)
+                // TAGS LAYOUT
                 <div key={`${printRenderKey}-${currentSheetPage}`}>
                     <div id="pdf-sheet-1" style={{ width: '794px', height: '1123px', display: 'flex', flexWrap: 'wrap', alignContent: 'flex-start', padding: '0', margin: '0', backgroundColor: 'white', boxSizing: 'border-box' }}>
                         {Array(8).fill(null).map((_, i) => {
@@ -179,95 +294,14 @@ export const PrintTemplates = forwardRef<HTMLDivElement, PrintTemplatesProps>((p
                         })}
                     </div>
                 </div>
+            ) : data.format === 'a6_2x' ? (
+                // MINI A6 LAYOUT (2 su A4)
+                renderMini2x()
             ) : (
-                // STANDARD CARD LAYOUT (LANDSCAPE A4)
+                // STANDARD CARD LAYOUT (A4/A3/SQUARE)
                 <div key={printRenderKey}>
-                    {/* SHEET 1 */}
-                    <div id="pdf-sheet-1" style={{ width: `${formatConfig.pdfWidth}px`, height: `${formatConfig.pdfHeight}px`, display: 'flex', position: 'relative', backgroundColor: 'white', overflow: 'hidden', boxSizing: 'border-box', padding: '25px' }}>
-                        {data.hasWatermark && (
-                            <div style={{ position: 'absolute', top: '50%', left: '50%', transform: `translate(-50%, -50%) translate(${wmSheet1.x * pdfScaleFactor}px, ${wmSheet1.y * pdfScaleFactor}px) scale(${wmSheet1.scale}) rotate(12deg)`, fontSize: '130px', opacity: 0.20, zIndex: 0, whiteSpace: 'nowrap' }}>{themeAssets.watermark}</div>
-                        )}
-                        <div style={{ width: '49%', marginRight: '1%', height: '100%', padding: '30px', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', textAlign: 'center', position: 'relative', zIndex: 10, boxSizing: 'border-box', borderRight: 'none', border: showBorders ? themeAssets.pdfBorder : 'none' }}>
-                            <div style={{ fontSize: '80px', opacity: 0.2, marginBottom: '20px' }}>{themeAssets.decoration}</div>
-                            {data.images?.brandLogo && <div style={{ position: 'absolute', bottom: '40px', left: '50%', transform: 'translateX(-50%)', display: 'flex', flexDirection: 'column', alignItems: 'center', opacity: 0.8 }}><p style={{ fontSize: '10px', textTransform: 'uppercase', letterSpacing: '2px', color: '#9ca3af', marginBottom: '5px' }}>Created by</p><img src={data.images.brandLogo} style={{ height: '40px', objectFit: 'contain' }} /></div>}
-                        </div>
-                        
-                        <div style={{ width: '49%', marginLeft: '1%', height: '100%', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', textAlign: 'center', position: 'relative', zIndex: 10, boxSizing: 'border-box', borderLeft: 'none', border: showBorders ? themeAssets.pdfBorder : 'none' }}>
-                            {data.images?.extraImage ? (
-                                <div style={{ width: '100%', height: '100%', padding: '40px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                                    <img src={data.images.extraImage} style={{ maxWidth: '100%', maxHeight: '100%', objectFit: 'contain' }} />
-                                </div>
-                            ) : <div style={{ fontSize: '120px', opacity: 0.8 }}>{themeAssets.decoration}</div>}
-                        </div>
-                    </div>
-                    
-                    {/* SHEET 2 */}
-                    <div id="pdf-sheet-2" style={{ width: `${formatConfig.pdfWidth}px`, height: `${formatConfig.pdfHeight}px`, display: 'flex', position: 'relative', backgroundColor: 'white', overflow: 'hidden', boxSizing: 'border-box', padding: '25px' }}>
-                        {data.hasWatermark && (
-                            <div style={{ position: 'absolute', top: '50%', left: '50%', transform: `translate(-50%, -50%) translate(${wmSheet2.x * pdfScaleFactor}px, ${wmSheet2.y * pdfScaleFactor}px) scale(${wmSheet2.scale}) rotate(12deg)`, fontSize: '130px', opacity: 0.20, zIndex: 0, whiteSpace: 'nowrap' }}>{themeAssets.watermark}</div>
-                        )}
-                        
-                        {/* LEFT PAGE (DEDICA) */}
-                        <div style={{ width: '49%', marginRight: '1%', height: '100%', position: 'relative', zIndex: 10, boxSizing: 'border-box', overflow: 'hidden', borderRight: 'none', border: showBorders ? themeAssets.pdfBorder : 'none' }}>
-                            <div style={{ width: '100%', height: '100%', padding: '30px', display: 'flex', flexDirection: 'column', alignItems: 'center', textAlign: 'center', justifyContent: 'space-between' }}>
-                                <div style={{marginBottom: '10px', width: '100%', flexShrink: 0}}>
-                                    <h1 className={themeAssets.fontTitle} style={{ fontSize: '40px', marginBottom: '5px', lineHeight: 1.2 }}>{data.title}</h1>
-                                    <p style={{ fontSize: '14px', textTransform: 'uppercase', color: '#666', letterSpacing: '2px' }}>{data.eventDate || "Data Speciale"} • {currentYear}</p>
-                                </div>
-                                <div style={{ flex: '1 1 auto', display: 'flex', alignItems: 'center', justifyContent: 'center', width: '100%', overflow: 'hidden', minHeight: 0, margin: '10px 0', position: 'relative' }}>
-                                    <div style={{ width: '100%', height: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', transform: `translate(${imgSheet2.x * pdfScaleFactor}px, ${imgSheet2.y * pdfScaleFactor}px) scale(${imgSheet2.scale})` }}>
-                                        {photos.length === 1 ? (
-                                            <img src={photos[0]} style={{ maxWidth: '100%', maxHeight: '100%', width: 'auto', height: 'auto', objectFit: 'contain', border: '5px solid white', boxShadow: '0 4px 6px rgba(0,0,0,0.1)', backgroundColor: '#f3f4f6', transform: 'rotate(1deg)' }} />
-                                        ) : photos.length > 1 ? (
-                                            <div style={{ width: 'auto', height: 'auto', maxWidth: '100%', maxHeight: '100%', aspectRatio: '1/1', border: '5px solid white', boxShadow: '0 4px 6px rgba(0,0,0,0.1)', overflow: 'hidden', backgroundColor: '#f3f4f6', transform: 'rotate(1deg)' }}>
-                                                <PhotoCollage photos={photos} />
-                                            </div>
-                                        ) : null}
-                                    </div>
-                                </div>
-                                <div style={{ flexShrink: 0, width: '100%', position: 'relative', minHeight: '50px' }}>
-                                    <div style={{ transform: `translate(${txtSheet2.x * pdfScaleFactor}px, ${txtSheet2.y * pdfScaleFactor}px) scale(${txtSheet2.scale})` }}>
-                                        <p className={themeAssets.fontTitle} style={{ fontSize: '24px', lineHeight: 1.5 }}>"{editableMessage}"</p>
-                                    </div>
-                                </div>
-                            </div>
-                        </div>
-                        
-                        {/* RIGHT PAGE (CROSSWORD) */}
-                        <div style={{ width: '49%', marginLeft: '1%', height: '100%', position: 'relative', zIndex: 10, boxSizing: 'border-box', overflow: 'hidden', borderLeft: 'none', border: showBorders ? themeAssets.pdfBorder : 'none' }}>
-                            <div style={{ width: '100%', height: '100%', padding: '40px', paddingRight: '50px', display: 'flex', flexDirection: 'column' }}>
-                                {isCrossword ? (
-                                <div style={{ flex: 1, display: 'flex', flexDirection: 'column', height: '100%', overflow: 'hidden' }}>
-                                    <div style={{ flexShrink: 0 }}>
-                                            <h2 style={{ fontSize: '20px', fontWeight: 'bold', textTransform: 'uppercase', borderBottom: '2px solid black', marginBottom: '10px', paddingBottom: '5px', textAlign: 'center', letterSpacing: '2px' }}>Cruciverba</h2>
-                                            {renderSolution()}
-                                    </div>
-                                    <div style={{ flex: '1 1 auto', minHeight: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '10px 0', overflow: 'hidden' }}>
-                                        <div style={{ width: '100%', height: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                                            {renderGridCells()}
-                                        </div>
-                                    </div>
-                                    <div style={{ flexShrink: 0, fontSize: printFontSize, display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px', lineHeight: 1.1, borderTop: '2px solid black', paddingTop: '10px' }}>
-                                            <div><b style={{ display: 'block', borderBottom: '1px solid #ccc', marginBottom: '4px', paddingBottom: '2px', textTransform: 'uppercase', fontWeight: 'bold' }}>Orizzontali</b>{data.words.filter(w=>w.direction===DirEnum.ACROSS).map(w=><div key={w.id} style={{ marginBottom: '2px', whiteSpace: 'normal' }}><b style={{ marginRight: '4px' }}>{w.number}.</b>{w.clue}</div>)}</div>
-                                            <div><b style={{ display: 'block', borderBottom: '1px solid #ccc', marginBottom: '4px', paddingBottom: '2px', textTransform: 'uppercase', fontWeight: 'bold' }}>Verticali</b>{data.words.filter(w=>w.direction===DirEnum.DOWN).map(w=><div key={w.id} style={{ marginBottom: '2px', whiteSpace: 'normal' }}><b style={{ marginRight: '4px' }}>{w.number}.</b>{w.clue}</div>)}</div>
-                                    </div>
-                                </div>
-                            ) : <div style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', border: '2px dashed #ccc', borderRadius: '10px', opacity: 0.3 }}></div>}
-                            </div>
-                        </div>
-
-                        {/* ABSOLUTE ELEMENTS */}
-                        <div style={{ position: 'absolute', left: '50%', top: '50%', transform: `translate(-50%, -50%) translate(${stickerGroup.x * pdfScaleFactor}px, ${stickerGroup.y * pdfScaleFactor}px) scale(${stickerGroup.scale})`, pointerEvents: 'none', zIndex: 50 }}>
-                            <div style={{display:'flex', gap:'10px', fontSize:'50px'}}>{(data.stickers || []).slice(0,5).map((s,i) => <span key={i}>{s}</span>)}</div>
-                        </div>
-                        {customTexts.map(t => (
-                            <div key={t.id} style={{ position: 'absolute', left: '50%', top: '50%', transform: `translate(-50%, -50%) translate(${t.x * pdfScaleFactor}px, ${t.y * pdfScaleFactor}px)`, pointerEvents: 'none', zIndex: 50 }}>
-                                <div style={{ width: `${(t.width || 250) * pdfScaleFactor}px` }}>
-                                    <p className="font-hand" style={{ fontSize: `${(t.scale * 20) * pdfScaleFactor}px`, lineHeight: 1.2, color: '#581c87', textAlign: 'center', wordWrap: 'break-word' }}>{t.content}</p>
-                                </div>
-                            </div>
-                        ))}
-                    </div>
+                    {renderStandardSheet1()}
+                    {renderStandardSheet2()}
                 </div>
             )}
        </div>
