@@ -49,7 +49,7 @@ interface PrintTemplatesProps {
     // State logici
     printRenderKey: number;
     currentSheetPage: number;
-    // Dati per la stampa massiva/ibrida
+    // Dati per la stampa massiva
     allTagImages: string[];
     tagMessages: string[];
     tagVariations: Array<{img: string, title: string}>;
@@ -66,8 +66,8 @@ export const PrintTemplates = forwardRef<HTMLDivElement, PrintTemplatesProps>((p
     const {
         data, themeAssets, formatConfig, grid,
         wmSheet1, wmSheet2, imgSheet2, txtSheet2, stickerGroup, customTexts,
-        printRenderKey, currentSheetPage, 
-        allTagImages, tagMessages, tagVariations,
+        printRenderKey, currentSheetPage, tagVariations, tagMessages,
+        allTagImages, // Importante per il recupero diretto
         showBorders, isCrossword, photos, currentYear, editableMessage, pdfScaleFactor
     } = props;
 
@@ -129,7 +129,6 @@ export const PrintTemplates = forwardRef<HTMLDivElement, PrintTemplatesProps>((p
             </div>
             
             <div style={{ width: '49%', marginLeft: '1%', height: '100%', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', textAlign: 'center', position: 'relative', zIndex: 10, boxSizing: 'border-box', borderLeft: 'none', border: showBorders ? themeAssets.pdfBorder : 'none' }}>
-                {/* LOGICA IMMAGINE: Priorità a overrideImage (dal loop) -> poi extraImage -> poi placeholder */}
                 {overrideImage ? (
                     <div style={{ width: '100%', height: '100%', padding: '40px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
                         <img src={overrideImage} style={{ maxWidth: '100%', maxHeight: '100%', objectFit: 'contain' }} />
@@ -143,7 +142,8 @@ export const PrintTemplates = forwardRef<HTMLDivElement, PrintTemplatesProps>((p
         </div>
     );
 
-    const renderStandardSheet2 = (overrideMessage?: string) => (
+    // FIX: Aggiunto parametro overrideImage anche qui per l'interno
+    const renderStandardSheet2 = (overrideMessage?: string, overrideImage?: string) => (
         <div style={{ width: '1123px', height: '794px', display: 'flex', position: 'relative', backgroundColor: 'white', overflow: 'hidden', boxSizing: 'border-box', padding: '25px' }}>
             {data.hasWatermark && (
                 <div style={{ position: 'absolute', top: '50%', left: '50%', transform: `translate(-50%, -50%) translate(${wmSheet2.x * pdfScaleFactor}px, ${wmSheet2.y * pdfScaleFactor}px) scale(${wmSheet2.scale}) rotate(12deg)`, fontSize: '130px', opacity: 0.20, zIndex: 0, whiteSpace: 'nowrap' }}>{themeAssets.watermark}</div>
@@ -156,22 +156,28 @@ export const PrintTemplates = forwardRef<HTMLDivElement, PrintTemplatesProps>((p
                         <p style={{ fontSize: '14px', textTransform: 'uppercase', color: '#666', letterSpacing: '2px' }}>{data.eventDate || "Data Speciale"} • {currentYear}</p>
                     </div>
                     
-                    {/* FOTO INTERNE (Collage) - Ora abilitate anche per Mini/Massivo */}
                     <div style={{ flex: '1 1 auto', display: 'flex', alignItems: 'center', justifyContent: 'center', width: '100%', overflow: 'hidden', minHeight: 0, margin: '10px 0', position: 'relative' }}>
                         <div style={{ width: '100%', height: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', transform: `translate(${imgSheet2.x * pdfScaleFactor}px, ${imgSheet2.y * pdfScaleFactor}px) scale(${imgSheet2.scale})` }}>
-                            {photos.length === 1 ? (
-                                <img src={photos[0]} style={{ maxWidth: '100%', maxHeight: '100%', width: 'auto', height: 'auto', objectFit: 'contain', border: '5px solid white', boxShadow: '0 4px 6px rgba(0,0,0,0.1)', backgroundColor: '#f3f4f6', transform: 'rotate(1deg)' }} />
-                            ) : photos.length > 1 ? (
-                                <div style={{ width: 'auto', height: 'auto', maxWidth: '100%', maxHeight: '100%', aspectRatio: '1/1', border: '5px solid white', boxShadow: '0 4px 6px rgba(0,0,0,0.1)', overflow: 'hidden', backgroundColor: '#f3f4f6', transform: 'rotate(1deg)' }}>
-                                    <PhotoCollage photos={photos} />
-                                </div>
-                            ) : null}
+                            {photos.length > 0 ? (
+                                photos.length === 1 ? (
+                                    <img src={photos[0]} style={{ maxWidth: '100%', maxHeight: '100%', width: 'auto', height: 'auto', objectFit: 'contain', border: '5px solid white', boxShadow: '0 4px 6px rgba(0,0,0,0.1)', backgroundColor: '#f3f4f6', transform: 'rotate(1deg)' }} />
+                                ) : (
+                                    <div style={{ width: 'auto', height: 'auto', maxWidth: '100%', maxHeight: '100%', aspectRatio: '1/1', border: '5px solid white', boxShadow: '0 4px 6px rgba(0,0,0,0.1)', overflow: 'hidden', backgroundColor: '#f3f4f6', transform: 'rotate(1deg)' }}>
+                                        <PhotoCollage photos={photos} />
+                                    </div>
+                                )
+                            ) : (
+                                // FALLBACK: Se non ci sono foto collage, usa l'immagine del biglietto (o override)
+                                // Questo risolve il problema della foto interna mancante
+                                (overrideImage || data.images?.extraImage) ? (
+                                    <img src={overrideImage || data.images?.extraImage} style={{ maxWidth: '100%', maxHeight: '100%', width: 'auto', height: 'auto', objectFit: 'contain', opacity: 0.9 }} />
+                                ) : null
+                            )}
                         </div>
                     </div>
 
                     <div style={{ flexShrink: 0, width: '100%', position: 'relative', minHeight: '50px' }}>
                         <div style={{ transform: `translate(${txtSheet2.x * pdfScaleFactor}px, ${txtSheet2.y * pdfScaleFactor}px) scale(${txtSheet2.scale})` }}>
-                            {/* MESSAGGIO: Usa override (dal loop) se presente, altrimenti quello modificabile */}
                             <p className={themeAssets.fontTitle} style={{ fontSize: '24px', lineHeight: 1.5 }}>"{overrideMessage || editableMessage}"</p>
                         </div>
                     </div>
@@ -222,20 +228,15 @@ export const PrintTemplates = forwardRef<HTMLDivElement, PrintTemplatesProps>((p
                     const itemsPerPage = 2;
                     const globalIndex = (currentSheetPage * itemsPerPage) + i;
                     
-                    // IMPORTANTE: Se non c'è cartella caricata (allTagImages vuoto), usa l'immagine manuale (data.images.extraImage)
-                    // Se c'è cartella (massivo), pesca da lì.
-                    const imgFromFolder = allTagImages.length > 0 ? allTagImages[globalIndex] : undefined;
-                    const manualImg = data.images?.extraImage;
+                    // Se siamo in modalità massiva, pesca l'immagine dall'array.
+                    // Altrimenti (manuale), l'array allTagImages è vuoto, quindi img è undefined.
+                    const img = allTagImages[globalIndex];
                     
-                    // Se siamo in massivo e finiamo le immagini, non renderizzare nulla (o ripeti, a scelta)
-                    if (allTagImages.length > 0 && !imgFromFolder && globalIndex >= allTagImages.length) {
-                        return <div key={i} style={{ height: '50%', width: '100%' }}></div>;
-                    }
-
                     return (
                         <div key={i} style={{ height: '50%', width: '100%', borderBottom: i === 0 ? '1px dashed #ccc' : 'none', position: 'relative', overflow: 'hidden', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
                             <div style={{ width: '1123px', height: '794px', transform: 'scale(0.707)', transformOrigin: 'center center' }}>
-                                {renderStandardSheet1(imgFromFolder || manualImg)}
+                                {/* Passiamo l'immagine specifica (se c'è), altrimenti la funzione userà quella di default */}
+                                {renderStandardSheet1(img)}
                             </div>
                         </div>
                     );
@@ -248,14 +249,15 @@ export const PrintTemplates = forwardRef<HTMLDivElement, PrintTemplatesProps>((p
                     const itemsPerPage = 2;
                     const globalIndex = (currentSheetPage * itemsPerPage) + i;
                     
-                    // STESSA LOGICA PER IL TESTO
-                    const msgFromFolder = tagMessages.length > 0 ? tagMessages[globalIndex] : undefined;
-                    const manualMsg = editableMessage;
-
+                    const msg = tagMessages[globalIndex] || "";
+                    // Recupero anche l'immagine per l'interno (per coerenza)
+                    const img = allTagImages[globalIndex];
+                    
                     return (
                         <div key={i} style={{ height: '50%', width: '100%', borderBottom: i === 0 ? '1px dashed #ccc' : 'none', position: 'relative', overflow: 'hidden', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
                             <div style={{ width: '1123px', height: '794px', transform: 'scale(0.707)', transformOrigin: 'center center' }}>
-                                {renderStandardSheet2(msgFromFolder || manualMsg)}
+                                {/* Passiamo sia messaggio che immagine per l'interno */}
+                                {renderStandardSheet2(msg, img)}
                             </div>
                         </div>
                     );
@@ -267,9 +269,8 @@ export const PrintTemplates = forwardRef<HTMLDivElement, PrintTemplatesProps>((p
     return (
         <div ref={ref} style={{ position: 'fixed', top: 0, left: '-9999px', zIndex: -100 }}>
             {data.format === 'tags' ? (
-                // TAGS LAYOUT (8x) - Invariato
+                // TAGS LAYOUT (8x) - (Resta invariato come era prima)
                 <div key={`${printRenderKey}-${currentSheetPage}`}>
-                    {/* ... codice tags ... (omesso per brevità, è identico a prima) */}
                     <div id="pdf-sheet-1" style={{ width: '794px', height: '1123px', display: 'flex', flexWrap: 'wrap', alignContent: 'flex-start', padding: '0', margin: '0', backgroundColor: 'white', boxSizing: 'border-box' }}>
                         {Array(8).fill(null).map((_, i) => {
                              const v = tagVariations[i];
