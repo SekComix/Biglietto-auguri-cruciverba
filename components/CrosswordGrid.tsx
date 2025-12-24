@@ -1207,3 +1207,19 @@ const CrosswordGrid: React.FC<CrosswordGridProps> = ({ data, onComplete, onEdit,
             printRenderKey={printRenderKey}
             currentSheetPage={currentSheetPage}
             tagVariations={tagVariations}
+            tagMessages={tagMessages}
+            // Passiamo gli array completi per la stampa massiva
+            allTagImages={allTagImages}
+            // ---
+            showBorders={showBorders}
+            isCrossword={isCrossword}
+            photos={photos}
+            currentYear={currentYear}
+            editableMessage={editableMessage}
+            pdfScaleFactor={pdfScaleFactor}
+       />
+    </div>
+  );
+};
+
+export default CrosswordGrid;
