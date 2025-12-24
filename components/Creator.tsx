@@ -86,7 +86,10 @@ export const Creator: React.FC<CreatorProps> = ({ onCreated, initialData }) => {
   const [hiddenSolution, setHiddenSolution] = useState('');
   const [extraImage, setExtraImage] = useState<string | undefined>(undefined);
   const [photos, setPhotos] = useState<string[]>([]); 
-  const [brandLogo, setBrandLogo] = useState<string | undefined>('/logo.png');
+  
+  // LOGO: Usa il percorso relativo con il punto
+  const [brandLogo, setBrandLogo] = useState<string | undefined>('./logo.png');
+  
   const [selectedStickers, setSelectedStickers] = useState<string[]>([]);
   const [activeStickerTab, setActiveStickerTab] = useState('Natale');
   const [isGeneratingSuggestions, setIsGeneratingSuggestions] = useState(false);
@@ -114,7 +117,10 @@ export const Creator: React.FC<CreatorProps> = ({ onCreated, initialData }) => {
         setHasWatermark(!!initialData.hasWatermark);
         setExtraImage(initialData.images?.extraImage);
         setPhotos(initialData.images?.photos || []);
-        setBrandLogo(initialData.images?.brandLogo || '/logo.png');
+        
+        // Se c'è un logo salvato, usalo, altrimenti default
+        setBrandLogo(initialData.images?.brandLogo || './logo.png');
+        
         setSelectedStickers(initialData.stickers || []);
         if (initialData.originalMode === 'manual') {
             setCreationMode('manual');
@@ -137,7 +143,7 @@ export const Creator: React.FC<CreatorProps> = ({ onCreated, initialData }) => {
         setHiddenSolution('');
         setExtraImage(undefined);
         setPhotos([]);
-        setBrandLogo('/logo.png'); 
+        setBrandLogo('./logo.png'); 
         setSelectedStickers([]);
         setManualWords([{ word: '', clue: '' }, { word: '', clue: '' }, { word: '', clue: '' }]);
         setCreationMode('guided');
@@ -216,7 +222,7 @@ export const Creator: React.FC<CreatorProps> = ({ onCreated, initialData }) => {
 
   const removeImage = (type: 'extra' | 'photo' | 'brand') => {
       if (type === 'extra') setExtraImage(undefined);
-      else if (type === 'brand') setBrandLogo('/logo.png');
+      else if (type === 'brand') setBrandLogo('./logo.png'); // Reset to default
       else setPhotos([]);
   };
 
@@ -327,7 +333,7 @@ export const Creator: React.FC<CreatorProps> = ({ onCreated, initialData }) => {
             <h2 className="font-bold text-3xl md:text-4xl text-gray-800 mb-2 font-body">Crea il Tuo Biglietto</h2>
             <button type="button" onClick={handleQuickTest} className="absolute top-0 right-0 bg-yellow-400 text-yellow-900 text-[10px] font-bold px-2 py-1 rounded-full flex items-center gap-1 hover:bg-yellow-300 transition-colors shadow-sm"><Zap size={10} fill="currentColor"/> Test Rapido</button>
           </div>
-          {/* ... (rest of the form remains mostly the same, ensuring all closing tags are correct) ... */}
+
           <div className="mb-6">
             <label className="block text-xs font-bold text-gray-400 mb-3 uppercase tracking-wider text-center">1. Destinatario & Evento</label>
             <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-5 gap-3 mb-4">
@@ -353,6 +359,7 @@ export const Creator: React.FC<CreatorProps> = ({ onCreated, initialData }) => {
 
           <div className="mb-6">
             <label className="block text-xs font-bold text-gray-400 mb-3 uppercase tracking-wider text-center">2. Personalizza Contenuto</label>
+            
             <div className="bg-gray-100 p-1 rounded-xl flex mb-4 text-sm font-bold text-gray-600 shadow-inner">
                 <button type="button" onClick={() => setCreationMode('guided')} className={`flex-1 py-3 rounded-lg flex items-center justify-center gap-2 ${creationMode === 'guided' ? 'bg-white text-blue-600 shadow-sm' : ''}`}><Wand2 size={16}/> Assistente</button>
                 <button type="button" onClick={() => setCreationMode('freestyle')} className={`flex-1 py-3 rounded-lg flex items-center justify-center gap-2 ${creationMode === 'freestyle' ? 'bg-white text-purple-600 shadow-sm' : ''}`}><BrainCircuit size={16}/> Prompt AI</button>
@@ -403,8 +410,8 @@ export const Creator: React.FC<CreatorProps> = ({ onCreated, initialData }) => {
           
           <div className="mb-6 bg-gray-50 p-3 rounded-xl border border-gray-100">
              <div className="flex justify-between items-center mb-2"><label className="text-xs font-bold text-gray-400 uppercase">Decorazioni</label><span className={`text-xs font-bold ${selectedStickers.length >= 5 ? 'text-red-500' : 'text-blue-500'}`}>{selectedStickers.length}/5</span></div>
-             <div className="flex gap-2 overflow-x-auto pb-2 mb-2 custom-scrollbar">{Object.keys(STICKER_CATEGORIES).map(cat => <button key={cat} type="button" onClick={() => setActiveStickerTab(cat)} className={`text-xs px-2 py-1 rounded-full ${activeStickerTab === cat ? 'bg-blue-600 text-white' : 'bg-white text-gray-600'}`}>{cat}</button>)}</div>
-             <div className="flex flex-wrap gap-2 justify-center max-h-32 overflow-y-auto p-1 custom-scrollbar bg-white rounded-lg border-inner shadow-inner">{STICKER_CATEGORIES[activeStickerTab].map(s => <button key={s} type="button" onClick={() => toggleSticker(s)} disabled={!selectedStickers.includes(s) && selectedStickers.length >= 5} className={`text-2xl p-2 rounded-full ${selectedStickers.includes(s) ? 'bg-blue-50 shadow-md ring-2 ring-blue-200' : 'opacity-60'}`}>{s}</button>)}</div>
+             <div className="flex gap-2 overflow-x-auto pb-2 mb-2 custom-scrollbar">{Object.keys(STICKER_CATEGORIES).map(cat => <button key={cat} type="button" onClick={() => setActiveStickerTab(cat)} className={`text-xs px-2 py-1 rounded-full whitespace-nowrap transition-colors ${activeStickerTab === cat ? 'bg-blue-600 text-white font-bold' : 'bg-white text-gray-600 hover:bg-gray-100 border'}`}>{cat}</button>)}</div>
+             <div className="flex flex-wrap gap-2 justify-center max-h-32 overflow-y-auto p-1 custom-scrollbar bg-white rounded-lg border-inner shadow-inner">{STICKER_CATEGORIES[activeStickerTab].map(s => <button key={s} type="button" onClick={() => toggleSticker(s)} disabled={!selectedStickers.includes(s) && selectedStickers.length >= 5} className={`text-2xl p-2 rounded-full transition-all duration-300 ${selectedStickers.includes(s) ? 'bg-blue-50 shadow-md scale-110 ring-2 ring-blue-200' : 'opacity-60 hover:opacity-100 hover:scale-105'} ${!selectedStickers.includes(s) && selectedStickers.length >= 5 ? 'opacity-20 cursor-not-allowed' : ''}`}>{s}</button>)}</div>
           </div>
 
           <button type="submit" disabled={loading || !!processingImg} className={`w-full py-4 rounded-xl text-white font-bold text-lg shadow-xl flex items-center justify-center gap-2 transition-all active:scale-95 ${loading || !!processingImg ? 'bg-gray-400 cursor-not-allowed' : 'bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700'}`}><Wand2 /> {initialData ? "RIGENERA BIGLIETTO" : "GENERA BIGLIETTO"}</button>
