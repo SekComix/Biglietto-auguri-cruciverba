@@ -138,39 +138,42 @@ const CrosswordGrid: React.FC<CrosswordGridProps> = ({ data, onComplete, onEdit,
   const editorRef = useRef<HTMLDivElement>(null);
 
   const themeAssets = THEME_ASSETS[data.theme] || THEME_ASSETS.generic;
-  // FIX: Ora isCrossword è true anche per square e a6_2x se il tipo è 'crossword'
-  const isCrossword = data.type === 'crossword' && data.format !== 'tags';
+  const isCrossword = data.type === 'crossword' && data.format !== 'square' && data.format !== 'tags';
   const photos = data.images?.photos || [];
   const currentYear = new Date().getFullYear();
   const formatConfig = FORMAT_CONFIG[data.format || 'a4'];
 
   const isMultiItemFormat = data.format === 'tags' || data.format === 'a6_2x' || data.format === 'square';
-  const itemsPerPage = data.format === 'tags' ? 8 : (data.format === 'a6_2x' || data.format === 'square' ? 2 : 1);
+  const itemsPerPage = data.format === 'tags' ? 8 : 2; // Square e Mini2x sono entrambi 2
   const totalPages = Math.ceil(Math.max(allTagImages.length, itemsPerPage) / itemsPerPage);
 
   useEffect(() => {
       const hasThemeChanged = prevDataRef.current.theme !== data.theme;
       const hasFormatChanged = prevDataRef.current.format !== data.format;
-      
       if (hasThemeChanged || hasFormatChanged) {
           setAllTagImages([]);
           setCurrentSheetPage(0);
           setTagMessages([]);
           prevDataRef.current = data;
       }
-      
       if (isMultiItemFormat && allTagImages.length === 0) {
            setAllTagImages(Array(itemsPerPage).fill(""));
       }
   }, [data.format, data.theme, isMultiItemFormat, itemsPerPage]);
 
+  // LOGICA MESSAGGI E IMMAGINI
   useEffect(() => {
       if (!isMultiItemFormat) {
           setViewMode('single');
           return;
       }
       
-      if (allTagImages.length > 0 && tagMessages.length < allTagImages.length) {
+      // FIX: Se l'AI ha generato un messaggio (data.message) e i messaggi tag sono vuoti, usalo per tutti
+      if (data.message && data.message.length > 5 && tagMessages.length === 0) {
+           const initialMessages = Array(Math.max(allTagImages.length, 20)).fill(data.message);
+           setTagMessages(initialMessages);
+      } else if (allTagImages.length > 0 && tagMessages.length < allTagImages.length) {
+          // Riempimento random se mancano
           const themeMessages = TAG_MESSAGES_DB[data.theme] || TAG_MESSAGES_DB.generic;
           let messagePool: string[] = [];
           while (messagePool.length < allTagImages.length) {
@@ -181,17 +184,10 @@ const CrosswordGrid: React.FC<CrosswordGridProps> = ({ data, onComplete, onEdit,
           const existing = [...tagMessages];
           const newPart = messagePool.slice(0, needed);
           setTagMessages([...existing, ...newPart]);
-
-      } else if (tagMessages.length === 0 && allTagImages.length > 0) {
-          const themeMessages = TAG_MESSAGES_DB[data.theme] || TAG_MESSAGES_DB.generic;
-          let messagePool: string[] = [];
-          while (messagePool.length < allTagImages.length) {
-              messagePool = [...messagePool, ...shuffleArray(themeMessages)];
-          }
-          setTagMessages(messagePool.slice(0, allTagImages.length));
       }
       
       const startIdx = currentSheetPage * itemsPerPage;
+      // FIX: Assicura che l'array tagliato sia corretto anche per l'ultima pagina
       const pageImages = allTagImages.slice(startIdx, startIdx + itemsPerPage);
       while(pageImages.length < itemsPerPage) pageImages.push("");
 
@@ -206,8 +202,7 @@ const CrosswordGrid: React.FC<CrosswordGridProps> = ({ data, onComplete, onEdit,
           return { img, title };
       });
       setTagVariations(newVars);
-
-  }, [allTagImages, currentSheetPage, data.format, data.theme, data.title, tagMessages.length, isMultiItemFormat, itemsPerPage]); 
+  }, [allTagImages, currentSheetPage, data.format, data.theme, data.title, tagMessages.length, isMultiItemFormat, itemsPerPage, data.message]); 
 
   useEffect(() => {
     if (editableMessage !== data.message) {
@@ -289,7 +284,11 @@ const CrosswordGrid: React.FC<CrosswordGridProps> = ({ data, onComplete, onEdit,
           if (validImages.length === 0) return;
           
           setAllTagImages(validImages);
-          setTagMessages([]); 
+          // Non cancelliamo i messaggi se ci sono già, li integriamo
+          if (tagMessages.length < validImages.length && data.message) {
+              const newMsgs = Array(validImages.length).fill(data.message);
+              setTagMessages(newMsgs);
+          }
           setCurrentSheetPage(0);
           
           alert(`Caricamento completato! ${validImages.length} foto pronte per la creazione dei biglietti.`);
@@ -498,23 +497,6 @@ const CrosswordGrid: React.FC<CrosswordGridProps> = ({ data, onComplete, onEdit,
       );
   };
 
-  const renderGridCells = (isPrint = false) => (
-    <div className={`grid gap-[1px] bg-black/10 p-2 rounded-lg pointer-events-auto`} style={{ gridTemplateColumns: `repeat(${data.width}, minmax(0, 1fr))`, aspectRatio: `${data.width}/${data.height}`, width: '100%', maxHeight: '100%', margin: '0 auto' }}>
-      {grid.map((row, y) => row.map((cell, x) => {
-          const isSelected = !isPrint && selectedCell?.x === x && selectedCell?.y === y;
-          const displayChar = isPrint ? '' : (revealAnswers ? cell.char : cell.userChar); 
-          if (!cell.char) return <div key={`${x}-${y}`} className={`bg-black/5 rounded-sm`} />;
-          return (
-            <div key={`${x}-${y}-${revealAnswers}`} onClick={() => !isPrint && handleCellClick(x, y)} className={`relative flex items-center justify-center w-full h-full text-xl font-bold cursor-pointer rounded-sm`} style={{ backgroundColor: cell.isSolutionCell ? '#FEF08A' : (isSelected && !revealAnswers && !isPrint ? '#DBEAFE' : '#FFFFFF'), boxSizing: 'border-box' }}>
-              {cell.number && <span className={`absolute top-0 left-0 leading-none ${isPrint ? 'text-[8px] p-[1px] font-bold text-gray-500' : 'text-[9px] p-0.5 text-gray-500'}`}>{cell.number}</span>}
-              {cell.isSolutionCell && cell.solutionIndex !== undefined && <div className={`absolute bottom-0 right-0 leading-none font-bold text-gray-600 bg-white/60 rounded-tl-sm z-10 ${isPrint ? 'text-[8px] p-[1px]' : 'text-[9px] p-0.5'}`}>{getSolutionLabel(cell.solutionIndex)}</div>}
-              {isPrint ? <span className="font-bold text-lg"></span> : (isSelected && !revealAnswers ? <input ref={(el) => { inputRefs.current[y][x] = el; }} maxLength={1} className="w-full h-full text-center bg-transparent outline-none uppercase" value={cell.userChar} onChange={(e) => handleInput(x, y, e.target.value)} /> : <div className={`w-full h-full flex items-center justify-center uppercase ${revealAnswers ? 'text-green-600' : ''}`}>{displayChar}</div>)}
-            </div>
-          );
-      }))}
-    </div>
-  );
-
   const toggleSheetPrintSelection = (index: number) => {
       setSheetsToPrint(prev => {
           if (prev.includes(index)) return prev.filter(i => i !== index);
@@ -543,7 +525,7 @@ const CrosswordGrid: React.FC<CrosswordGridProps> = ({ data, onComplete, onEdit,
              
              if (isMultiItemFormat) {
                  setCurrentSheetPage(actualPageIndex);
-                 // Increased delay to allow heavy images to load
+                 // Increased delay to allow heavy images to load (2 seconds per page)
                  await new Promise(resolve => setTimeout(resolve, 2000)); 
              }
 
@@ -642,6 +624,23 @@ const CrosswordGrid: React.FC<CrosswordGridProps> = ({ data, onComplete, onEdit,
          }
      }
   };
+
+  const renderGridCells = (isPrint = false) => (
+    <div className={`grid gap-[1px] bg-black/10 p-2 rounded-lg pointer-events-auto`} style={{ gridTemplateColumns: `repeat(${data.width}, minmax(0, 1fr))`, aspectRatio: `${data.width}/${data.height}`, width: '100%', maxHeight: '100%', margin: '0 auto' }}>
+      {grid.map((row, y) => row.map((cell, x) => {
+          const isSelected = !isPrint && selectedCell?.x === x && selectedCell?.y === y;
+          const displayChar = isPrint ? '' : (revealAnswers ? cell.char : cell.userChar); 
+          if (!cell.char) return <div key={`${x}-${y}`} className={`bg-black/5 rounded-sm`} />;
+          return (
+            <div key={`${x}-${y}-${revealAnswers}`} onClick={() => !isPrint && handleCellClick(x, y)} className={`relative flex items-center justify-center w-full h-full text-xl font-bold cursor-pointer rounded-sm`} style={{ backgroundColor: cell.isSolutionCell ? '#FEF08A' : (isSelected && !revealAnswers && !isPrint ? '#DBEAFE' : '#FFFFFF'), boxSizing: 'border-box' }}>
+              {cell.number && <span className={`absolute top-0 left-0 leading-none ${isPrint ? 'text-[8px] p-[1px] font-bold text-gray-500' : 'text-[9px] p-0.5 text-gray-500'}`}>{cell.number}</span>}
+              {cell.isSolutionCell && cell.solutionIndex !== undefined && <div className={`absolute bottom-0 right-0 leading-none font-bold text-gray-600 bg-white/60 rounded-tl-sm z-10 ${isPrint ? 'text-[8px] p-[1px]' : 'text-[9px] p-0.5'}`}>{getSolutionLabel(cell.solutionIndex)}</div>}
+              {isPrint ? <span className="font-bold text-lg"></span> : (isSelected && !revealAnswers ? <input ref={(el) => { inputRefs.current[y][x] = el; }} maxLength={1} className="w-full h-full text-center bg-transparent outline-none uppercase" value={cell.userChar} onChange={(e) => handleInput(x, y, e.target.value)} /> : <div className={`w-full h-full flex items-center justify-center uppercase ${revealAnswers ? 'text-green-600' : ''}`}>{displayChar}</div>)}
+            </div>
+          );
+      }))}
+    </div>
+  );
 
   return (
     <div className="flex flex-col items-center gap-8 w-full pb-20" onClick={handleGlobalClick}>
@@ -907,7 +906,7 @@ const CrosswordGrid: React.FC<CrosswordGridProps> = ({ data, onComplete, onEdit,
                                         <div style={{width: '794px', height: '1123px', display: 'flex', flexDirection: 'column'}}>
                                             {Array(2).fill(null).map((_, i) => {
                                                 const globalIndex = (currentSheetPage * 2) + i;
-                                                const v = tagVariations[globalIndex];
+                                                const v = tagVariations[i]; // FIX: Use local index for regenerated variations
                                                 const msg = tagMessages[globalIndex];
                                                 
                                                 return (
@@ -964,11 +963,13 @@ const CrosswordGrid: React.FC<CrosswordGridProps> = ({ data, onComplete, onEdit,
                                     onDoubleClick={(e) => { e.stopPropagation(); setActiveItemId('img2'); }}
                                 >
                                     {isMultiItemFormat ? (
-                                        <div className="relative w-full h-full group bg-gray-50">
-                                            {tagVariations[currentTagIndex]?.img || data.images?.extraImage || photos[0] ? (
+                                        // SINGLE VIEW FOR MINI/SQUARE/TAGS - FIXED
+                                        <div className="relative w-full h-full group bg-gray-50 flex flex-col items-center justify-center">
+                                            {/* Show current item for this index */}
+                                            {tagVariations[currentTagIndex]?.img ? (
                                                 <img 
-                                                    src={tagVariations[currentTagIndex]?.img || data.images?.extraImage || photos[0]} 
-                                                    className="max-w-full max-h-full object-cover drop-shadow-md shadow-lg w-full h-full" 
+                                                    src={tagVariations[currentTagIndex]?.img} 
+                                                    className="max-w-full max-h-full object-cover drop-shadow-md shadow-lg" 
                                                 />
                                             ) : (
                                                 <div className="w-full h-full flex items-center justify-center text-gray-300">
@@ -1073,7 +1074,7 @@ const CrosswordGrid: React.FC<CrosswordGridProps> = ({ data, onComplete, onEdit,
                         </div>
                     </div>
 
-                    <div className="absolute inset-0 pointer-events-none" style={{ zIndex: 60 }}>
+                    <div className="absolute inset-0 pointer-events-none" style={{ zIndex: 100 }}>
                         <div className={`absolute left-1/2 top-1/2 pointer-events-auto ${activeItemId === 'stickerGroup' ? 'cursor-move ring-2 ring-green-400 ring-dashed bg-green-50/30 rounded-lg' : ''}`} 
                             style={{ transform: `translate(-50%, -50%) translate(${stickerGroup.x}px, ${stickerGroup.y}px) scale(${stickerGroup.scale})` }} 
                             onMouseDown={(e) => startDrag(e, 'stickerGroup')}
