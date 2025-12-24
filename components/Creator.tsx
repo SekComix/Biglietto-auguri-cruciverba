@@ -1,8 +1,7 @@
-
 import React, { useState, useEffect, useRef } from 'react';
 import { generateCrossword, regenerateGreetingOptions } from '../services/geminiService';
 import { CrosswordData, ManualInput, ThemeType, ToneType, Direction, CardFormat } from '../types';
-import { Loader2, Wand2, Plus, Trash2, Gift, PartyPopper, CalendarHeart, Crown, KeyRound, Image as ImageIcon, Upload, Calendar, AlertCircle, Grid3X3, MailOpen, Images, Ghost, GraduationCap, ScrollText, HeartHandshake, BookOpen, Search, X, Smile, Heart, Music, Sparkles, Edit, PenTool, LayoutGrid, Zap, Check, MessageSquareDashed, Info, HelpCircle, Bot, BrainCircuit, Feather, Quote, Briefcase, GraduationCap as GradCap, Puzzle, Stamp, FileBadge, BoxSelect, Tag } from 'lucide-react';
+import { Loader2, Wand2, Plus, Trash2, Gift, PartyPopper, CalendarHeart, Crown, KeyRound, Image as ImageIcon, Upload, Calendar, AlertCircle, Grid3X3, MailOpen, Images, Ghost, GraduationCap, ScrollText, HeartHandshake, BookOpen, Search, X, Smile, Heart, Music, Sparkles, Edit, PenTool, LayoutGrid, Zap, Check, MessageSquareDashed, Info, HelpCircle, Bot, BrainCircuit, Feather, Quote, Briefcase, GraduationCap as GradCap, Puzzle, Stamp, FileBadge, BoxSelect, Tag, Copy } from 'lucide-react';
 
 interface CreatorProps {
   onCreated: (data: CrosswordData) => void;
@@ -53,6 +52,7 @@ const ACTIVITY_MODULES = [
 
 const CARD_FORMATS: { id: CardFormat; label: string; desc: string; icon?: any }[] = [
     { id: 'a4', label: 'Standard (A4)', desc: 'Piegato a metà (A5)', icon: BoxSelect },
+    { id: 'a6_2x', label: 'Mini (2x)', desc: '2 Biglietti su A4 (A6)', icon: Copy },
     { id: 'a3', label: 'Maxi (A3)', desc: 'Stampa grande poster', icon: BoxSelect },
     { id: 'square', label: 'Quadrato', desc: 'Formato moderno (2:1)', icon: BoxSelect },
     { id: 'tags', label: 'Bigliettini', desc: '8x Pacchetti (5x7cm)', icon: Tag },
