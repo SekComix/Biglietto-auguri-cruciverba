@@ -1029,7 +1029,7 @@ const CrosswordGrid: React.FC<CrosswordGridProps> = ({ data, onComplete, onEdit,
                                                  {/* Controls for changing this specific image */}
                                                  <div className="absolute bottom-2 right-2 flex gap-2 z-50 pointer-events-auto opacity-0 group-hover:opacity-100 transition-opacity">
                                                       <input type="file" ref={singleTagFileInputRef} className="hidden" accept="image/*" onChange={handleSingleTagFileChange}/>
-                                                      <button onClick={handleSingleTagUploadTrigger} className="bg-white text-gray-700 p-2 rounded-full shadow hover:bg-gray-100 hover:text-blue-600" title="Carica foto per questo biglietto"><Camera size={16}/></button>
+                                                      <button onClick={handleSingleTagUploadTrigger} className="bg-white text-gray-700 p-2 rounded-full shadow hover:bg-gray-100 hover:text-blue-600" title="Carica foto per questo bigliettino"><Camera size={16}/></button>
                                                  </div>
                                             </div>
 
@@ -1119,11 +1119,26 @@ const CrosswordGrid: React.FC<CrosswordGridProps> = ({ data, onComplete, onEdit,
                                     </div>
                                 </div>
                             ) : isMultiItemFormat ? (
-                                // For MULTI formats (Mini/Square), the right side is handled inside the img2 container above for Single view
-                                // or handled by Sheets view.
-                                // We keep this empty or as a placeholder to maintain layout structure if needed, 
-                                // BUT since we redesigned Single View to have 2 columns inside img2 container, we can leave this empty or minimal.
-                                <div className="hidden"></div>
+                                <div className="flex-1 flex flex-col items-center justify-start text-center p-2 pt-4 z-10">
+                                    <div className="w-full mb-4">
+                                        <p className="text-xs uppercase text-gray-400 font-bold mb-1">
+                                            {data.theme === 'christmas' ? `SS. Natale ${currentYear}` : (data.eventDate || currentYear)}
+                                        </p>
+                                    </div>
+
+                                    {data.recipientName && <p className="text-xs uppercase text-gray-400 font-bold mb-2">A: {data.recipientName}</p>}
+                                    
+                                    <p className={`${themeAssets.fontTitle} text-2xl text-gray-800 whitespace-pre-line leading-tight`}>{tagVariations[currentTagIndex]?.title || "Auguri!"}</p>
+                                    
+                                    <div className="mt-4 w-full relative pointer-events-auto group flex-1">
+                                        <textarea 
+                                            className="w-full h-full text-center text-xs font-serif bg-transparent outline-none resize-none border border-transparent hover:border-gray-200 focus:border-blue-400 transition-colors rounded p-1" 
+                                            value={tagMessages[(currentSheetPage * itemsPerPage) + currentTagIndex] || tagMessages[currentTagIndex] || ""} 
+                                            onChange={(e) => handleTagMessageChange(e.target.value)}
+                                        />
+                                        <span className="absolute top-0 right-0 opacity-0 group-hover:opacity-100 text-gray-400 bg-white rounded-full p-1 shadow-sm transition-opacity"><Pencil size={10}/></span>
+                                    </div>
+                                </div>
                             ) : (
                                 <div className="flex-1 flex items-center justify-center opacity-20 border-2 border-dashed border-gray-300 m-8 rounded-xl z-10"><p className="text-xl font-hand rotate-[-5deg] text-center">Spazio per dedica<br/>scritta a mano...</p></div>
                             )}
@@ -1192,19 +1207,3 @@ const CrosswordGrid: React.FC<CrosswordGridProps> = ({ data, onComplete, onEdit,
             printRenderKey={printRenderKey}
             currentSheetPage={currentSheetPage}
             tagVariations={tagVariations}
-            tagMessages={tagMessages}
-            // Passiamo gli array completi per la stampa massiva
-            allTagImages={allTagImages}
-            // ---
-            showBorders={showBorders}
-            isCrossword={isCrossword}
-            photos={photos}
-            currentYear={currentYear}
-            editableMessage={editableMessage}
-            pdfScaleFactor={pdfScaleFactor}
-       />
-    </div>
-  );
-};
-
-export default CrosswordGrid;
