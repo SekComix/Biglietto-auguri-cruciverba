@@ -52,7 +52,7 @@ const shuffleArray = (array: string[]) => {
     return arr;
 };
 
-// Questo serve per l'anteprima nell'Editor (non per la stampa che usa PrintTemplates)
+// --- RESTORED PHOTO COLLAGE FOR EDITOR PREVIEW ---
 const PhotoCollage: React.FC<{ photos: string[] }> = ({ photos }) => {
     if (!photos || photos.length === 0) return null;
     const count = photos.length;
@@ -147,32 +147,25 @@ const CrosswordGrid: React.FC<CrosswordGridProps> = ({ data, onComplete, onEdit,
   const itemsPerPage = data.format === 'tags' ? 8 : (data.format === 'a6_2x' || data.format === 'square' ? 2 : 1);
   const totalPages = Math.ceil(Math.max(allTagImages.length, itemsPerPage) / itemsPerPage);
 
-  // RESET DATI AL CAMBIO FORMATO
   useEffect(() => {
       const hasThemeChanged = prevDataRef.current.theme !== data.theme;
       const hasFormatChanged = prevDataRef.current.format !== data.format;
-      
       if (hasThemeChanged || hasFormatChanged) {
           setAllTagImages([]);
           setCurrentSheetPage(0);
           setTagMessages([]);
           prevDataRef.current = data;
       }
-      
-      // Se è un formato massivo e non ci sono immagini, inizializza con array vuoto della giusta lunghezza
       if (isMultiItemFormat && allTagImages.length === 0) {
            setAllTagImages(Array(itemsPerPage).fill(""));
       }
   }, [data.format, data.theme, isMultiItemFormat, itemsPerPage]);
 
-  // LOGICA GENERAZIONE VARIANTI (IMMAGINI E MESSAGGI)
   useEffect(() => {
       if (!isMultiItemFormat) {
           setViewMode('single');
           return;
       }
-      
-      // Riempie i messaggi se mancano
       if (allTagImages.length > 0 && tagMessages.length < allTagImages.length) {
           const themeMessages = TAG_MESSAGES_DB[data.theme] || TAG_MESSAGES_DB.generic;
           let messagePool: string[] = [];
@@ -184,7 +177,6 @@ const CrosswordGrid: React.FC<CrosswordGridProps> = ({ data, onComplete, onEdit,
           const existing = [...tagMessages];
           const newPart = messagePool.slice(0, needed);
           setTagMessages([...existing, ...newPart]);
-
       } else if (tagMessages.length === 0 && allTagImages.length > 0) {
           const themeMessages = TAG_MESSAGES_DB[data.theme] || TAG_MESSAGES_DB.generic;
           let messagePool: string[] = [];
@@ -193,19 +185,15 @@ const CrosswordGrid: React.FC<CrosswordGridProps> = ({ data, onComplete, onEdit,
           }
           setTagMessages(messagePool.slice(0, allTagImages.length));
       }
-      
-      // Calcola quali immagini mostrare nella pagina corrente
       const startIdx = currentSheetPage * itemsPerPage;
       const pageImages = allTagImages.slice(startIdx, startIdx + itemsPerPage);
-      
-      // Riempi con vuoti se non bastano per finire la pagina
       while(pageImages.length < itemsPerPage) pageImages.push("");
 
       const newVars = pageImages.map((img, i) => {
           let title = "Auguri!";
           const absoluteIndex = startIdx + i;
           if (data.theme === 'christmas') {
-              // Alterna "Buon Natale" e "Buone Feste"
+              // Alterna il titolo
               title = (absoluteIndex % itemsPerPage) < (itemsPerPage/2) ? "Buon Natale" : "Buone Feste";
           } else {
               title = data.title || "Auguri";
@@ -213,7 +201,6 @@ const CrosswordGrid: React.FC<CrosswordGridProps> = ({ data, onComplete, onEdit,
           return { img, title };
       });
       setTagVariations(newVars);
-
   }, [allTagImages, currentSheetPage, data.format, data.theme, data.title, tagMessages.length, isMultiItemFormat, itemsPerPage]); 
 
   useEffect(() => {
@@ -272,37 +259,26 @@ const CrosswordGrid: React.FC<CrosswordGridProps> = ({ data, onComplete, onEdit,
       e.target.value = '';
   };
 
-  // GESTIONE CARICAMENTO CARTELLA
   const handleFolderUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
       const files = e.target.files;
       if (!files || files.length === 0) return;
-      
       const imageFiles = Array.from(files)
         .filter(file => file.type.startsWith('image/'))
         .sort((a, b) => a.name.localeCompare(b.name, undefined, { numeric: true, sensitivity: 'base' }));
-      
-      if (imageFiles.length === 0) { 
-          alert("Nessuna immagine trovata nella selezione."); 
-          return; 
-      }
-
+      if (imageFiles.length === 0) { alert("Nessuna immagine trovata."); return; }
       const promises = imageFiles.map(file => new Promise<string>((resolve) => {
           const reader = new FileReader();
           reader.onload = (ev) => resolve(ev.target?.result as string);
           reader.onerror = () => resolve(""); 
           reader.readAsDataURL(file);
       }));
-
       Promise.all(promises).then(images => {
           const validImages = images.filter(img => img !== "");
           if (validImages.length === 0) return;
-          
           setAllTagImages(validImages);
           setTagMessages([]); 
-          setCurrentSheetPage(0);
-          
-          // Feedback
-          alert(`Caricamento completato! ${validImages.length} foto pronte per la creazione dei biglietti.`);
+          setCurrentSheetPage(0); 
+          alert(`Caricamento completato! ${validImages.length} foto pronte.`);
       });
       e.target.value = ''; 
   };
@@ -334,7 +310,15 @@ const CrosswordGrid: React.FC<CrosswordGridProps> = ({ data, onComplete, onEdit,
 
   const handleConfirmPrint = () => {
       setShowInstructionModal(false);
-      setSheetsToPrint([currentSheetPage]);
+      
+      // If mass format, select ALL pages for print automatically
+      if (isMultiItemFormat && totalPages > 1) {
+          const allPages = Array.from({ length: totalPages }, (_, i) => i);
+          setSheetsToPrint(allPages);
+      } else {
+          setSheetsToPrint([currentSheetPage]);
+      }
+      
       setPrintRenderKey(p => p + 1); 
       setShowPrintModal(true);
   };
@@ -369,7 +353,6 @@ const CrosswordGrid: React.FC<CrosswordGridProps> = ({ data, onComplete, onEdit,
     } catch (e) { console.error("Preview generation failed", e); } finally { setIsGeneratingPreview(false); }
   };
 
-  // ... (Logica Crossword classica)
   useEffect(() => {
     if (!isCrossword) { setEditableMessage(data.message); return; }
     const newGrid: CellData[][] = Array(data.height).fill(null).map((_, y) =>
@@ -509,23 +492,6 @@ const CrosswordGrid: React.FC<CrosswordGridProps> = ({ data, onComplete, onEdit,
       );
   };
 
-  const renderGridCells = (isPrint = false) => (
-    <div className={`grid gap-[1px] bg-black/10 p-2 rounded-lg pointer-events-auto`} style={{ gridTemplateColumns: `repeat(${data.width}, minmax(0, 1fr))`, aspectRatio: `${data.width}/${data.height}`, width: '100%', maxHeight: '100%', margin: '0 auto' }}>
-      {grid.map((row, y) => row.map((cell, x) => {
-          const isSelected = !isPrint && selectedCell?.x === x && selectedCell?.y === y;
-          const displayChar = isPrint ? '' : (revealAnswers ? cell.char : cell.userChar); 
-          if (!cell.char) return <div key={`${x}-${y}`} className={`bg-black/5 rounded-sm`} />;
-          return (
-            <div key={`${x}-${y}-${revealAnswers}`} onClick={() => !isPrint && handleCellClick(x, y)} className={`relative flex items-center justify-center w-full h-full text-xl font-bold cursor-pointer rounded-sm`} style={{ backgroundColor: cell.isSolutionCell ? '#FEF08A' : (isSelected && !revealAnswers && !isPrint ? '#DBEAFE' : '#FFFFFF'), boxSizing: 'border-box' }}>
-              {cell.number && <span className={`absolute top-0 left-0 leading-none ${isPrint ? 'text-[8px] p-[1px] font-bold text-gray-500' : 'text-[9px] p-0.5 text-gray-500'}`}>{cell.number}</span>}
-              {cell.isSolutionCell && cell.solutionIndex !== undefined && <div className={`absolute bottom-0 right-0 leading-none font-bold text-gray-600 bg-white/60 rounded-tl-sm z-10 ${isPrint ? 'text-[8px] p-[1px]' : 'text-[9px] p-0.5'}`}>{getSolutionLabel(cell.solutionIndex)}</div>}
-              {isPrint ? <span className="font-bold text-lg"></span> : (isSelected && !revealAnswers ? <input ref={(el) => { inputRefs.current[y][x] = el; }} maxLength={1} className="w-full h-full text-center bg-transparent outline-none uppercase" value={cell.userChar} onChange={(e) => handleInput(x, y, e.target.value)} /> : <div className={`w-full h-full flex items-center justify-center uppercase ${revealAnswers ? 'text-green-600' : ''}`}>{displayChar}</div>)}
-            </div>
-          );
-      }))}
-    </div>
-  );
-
   const toggleSheetPrintSelection = (index: number) => {
       setSheetsToPrint(prev => {
           if (prev.includes(index)) return prev.filter(i => i !== index);
@@ -653,6 +619,23 @@ const CrosswordGrid: React.FC<CrosswordGridProps> = ({ data, onComplete, onEdit,
          }
      }
   };
+
+  const renderGridCells = (isPrint = false) => (
+    <div className={`grid gap-[1px] bg-black/10 p-2 rounded-lg pointer-events-auto`} style={{ gridTemplateColumns: `repeat(${data.width}, minmax(0, 1fr))`, aspectRatio: `${data.width}/${data.height}`, width: '100%', maxHeight: '100%', margin: '0 auto' }}>
+      {grid.map((row, y) => row.map((cell, x) => {
+          const isSelected = !isPrint && selectedCell?.x === x && selectedCell?.y === y;
+          const displayChar = isPrint ? '' : (revealAnswers ? cell.char : cell.userChar); 
+          if (!cell.char) return <div key={`${x}-${y}`} className={`bg-black/5 rounded-sm`} />;
+          return (
+            <div key={`${x}-${y}-${revealAnswers}`} onClick={() => !isPrint && handleCellClick(x, y)} className={`relative flex items-center justify-center w-full h-full text-xl font-bold cursor-pointer rounded-sm`} style={{ backgroundColor: cell.isSolutionCell ? '#FEF08A' : (isSelected && !revealAnswers && !isPrint ? '#DBEAFE' : '#FFFFFF'), boxSizing: 'border-box' }}>
+              {cell.number && <span className={`absolute top-0 left-0 leading-none ${isPrint ? 'text-[8px] p-[1px] font-bold text-gray-500' : 'text-[9px] p-0.5 text-gray-500'}`}>{cell.number}</span>}
+              {cell.isSolutionCell && cell.solutionIndex !== undefined && <div className={`absolute bottom-0 right-0 leading-none font-bold text-gray-600 bg-white/60 rounded-tl-sm z-10 ${isPrint ? 'text-[8px] p-[1px]' : 'text-[9px] p-0.5'}`}>{getSolutionLabel(cell.solutionIndex)}</div>}
+              {isPrint ? <span className="font-bold text-lg"></span> : (isSelected && !revealAnswers ? <input ref={(el) => { inputRefs.current[y][x] = el; }} maxLength={1} className="w-full h-full text-center bg-transparent outline-none uppercase" value={cell.userChar} onChange={(e) => handleInput(x, y, e.target.value)} /> : <div className={`w-full h-full flex items-center justify-center uppercase ${revealAnswers ? 'text-green-600' : ''}`}>{displayChar}</div>)}
+            </div>
+          );
+      }))}
+    </div>
+  );
 
   return (
     <div className="flex flex-col items-center gap-8 w-full pb-20" onClick={handleGlobalClick}>
@@ -1147,6 +1130,9 @@ const CrosswordGrid: React.FC<CrosswordGridProps> = ({ data, onComplete, onEdit,
             currentSheetPage={currentSheetPage}
             tagVariations={tagVariations}
             tagMessages={tagMessages}
+            // Passiamo gli array completi per la stampa massiva
+            allTagImages={allTagImages}
+            // ---
             showBorders={showBorders}
             isCrossword={isCrossword}
             photos={photos}
