@@ -86,10 +86,7 @@ export const Creator: React.FC<CreatorProps> = ({ onCreated, initialData }) => {
   const [hiddenSolution, setHiddenSolution] = useState('');
   const [extraImage, setExtraImage] = useState<string | undefined>(undefined);
   const [photos, setPhotos] = useState<string[]>([]); 
-  
-  // LOGO: Usa il percorso relativo con il punto
   const [brandLogo, setBrandLogo] = useState<string | undefined>('./logo.png');
-  
   const [selectedStickers, setSelectedStickers] = useState<string[]>([]);
   const [activeStickerTab, setActiveStickerTab] = useState('Natale');
   const [isGeneratingSuggestions, setIsGeneratingSuggestions] = useState(false);
@@ -117,10 +114,7 @@ export const Creator: React.FC<CreatorProps> = ({ onCreated, initialData }) => {
         setHasWatermark(!!initialData.hasWatermark);
         setExtraImage(initialData.images?.extraImage);
         setPhotos(initialData.images?.photos || []);
-        
-        // Se c'è un logo salvato, usalo, altrimenti default
         setBrandLogo(initialData.images?.brandLogo || './logo.png');
-        
         setSelectedStickers(initialData.stickers || []);
         if (initialData.originalMode === 'manual') {
             setCreationMode('manual');
@@ -165,14 +159,16 @@ export const Creator: React.FC<CreatorProps> = ({ onCreated, initialData }) => {
 
   const handleFormatChange = (newFormat: CardFormat) => {
       setFormat(newFormat);
-      if (newFormat === 'square' || newFormat === 'tags' || newFormat === 'a6_2x') {
+      // FIX: Solo 'tags' disabilita il cruciverba ora. Mini e Square lo permettono.
+      if (newFormat === 'tags') {
           setSelectedActivity('simple');
       }
   };
 
   const handleActivityChange = (activityId: string) => {
       setSelectedActivity(activityId);
-      if (activityId === 'crossword' && (format === 'square' || format === 'tags' || format === 'a6_2x')) {
+      // FIX: Impedisce cruciverba solo su 'tags'
+      if (activityId === 'crossword' && format === 'tags') {
           setFormat('a4');
       }
   };
@@ -222,7 +218,7 @@ export const Creator: React.FC<CreatorProps> = ({ onCreated, initialData }) => {
 
   const removeImage = (type: 'extra' | 'photo' | 'brand') => {
       if (type === 'extra') setExtraImage(undefined);
-      else if (type === 'brand') setBrandLogo('./logo.png'); // Reset to default
+      else if (type === 'brand') setBrandLogo('./logo.png');
       else setPhotos([]);
   };
 
@@ -314,7 +310,7 @@ export const Creator: React.FC<CreatorProps> = ({ onCreated, initialData }) => {
   const ActivitySelector = () => (
     <div className="grid grid-cols-2 gap-3 mb-4">
         {ACTIVITY_MODULES.map(act => {
-            const isDisabled = act.id === 'crossword' && (format === 'square' || isMassFormat);
+            const isDisabled = act.id === 'crossword' && format === 'tags'; // FIX: Abilita crossword per mini/square
             return (
             <button key={act.id} type="button" disabled={isDisabled} onClick={() => handleActivityChange(act.id)} className={`p-3 rounded-xl border flex items-center gap-3 transition-all ${isDisabled ? 'opacity-50 cursor-not-allowed bg-gray-50 border-gray-100' : selectedActivity === act.id ? 'bg-white border-blue-500 shadow-md ring-2 ring-blue-100' : 'bg-white/40 border-gray-200 hover:bg-white'}`} title={isDisabled ? "Non disponibile per questo formato" : ""}>
                 <div className={`p-2 rounded-full ${selectedActivity === act.id && !isDisabled ? 'bg-blue-100 text-blue-600' : 'bg-gray-100 text-gray-500'}`}><act.icon size={18} /></div>
@@ -333,7 +329,7 @@ export const Creator: React.FC<CreatorProps> = ({ onCreated, initialData }) => {
             <h2 className="font-bold text-3xl md:text-4xl text-gray-800 mb-2 font-body">Crea il Tuo Biglietto</h2>
             <button type="button" onClick={handleQuickTest} className="absolute top-0 right-0 bg-yellow-400 text-yellow-900 text-[10px] font-bold px-2 py-1 rounded-full flex items-center gap-1 hover:bg-yellow-300 transition-colors shadow-sm"><Zap size={10} fill="currentColor"/> Test Rapido</button>
           </div>
-
+          {/* ... */}
           <div className="mb-6">
             <label className="block text-xs font-bold text-gray-400 mb-3 uppercase tracking-wider text-center">1. Destinatario & Evento</label>
             <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-5 gap-3 mb-4">
@@ -358,8 +354,6 @@ export const Creator: React.FC<CreatorProps> = ({ onCreated, initialData }) => {
           </div>
 
           <div className="mb-6">
-            <label className="block text-xs font-bold text-gray-400 mb-3 uppercase tracking-wider text-center">2. Personalizza Contenuto</label>
-            
             <div className="bg-gray-100 p-1 rounded-xl flex mb-4 text-sm font-bold text-gray-600 shadow-inner">
                 <button type="button" onClick={() => setCreationMode('guided')} className={`flex-1 py-3 rounded-lg flex items-center justify-center gap-2 ${creationMode === 'guided' ? 'bg-white text-blue-600 shadow-sm' : ''}`}><Wand2 size={16}/> Assistente</button>
                 <button type="button" onClick={() => setCreationMode('freestyle')} className={`flex-1 py-3 rounded-lg flex items-center justify-center gap-2 ${creationMode === 'freestyle' ? 'bg-white text-purple-600 shadow-sm' : ''}`}><BrainCircuit size={16}/> Prompt AI</button>
@@ -381,13 +375,20 @@ export const Creator: React.FC<CreatorProps> = ({ onCreated, initialData }) => {
             {creationMode === 'manual' && (<div className="bg-orange-50/50 rounded-xl p-4 border border-orange-100">{selectedActivity === 'crossword' ? <div className="space-y-2">{manualWords.map((item, idx) => (<div key={idx} className="flex gap-2"><input value={item.word} onChange={(e) => handleManualChange(idx, 'word', e.target.value)} className="w-1/3 p-2 border rounded-lg uppercase" /><input value={item.clue} onChange={(e) => handleManualChange(idx, 'clue', e.target.value)} className="flex-1 p-2 border rounded-lg" /></div>))}<button type="button" onClick={addRow} className="text-orange-600 text-xs font-bold mt-2"><Plus size={14}/> Aggiungi</button></div> : <textarea ref={topicInputRef} required={!isMassFormat} rows={4} className="w-full p-3 border rounded-xl" placeholder="Scrivi il tuo messaggio..." value={topic} onChange={(e) => setTopic(e.target.value)}/>}</div>)}
           </div>
 
+          {selectedActivity === 'crossword' && (
+              <div className="mb-6 p-3 bg-yellow-50 rounded-xl border border-yellow-200 animate-fade-in">
+                  <label className="flex items-center gap-2 text-sm font-bold text-yellow-800 mb-2"><KeyRound size={16}/> Parola Nascosta (Opzionale)</label>
+                  <input type="text" placeholder="SOLUZIONE SEGRETA" className="w-full p-2 border border-yellow-300 rounded uppercase font-bold text-center tracking-widest focus:ring-2 focus:ring-yellow-400 outline-none bg-white" value={hiddenSolution} onChange={(e) => setHiddenSolution(e.target.value)} maxLength={15} />
+              </div>
+          )}
+          
           <div className="mb-6">
             <label className="block text-xs font-bold text-gray-400 mb-3 uppercase tracking-wider text-center">3. Immagini e Foto</label>
             <div className="grid grid-cols-2 gap-4 mb-4">
                 <div className="border-2 border-dashed border-gray-300 rounded-xl p-4 text-center hover:bg-gray-50 cursor-pointer relative group overflow-hidden h-40 flex items-center justify-center bg-gray-50/50">
                         {!extraImage && <input type="file" accept="image/*" onChange={(e) => handleImageUpload(e, 'extra')} className="absolute inset-0 opacity-0 cursor-pointer z-10" />}
                         {processingImg === 'extra' ? <Loader2 className="animate-spin text-blue-500"/> : extraImage ? (
-                            <div className="relative w-full h-full"><img src={extraImage} className="h-full w-full object-contain mx-auto" /><button type="button" onClick={(e) => { e.preventDefault(); removeImage('extra'); }} className="absolute top-1 right-1 bg-red-500 text-white rounded-full p-1"><Trash2 size={12}/></button></div>
+                            <div className="relative w-full h-full"><img src={extraImage} className="h-full w-full object-contain mx-auto" /><div className="absolute bottom-0 inset-x-0 bg-black/50 text-white text-[10px] py-1 font-bold">COPERTINA</div><button type="button" onClick={(e) => { e.preventDefault(); removeImage('extra'); }} className="absolute top-1 right-1 bg-red-500 text-white rounded-full p-1"><Trash2 size={12}/></button></div>
                         ) : <div className="flex flex-col items-center"><ImageIcon className="text-blue-400 mb-2" size={24}/><span className="text-xs font-bold text-gray-600">COPERTINA</span></div>}
                 </div>
                 <div className="border-2 border-dashed border-gray-300 rounded-xl p-4 text-center hover:bg-gray-50 cursor-pointer relative group overflow-hidden h-40 flex items-center justify-center bg-gray-50/50">
@@ -411,7 +412,7 @@ export const Creator: React.FC<CreatorProps> = ({ onCreated, initialData }) => {
           <div className="mb-6 bg-gray-50 p-3 rounded-xl border border-gray-100">
              <div className="flex justify-between items-center mb-2"><label className="text-xs font-bold text-gray-400 uppercase">Decorazioni</label><span className={`text-xs font-bold ${selectedStickers.length >= 5 ? 'text-red-500' : 'text-blue-500'}`}>{selectedStickers.length}/5</span></div>
              <div className="flex gap-2 overflow-x-auto pb-2 mb-2 custom-scrollbar">{Object.keys(STICKER_CATEGORIES).map(cat => <button key={cat} type="button" onClick={() => setActiveStickerTab(cat)} className={`text-xs px-2 py-1 rounded-full whitespace-nowrap transition-colors ${activeStickerTab === cat ? 'bg-blue-600 text-white font-bold' : 'bg-white text-gray-600 hover:bg-gray-100 border'}`}>{cat}</button>)}</div>
-             <div className="flex flex-wrap gap-2 justify-center max-h-32 overflow-y-auto p-1 custom-scrollbar bg-white rounded-lg border-inner shadow-inner">{STICKER_CATEGORIES[activeStickerTab].map(s => <button key={s} type="button" onClick={() => toggleSticker(s)} disabled={!selectedStickers.includes(s) && selectedStickers.length >= 5} className={`text-2xl p-2 rounded-full transition-all duration-300 ${selectedStickers.includes(s) ? 'bg-blue-50 shadow-md scale-110 ring-2 ring-blue-200' : 'opacity-60 hover:opacity-100 hover:scale-105'} ${!selectedStickers.includes(s) && selectedStickers.length >= 5 ? 'opacity-20 cursor-not-allowed' : ''}`}>{s}</button>)}</div>
+             <div className="flex flex-wrap gap-2 justify-center max-h-32 overflow-y-auto p-1 custom-scrollbar bg-white rounded-lg border-inner shadow-inner">{STICKER_CATEGORIES[activeStickerTab].map(s => <button key={s} type="button" onClick={() => toggleSticker(s)} disabled={!selectedStickers.includes(s) && selectedStickers.length >= 5} className={`text-2xl p-2 rounded-full ${selectedStickers.includes(s) ? 'bg-blue-50 shadow-md scale-110 ring-2 ring-blue-200' : 'opacity-60'}`}>{s}</button>)}</div>
           </div>
 
           <button type="submit" disabled={loading || !!processingImg} className={`w-full py-4 rounded-xl text-white font-bold text-lg shadow-xl flex items-center justify-center gap-2 transition-all active:scale-95 ${loading || !!processingImg ? 'bg-gray-400 cursor-not-allowed' : 'bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700'}`}><Wand2 /> {initialData ? "RIGENERA BIGLIETTO" : "GENERA BIGLIETTO"}</button>
