@@ -49,9 +49,10 @@ interface PrintTemplatesProps {
     // State logici
     printRenderKey: number;
     currentSheetPage: number;
-    // NUOVI PROPS FONDAMENTALI PER I DATI GREZZI
+    // Dati per la stampa massiva
     allTagImages: string[];
     tagMessages: string[];
+    tagVariations: Array<{img: string, title: string}>; // <--- REINSERITO: Corregge l'errore TS2322
     // ---
     showBorders: boolean;
     isCrossword: boolean;
@@ -66,7 +67,7 @@ export const PrintTemplates = forwardRef<HTMLDivElement, PrintTemplatesProps>((p
         data, themeAssets, formatConfig, grid,
         wmSheet1, wmSheet2, imgSheet2, txtSheet2, stickerGroup, customTexts,
         printRenderKey, currentSheetPage, 
-        allTagImages, tagMessages, // Uso diretto degli array completi
+        allTagImages, tagMessages, tagVariations, // <--- REINSERITO QUI
         showBorders, isCrossword, photos, currentYear, editableMessage, pdfScaleFactor
     } = props;
 
@@ -128,6 +129,7 @@ export const PrintTemplates = forwardRef<HTMLDivElement, PrintTemplatesProps>((p
             </div>
             
             <div style={{ width: '49%', marginLeft: '1%', height: '100%', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', textAlign: 'center', position: 'relative', zIndex: 10, boxSizing: 'border-box', borderLeft: 'none', border: showBorders ? themeAssets.pdfBorder : 'none' }}>
+                {/* LOGICA IMMAGINE: Priorità a overrideImage (dal loop massivo) */}
                 {overrideImage ? (
                     <div style={{ width: '100%', height: '100%', padding: '40px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
                         <img src={overrideImage} style={{ maxWidth: '100%', maxHeight: '100%', objectFit: 'contain' }} />
@@ -214,12 +216,10 @@ export const PrintTemplates = forwardRef<HTMLDivElement, PrintTemplatesProps>((p
             {/* SHEET 1: COPERTINE ESTERNE */}
             <div id="pdf-sheet-1" style={{ width: '794px', height: '1123px', display: 'flex', flexDirection: 'column', backgroundColor: 'white', boxSizing: 'border-box' }}>
                 {Array(2).fill(null).map((_, i) => {
-                    // CALCOLO DEGLI INDICI ASSOLUTI
                     const itemsPerPage = 2;
                     const globalIndex = (currentSheetPage * itemsPerPage) + i;
                     
-                    // Recupero immagine e titolo (se esistono nell'array globale)
-                    // NOTA: allTagImages contiene tutte le foto caricate
+                    // Recupero immagine da allTagImages (NON da variations) per essere sicuri nel massivo
                     const img = allTagImages[globalIndex];
                     
                     return (
@@ -238,7 +238,7 @@ export const PrintTemplates = forwardRef<HTMLDivElement, PrintTemplatesProps>((p
                     const itemsPerPage = 2;
                     const globalIndex = (currentSheetPage * itemsPerPage) + i;
                     
-                    // Recupero messaggio corrispondente
+                    // Recupero messaggio
                     const msg = tagMessages[globalIndex] || "";
                     
                     return (
@@ -264,13 +264,9 @@ export const PrintTemplates = forwardRef<HTMLDivElement, PrintTemplatesProps>((p
                              const itemsPerPage = 8;
                              const globalIndex = (currentSheetPage * itemsPerPage) + i;
                              const img = allTagImages[globalIndex];
-                             const msg = tagMessages[globalIndex] || "";
-                             const title = data.theme === 'christmas' ? ((globalIndex % itemsPerPage) < (itemsPerPage/2) ? "Buon Natale" : "Buone Feste") : (data.title || "Auguri");
 
                              if (globalIndex >= allTagImages.length && !img) return <div key={i} style={{ width: '397px', height: '280px' }}></div>;
                              
-                             const displayDate = data.theme === 'christmas' ? `SS. Natale ${currentYear}` : (data.eventDate || currentYear.toString());
-
                              return (
                             <div key={i} style={{ width: '397px', height: '280px', boxSizing: 'border-box', padding: '10px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
                                 <div style={{ width: '100%', height: '100%', display: 'flex', overflow: 'hidden', border: '1px dashed #e5e7eb' }}>
@@ -295,7 +291,6 @@ export const PrintTemplates = forwardRef<HTMLDivElement, PrintTemplatesProps>((p
 
                     <div id="pdf-sheet-2" style={{ width: '794px', height: '1123px', display: 'flex', flexWrap: 'wrap', alignContent: 'flex-start', padding: '0', margin: '0', backgroundColor: 'white', boxSizing: 'border-box' }}>
                         {Array(8).fill(null).map((_, i) => {
-                            // SWAP COLUMNS LOGIC for Duplex Printing (Long Edge)
                             const dataIndex = i % 2 === 0 ? i + 1 : i - 1;
                             const itemsPerPage = 8;
                             const globalIndex = (currentSheetPage * itemsPerPage) + dataIndex;
