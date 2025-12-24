@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { CrosswordData, CellData, Direction, ThemeType, CardFormat } from '../types';
-import { Printer, Edit, Eye, EyeOff, CheckCircle2, Palette, Download, Loader2, XCircle, Maximize, Info, Type, Grip, ArrowRightLeft, Pencil, BoxSelect, ImagePlus, SmilePlus, ChevronLeft, ChevronRight, LayoutTemplate, Camera, FolderInput, Save, Upload, HelpCircle, Stamp } from 'lucide-react';
+import { Printer, Edit, Eye, EyeOff, CheckCircle2, Palette, Download, Loader2, XCircle, Maximize, Info, Type, Grip, ArrowRightLeft, Pencil, BoxSelect, ImagePlus, SmilePlus, ChevronLeft, ChevronRight, LayoutTemplate, Camera, FolderInput, Save, Upload, HelpCircle, Stamp, FileWarning } from 'lucide-react';
 import html2canvas from 'html2canvas';
 import { jsPDF } from 'jspdf';
 import { PrintTemplates } from './PrintTemplates';
@@ -52,25 +52,6 @@ const shuffleArray = (array: string[]) => {
     return arr;
 };
 
-const PhotoCollage: React.FC<{ photos: string[] }> = ({ photos }) => {
-    if (!photos || photos.length === 0) return null;
-    const count = photos.length;
-    let gridClass = 'grid-cols-1';
-    if (count === 2) gridClass = 'grid-cols-2';
-    else if (count > 2 && count <= 4) gridClass = 'grid-cols-2';
-    else if (count >= 5) gridClass = 'grid-cols-3';
-
-    return (
-        <div className={`grid gap-0.5 w-full h-full bg-white overflow-hidden ${gridClass}`}>
-            {photos.map((p, i) => (
-                <div key={i} className="relative w-full h-full overflow-hidden">
-                    <img src={p} className="w-full h-full object-cover" alt={`mem-${i}`} />
-                </div>
-            ))}
-        </div>
-    );
-};
-
 interface PositionableItem {
     id: string;
     type: string;
@@ -92,6 +73,7 @@ const CrosswordGrid: React.FC<CrosswordGridProps> = ({ data, onComplete, onEdit,
   const [showPrintModal, setShowPrintModal] = useState(false);
   const [showGraphicsModal, setShowGraphicsModal] = useState(false);
   const [showHelpModal, setShowHelpModal] = useState(false);
+  const [showInstructionModal, setShowInstructionModal] = useState(false); // NEW: Istruzioni stampa
   
   const [viewMode, setViewMode] = useState<'single' | 'sheets'>('single');
 
@@ -141,9 +123,9 @@ const CrosswordGrid: React.FC<CrosswordGridProps> = ({ data, onComplete, onEdit,
   const currentYear = new Date().getFullYear();
   const formatConfig = FORMAT_CONFIG[data.format || 'a4'];
 
-  const isHighDensity = data.words.length > 10;
-  const printFontSize = isHighDensity ? '7.5px' : '9px';
-  const totalPages = Math.ceil(Math.max(allTagImages.length, 8) / 8);
+  const isMultiItemFormat = data.format === 'tags' || data.format === 'a6_2x';
+  const itemsPerPage = data.format === 'tags' ? 8 : (data.format === 'a6_2x' ? 2 : 1);
+  const totalPages = Math.ceil(Math.max(allTagImages.length, itemsPerPage) / itemsPerPage);
 
   useEffect(() => {
       const hasThemeChanged = prevDataRef.current.theme !== data.theme;
@@ -154,13 +136,13 @@ const CrosswordGrid: React.FC<CrosswordGridProps> = ({ data, onComplete, onEdit,
           setTagMessages([]);
           prevDataRef.current = data;
       }
-      if (data.format === 'tags' && allTagImages.length === 0) {
-           setAllTagImages(Array(8).fill(""));
+      if (isMultiItemFormat && allTagImages.length === 0) {
+           setAllTagImages(Array(itemsPerPage).fill(""));
       }
-  }, [data.format, data.theme]);
+  }, [data.format, data.theme, isMultiItemFormat, itemsPerPage]);
 
   useEffect(() => {
-      if (data.format !== 'tags') {
+      if (!isMultiItemFormat) {
           setViewMode('single');
           return;
       }
@@ -183,22 +165,22 @@ const CrosswordGrid: React.FC<CrosswordGridProps> = ({ data, onComplete, onEdit,
           }
           setTagMessages(messagePool.slice(0, allTagImages.length));
       }
-      const startIdx = currentSheetPage * 8;
-      const pageImages = allTagImages.slice(startIdx, startIdx + 8);
-      while(pageImages.length < 8) pageImages.push("");
+      const startIdx = currentSheetPage * itemsPerPage;
+      const pageImages = allTagImages.slice(startIdx, startIdx + itemsPerPage);
+      while(pageImages.length < itemsPerPage) pageImages.push("");
 
       const newVars = pageImages.map((img, i) => {
           let title = "Auguri!";
           const absoluteIndex = startIdx + i;
           if (data.theme === 'christmas') {
-              title = (absoluteIndex % 8) < 4 ? "Buon Natale" : "Buone Feste";
+              title = (absoluteIndex % itemsPerPage) < (itemsPerPage/2) ? "Buon Natale" : "Buone Feste";
           } else {
               title = data.title || "Auguri";
           }
           return { img, title };
       });
       setTagVariations(newVars);
-  }, [allTagImages, currentSheetPage, data.format, data.theme, data.title, tagMessages.length]); 
+  }, [allTagImages, currentSheetPage, data.format, data.theme, data.title, tagMessages.length, isMultiItemFormat, itemsPerPage]); 
 
   useEffect(() => {
     if (editableMessage !== data.message) {
@@ -208,7 +190,7 @@ const CrosswordGrid: React.FC<CrosswordGridProps> = ({ data, onComplete, onEdit,
 
   const handleTagMessageChange = (newMsg: string) => {
       const newMessages = [...tagMessages];
-      const globalIndex = (currentSheetPage * 8) + currentTagIndex;
+      const globalIndex = (currentSheetPage * itemsPerPage) + currentTagIndex;
       newMessages[globalIndex] = newMsg;
       setTagMessages(newMessages);
   };
@@ -286,7 +268,7 @@ const CrosswordGrid: React.FC<CrosswordGridProps> = ({ data, onComplete, onEdit,
           reader.onload = (ev) => {
               const result = ev.target?.result as string;
               if (result) {
-                  const globalIndex = (currentSheetPage * 8) + currentTagIndex;
+                  const globalIndex = (currentSheetPage * itemsPerPage) + currentTagIndex;
                   setAllTagImages(prev => {
                       const clone = [...prev];
                       while(clone.length <= globalIndex) clone.push("");
@@ -300,7 +282,13 @@ const CrosswordGrid: React.FC<CrosswordGridProps> = ({ data, onComplete, onEdit,
       e.target.value = '';
   };
 
-  const handleOpenPrintModal = () => {
+  // --- TRIGGER INSTRUCTION MODAL ---
+  const handlePrePrint = () => {
+      setShowInstructionModal(true);
+  };
+
+  const handleConfirmPrint = () => {
+      setShowInstructionModal(false);
       setSheetsToPrint([currentSheetPage]);
       setPrintRenderKey(p => p + 1); 
       setShowPrintModal(true);
@@ -500,10 +488,12 @@ const CrosswordGrid: React.FC<CrosswordGridProps> = ({ data, onComplete, onEdit,
         
         let pageCount = 0;
         for (const actualPageIndex of sheetsToPrint) {
-             if (data.format === 'tags') {
+             
+             if (isMultiItemFormat) {
                  setCurrentSheetPage(actualPageIndex);
                  await new Promise(resolve => setTimeout(resolve, 150)); 
              }
+
              await new Promise(resolve => setTimeout(resolve, 800));
 
              const sheet1 = exportRef.current.querySelector('#pdf-sheet-1') as HTMLElement;
@@ -518,6 +508,7 @@ const CrosswordGrid: React.FC<CrosswordGridProps> = ({ data, onComplete, onEdit,
              doc.addImage(canvas1.toDataURL('image/jpeg', 0.95), 'JPEG', 0, 0, pdfWidth, pdfHeight);
              doc.addPage();
              doc.addImage(canvas2.toDataURL('image/jpeg', 0.95), 'JPEG', 0, 0, pdfWidth, pdfHeight);
+             
              pageCount++;
         }
 
@@ -530,7 +521,7 @@ const CrosswordGrid: React.FC<CrosswordGridProps> = ({ data, onComplete, onEdit,
             doc.save(`${data.title.replace(/[^a-z0-9]/gi, '_').toLowerCase()}.pdf`);
         }
         
-        if (data.format === 'tags') {
+        if (isMultiItemFormat) {
             setCurrentSheetPage(startPage);
         }
         setShowPrintModal(false);
@@ -621,7 +612,7 @@ const CrosswordGrid: React.FC<CrosswordGridProps> = ({ data, onComplete, onEdit,
        <div className="flex flex-wrap gap-2 justify-center z-20 sticky top-2 p-2 bg-black/5 rounded-full backdrop-blur-sm shadow-xl border border-white/10" onClick={(e) => e.stopPropagation()}>
             <button onClick={onEdit} className="bg-white px-4 py-2 rounded-full shadow border text-sm flex items-center gap-2 font-bold hover:bg-gray-50 text-gray-700 active:scale-95"><Edit size={16} /> Dati</button>
             <button onClick={() => setShowGraphicsModal(true)} className="bg-white px-3 py-2 rounded-full shadow border text-sm flex items-center gap-2 font-bold hover:bg-pink-50 text-pink-600 active:scale-95 border-pink-200"><Palette size={16} /> Grafica</button>
-            {data.format === 'tags' && (
+            {isMultiItemFormat && (
                 <div className="flex bg-gray-100 rounded-full p-1 border border-gray-300">
                     <input type="file" ref={folderInputRef} accept="image/*" multiple className="hidden" onChange={handleFolderUpload} />
                     <input type="file" ref={albumUploadRef} className="hidden" accept=".json" onChange={handleAlbumLoad} />
@@ -640,8 +631,39 @@ const CrosswordGrid: React.FC<CrosswordGridProps> = ({ data, onComplete, onEdit,
             <button onClick={toggleFormat} className="bg-white px-3 py-2 rounded-full shadow border text-sm flex items-center gap-2 font-bold hover:bg-blue-50 text-blue-700 active:scale-95 border-blue-200" title="Cambia formato"><BoxSelect size={16}/> {data.format === 'square' ? 'Quadrato' : data.format === 'tags' ? 'Bigliettini' : data.format === 'a6_2x' ? 'Mini (2 su 1)' : (data.format || 'a4').toUpperCase()}</button>
             <button onClick={addCustomText} className="bg-white px-3 py-2 rounded-full shadow border text-sm flex items-center gap-2 font-bold hover:bg-purple-50 text-purple-700 active:scale-95 border-purple-200"><Type size={16}/> Testo</button>
             {isCrossword && <button onClick={() => setRevealAnswers(!revealAnswers)} className={`px-4 py-2 rounded-full shadow border text-sm flex items-center gap-2 font-bold active:scale-95 ${revealAnswers ? 'bg-yellow-100 text-yellow-800' : 'bg-white text-gray-700'}`}>{revealAnswers ? <EyeOff size={16}/> : <Eye size={16}/>}</button>}
-            <button onClick={handleOpenPrintModal} disabled={isGeneratingPDF} className={`text-white px-6 py-2 rounded-full shadow-lg text-sm flex items-center gap-2 font-bold active:scale-95 ${isGeneratingPDF ? 'bg-gray-400' : 'bg-gradient-to-r from-green-600 to-emerald-600'}`}>{isGeneratingPDF ? <Loader2 size={16} className="animate-spin"/> : <Printer size={16} />} ANTEPRIMA E STAMPA</button>
+            <button onClick={handlePrePrint} disabled={isGeneratingPDF} className={`text-white px-6 py-2 rounded-full shadow-lg text-sm flex items-center gap-2 font-bold active:scale-95 ${isGeneratingPDF ? 'bg-gray-400' : 'bg-gradient-to-r from-green-600 to-emerald-600'}`}>{isGeneratingPDF ? <Loader2 size={16} className="animate-spin"/> : <Printer size={16} />} ANTEPRIMA E STAMPA</button>
        </div>
+
+       {showInstructionModal && (
+           <div className="fixed inset-0 z-[120] flex items-center justify-center bg-black/80 backdrop-blur-md p-4 animate-in fade-in" onClick={() => setShowInstructionModal(false)}>
+               <div className="bg-white rounded-2xl shadow-2xl p-6 w-full max-w-lg border-l-4 border-yellow-500" onClick={e => e.stopPropagation()}>
+                    <h3 className="text-xl font-bold mb-4 flex items-center gap-2 text-gray-800"><FileWarning className="text-yellow-500" size={28}/> Istruzioni di Stampa</h3>
+                    <p className="text-sm text-gray-600 mb-4">Per evitare sprechi, imposta correttamente la tua stampante:</p>
+                    
+                    <div className="bg-gray-50 p-4 rounded-lg border border-gray-200 space-y-3 mb-6">
+                        <div className="flex justify-between border-b pb-2">
+                            <span className="text-gray-500 text-sm">Formato Scelto:</span>
+                            <span className="font-bold text-gray-800">{formatConfig.label}</span>
+                        </div>
+                        <div className="flex justify-between border-b pb-2">
+                            <span className="text-gray-500 text-sm">Orientamento Carta:</span>
+                            <span className="font-bold text-gray-800">{formatConfig.pdfOrientation === 'l' ? 'Orizzontale (Landscape)' : 'Verticale (Portrait)'}</span>
+                        </div>
+                        <div className="flex justify-between items-center">
+                            <span className="text-gray-500 text-sm">Fronte/Retro:</span>
+                            <span className={`font-bold px-2 py-1 rounded text-white text-xs uppercase ${formatConfig.pdfOrientation === 'l' ? 'bg-blue-600' : 'bg-purple-600'}`}>
+                                {formatConfig.pdfOrientation === 'l' ? 'LATO CORTO' : 'LATO LUNGO (Standard)'}
+                            </span>
+                        </div>
+                    </div>
+
+                    <div className="flex gap-3">
+                        <button onClick={() => setShowInstructionModal(false)} className="flex-1 py-3 text-gray-500 font-bold hover:bg-gray-100 rounded-lg">Indietro</button>
+                        <button onClick={handleConfirmPrint} className="flex-1 py-3 bg-gray-900 text-white rounded-lg font-bold hover:bg-black">Ho Capito, Procedi</button>
+                    </div>
+               </div>
+           </div>
+       )}
 
        {showHelpModal && (
            <div className="fixed inset-0 z-[120] flex items-center justify-center bg-black/60 backdrop-blur-sm p-4 animate-in fade-in" onClick={() => setShowHelpModal(false)}>
@@ -669,7 +691,7 @@ const CrosswordGrid: React.FC<CrosswordGridProps> = ({ data, onComplete, onEdit,
                     <h3 className="text-xl font-bold mb-4 flex items-center gap-2"><Palette className="text-pink-500"/> Modifica Grafica</h3>
                     <div className="space-y-4">
                         <div className="bg-gray-50 p-3 rounded-lg border border-gray-200">
-                            <label className="text-xs font-bold text-gray-500 uppercase mb-2 block flex items-center gap-2"><ImagePlus size={14}/> Cambia Foto {data.format === 'tags' ? '(Copertina)' : ''}</label>
+                            <label className="text-xs font-bold text-gray-500 uppercase mb-2 block flex items-center gap-2"><ImagePlus size={14}/> Cambia Foto {isMultiItemFormat ? '(Copertina)' : ''}</label>
                             <input type="file" accept="image/*" className="text-sm w-full file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-xs file:font-semibold file:bg-pink-50 file:text-pink-700 hover:file:bg-pink-100" onChange={(e) => handleGraphicChange('photo', e)}/>
                         </div>
                         <div className="bg-blue-50 p-3 rounded-lg border border-blue-200">
@@ -699,7 +721,7 @@ const CrosswordGrid: React.FC<CrosswordGridProps> = ({ data, onComplete, onEdit,
                </div>
                
                <div className="flex-1 overflow-y-auto p-6 bg-gray-100/50 flex flex-col items-center relative min-h-[300px]">
-                   {data.format === 'tags' && totalPages > 1 && !isGeneratingPreview && (
+                   {isMultiItemFormat && totalPages > 1 && !isGeneratingPreview && (
                        <div className="w-full max-w-4xl mb-6">
                            <p className="text-center text-xs font-bold text-gray-500 uppercase mb-3">Clicca sui fogli per selezionarli</p>
                            <div className="grid grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-3">
@@ -739,7 +761,7 @@ const CrosswordGrid: React.FC<CrosswordGridProps> = ({ data, onComplete, onEdit,
                </div>
                <div className="p-6 border-t bg-white shrink-0">
                     <div className="flex flex-col md:flex-row gap-4 items-center justify-between">
-                         {data.format !== 'tags' && <button onClick={() => setShowBorders(!showBorders)} className={`w-full md:w-auto px-6 py-3 rounded-xl border-2 flex items-center justify-center gap-3 font-bold transition-all ${showBorders ? 'border-blue-500 bg-blue-50 text-blue-700' : 'border-gray-200 text-gray-500 hover:bg-gray-50'}`}>{showBorders ? <CheckCircle2 size={20} className="text-blue-600"/> : <div className="w-5 h-5 rounded-full border-2 border-gray-300"/>} Cornice Decorativa</button>}
+                         {!isMultiItemFormat && <button onClick={() => setShowBorders(!showBorders)} className={`w-full md:w-auto px-6 py-3 rounded-xl border-2 flex items-center justify-center gap-3 font-bold transition-all ${showBorders ? 'border-blue-500 bg-blue-50 text-blue-700' : 'border-gray-200 text-gray-500 hover:bg-gray-50'}`}>{showBorders ? <CheckCircle2 size={20} className="text-blue-600"/> : <div className="w-5 h-5 rounded-full border-2 border-gray-300"/>} Cornice Decorativa</button>}
                          
                          <div className="flex gap-3 w-full justify-end">
                             <button onClick={() => setShowPrintModal(false)} className="px-6 py-3 rounded-xl font-bold text-gray-500 hover:bg-gray-100 transition-colors">Annulla</button>
@@ -747,7 +769,7 @@ const CrosswordGrid: React.FC<CrosswordGridProps> = ({ data, onComplete, onEdit,
                                 {isGeneratingPDF ? <Loader2 size={20} className="animate-spin"/> : <Printer size={20}/>} Stampa Subito
                             </button>
                             <button onClick={() => handleDownloadPDF(false)} disabled={isGeneratingPDF || sheetsToPrint.length === 0} className={`px-6 py-3 rounded-xl font-bold text-white shadow-lg hover:shadow-xl transition-all flex items-center justify-center gap-2 ${isGeneratingPDF || sheetsToPrint.length === 0 ? 'bg-gray-400' : 'bg-gradient-to-r from-blue-600 to-indigo-600 hover:scale-[1.02]'}`}>
-                                {isGeneratingPDF ? <Loader2 size={20} className="animate-spin"/> : <Download size={20}/>} {data.format === 'tags' && totalPages > 1 ? `Scarica SELEZIONATI` : 'Scarica PDF'}
+                                {isGeneratingPDF ? <Loader2 size={20} className="animate-spin"/> : <Download size={20}/>} {isMultiItemFormat ? `Scarica SELEZIONATI` : 'Scarica PDF'}
                             </button>
                          </div>
                     </div>
@@ -757,9 +779,9 @@ const CrosswordGrid: React.FC<CrosswordGridProps> = ({ data, onComplete, onEdit,
        )}
        
        <div className="w-full max-w-5xl px-4 md:px-0">
-            <h3 className="text-center text-white font-bold uppercase tracking-widest mb-4 flex items-center justify-center gap-2 drop-shadow-md"><Edit size={20}/> EDITOR {data.format === 'tags' ? '(Anteprima Singolo Bigliettino)' : 'BIGLIETTO'}</h3>
+            <h3 className="text-center text-white font-bold uppercase tracking-widest mb-4 flex items-center justify-center gap-2 drop-shadow-md"><Edit size={20}/> EDITOR {data.format === 'tags' ? '(Anteprima Singolo Bigliettino)' : data.format === 'a6_2x' ? '(Anteprima Singolo Biglietto)' : 'BIGLIETTO'}</h3>
             
-            {data.format === 'tags' && (
+            {isMultiItemFormat && (
                 <div className="flex flex-col items-center gap-2 mb-4">
                     {totalPages > 1 && (
                         <div className="flex items-center gap-4 bg-white/20 p-2 rounded-full backdrop-blur-sm">
@@ -772,62 +794,92 @@ const CrosswordGrid: React.FC<CrosswordGridProps> = ({ data, onComplete, onEdit,
                     {viewMode === 'single' && (
                         <div className="flex justify-center items-center gap-4 text-white">
                             <button onClick={() => setCurrentTagIndex(p => Math.max(0, p - 1))} disabled={currentTagIndex === 0} className="p-2 bg-white/20 rounded-full hover:bg-white/40 disabled:opacity-30"><ChevronLeft size={20}/></button>
-                            <span className="font-bold text-base">Bigliettino {currentTagIndex + 1} di 8</span>
-                            <button onClick={() => setCurrentTagIndex(p => Math.min(7, p + 1))} disabled={currentTagIndex === 7} className="p-2 bg-white/20 rounded-full hover:bg-white/40 disabled:opacity-30"><ChevronRight size={20}/></button>
+                            <span className="font-bold text-base">Elemento {currentTagIndex + 1} di {itemsPerPage}</span>
+                            <button onClick={() => setCurrentTagIndex(p => Math.min(itemsPerPage - 1, p + 1))} disabled={currentTagIndex === itemsPerPage - 1} className="p-2 bg-white/20 rounded-full hover:bg-white/40 disabled:opacity-30"><ChevronRight size={20}/></button>
                         </div>
                     )}
                 </div>
             )}
 
-            {data.format === 'tags' && viewMode === 'sheets' ? (
+            {isMultiItemFormat && viewMode === 'sheets' ? (
                 <div className="w-full flex flex-col md:flex-row gap-4 justify-center items-start">
                     {[0, 1].map(sheetIdx => (
                         <div key={sheetIdx} className="bg-white p-2 shadow-xl rounded w-full md:w-1/2 flex flex-col items-center">
                             <p className="text-xs font-bold uppercase text-gray-500 mb-2">Foglio {sheetIdx + 1} ({sheetIdx === 0 ? 'Fronte/Esterno' : 'Retro/Interno'})</p>
                             <div className="w-full relative bg-gray-100 overflow-hidden" style={{ aspectRatio: '210/297' }}>
                                  <div className="absolute top-0 left-0 w-full h-full flex flex-wrap content-start bg-white origin-top-left transform scale-[0.4] md:scale-[0.35] lg:scale-[0.5]" style={{ width: '794px', height: '1123px' }}>
-                                    {tagVariations.map((_, i) => {
-                                        const isSheet1 = sheetIdx === 0;
-                                        const dataIndex = isSheet1 ? i : (i % 2 === 0 ? i + 1 : i - 1);
-                                        const v = tagVariations[dataIndex];
-                                        const globalIndex = (currentSheetPage * 8) + dataIndex;
-                                        const msg = tagMessages[globalIndex] || tagMessages[dataIndex] || "";
-                                        
-                                        if (!v) return <div key={i} className="w-[397px] h-[280px]"></div>;
-                                        const displayDate = data.theme === 'christmas' ? `SS. Natale ${currentYear}` : (data.eventDate || currentYear.toString());
+                                    {data.format === 'tags' ? (
+                                        // TAGS PREVIEW
+                                        tagVariations.map((_, i) => {
+                                            const isSheet1 = sheetIdx === 0;
+                                            const dataIndex = isSheet1 ? i : (i % 2 === 0 ? i + 1 : i - 1);
+                                            const v = tagVariations[dataIndex];
+                                            const globalIndex = (currentSheetPage * 8) + dataIndex;
+                                            const msg = tagMessages[globalIndex] || tagMessages[dataIndex] || "";
+                                            
+                                            if (!v) return <div key={i} className="w-[397px] h-[280px]"></div>;
+                                            const displayDate = data.theme === 'christmas' ? `SS. Natale ${currentYear}` : (data.eventDate || currentYear.toString());
 
-                                        return (
-                                            <div key={i} style={{ width: '397px', height: '280px', padding: '10px', display: 'flex', boxSizing: 'border-box' }}>
-                                                <div className="w-full h-full flex overflow-hidden border border-dashed border-gray-300">
-                                                    {isSheet1 ? (
-                                                        <>
-                                                            <div className="w-1/2 h-full bg-gray-50 flex items-center justify-center relative overflow-hidden">
-                                                                {data.images?.brandLogo ? (
-                                                                    <img src={data.images.brandLogo} className="max-w-[70%] max-h-[70%] object-contain opacity-50 mix-blend-multiply grayscale" alt="Logo" />
-                                                                ) : (
-                                                                    <span className="absolute bottom-2 text-[8px] text-gray-300">Created by Enigmistica</span>
-                                                                )}
-                                                            </div>
-                                                            <div className="w-1/2 h-full bg-gray-100 overflow-hidden relative">
-                                                                {v.img ? <img src={v.img} className="w-full h-full object-cover" /> : null}
-                                                            </div>
-                                                        </>
-                                                    ) : (
-                                                        <>
-                                                            <div className="w-1/2 h-full p-2 flex flex-col items-center justify-center text-center border-r border-dotted border-gray-200">
-                                                                {data.recipientName && <div className="text-[10px] font-bold text-gray-400 uppercase mb-2">A: {data.recipientName}</div>}
-                                                            </div>
-                                                            <div className="w-1/2 h-full p-2 flex flex-col items-center justify-start text-center">
-                                                                <div className="text-[9px] text-gray-400 font-bold uppercase mb-2">{displayDate}</div>
-                                                                <div className={`${themeAssets.fontTitle} text-lg text-gray-800`}>{v.title}</div>
-                                                                <div className="text-[9px] italic text-gray-600 mt-2 whitespace-pre-wrap">{msg}</div>
-                                                            </div>
-                                                        </>
-                                                    )}
+                                            return (
+                                                <div key={i} style={{ width: '397px', height: '280px', padding: '10px', display: 'flex', boxSizing: 'border-box' }}>
+                                                    <div className="w-full h-full flex overflow-hidden border border-dashed border-gray-300">
+                                                        {isSheet1 ? (
+                                                            <>
+                                                                <div className="w-1/2 h-full bg-gray-50 flex items-center justify-center relative overflow-hidden">
+                                                                    {data.images?.brandLogo ? (
+                                                                        <img src={data.images.brandLogo} className="max-w-[70%] max-h-[70%] object-contain opacity-50 mix-blend-multiply grayscale" alt="Logo" />
+                                                                    ) : (
+                                                                        <span className="absolute bottom-2 text-[8px] text-gray-300">Created by Enigmistica</span>
+                                                                    )}
+                                                                </div>
+                                                                <div className="w-1/2 h-full bg-gray-100 overflow-hidden relative">
+                                                                    {v.img ? <img src={v.img} className="w-full h-full object-cover" /> : null}
+                                                                </div>
+                                                            </>
+                                                        ) : (
+                                                            <>
+                                                                <div className="w-1/2 h-full p-2 flex flex-col items-center justify-center text-center border-r border-dotted border-gray-200">
+                                                                    {data.recipientName && <div className="text-[10px] font-bold text-gray-400 uppercase mb-2">A: {data.recipientName}</div>}
+                                                                </div>
+                                                                <div className="w-1/2 h-full p-2 flex flex-col items-center justify-start text-center">
+                                                                    <div className="text-[9px] text-gray-400 font-bold uppercase mb-2">{displayDate}</div>
+                                                                    <div className={`${themeAssets.fontTitle} text-lg text-gray-800`}>{v.title}</div>
+                                                                    <div className="text-[9px] italic text-gray-600 mt-2 whitespace-pre-wrap">{msg}</div>
+                                                                </div>
+                                                            </>
+                                                        )}
+                                                    </div>
                                                 </div>
-                                            </div>
-                                        );
-                                    })}
+                                            );
+                                        })
+                                    ) : (
+                                        // MINI 2X PREVIEW (STACKED VERTICALLY)
+                                        <div style={{width: '794px', height: '1123px', display: 'flex', flexDirection: 'column'}}>
+                                            {Array(2).fill(null).map((_, i) => {
+                                                const globalIndex = (currentSheetPage * 2) + i;
+                                                const v = tagVariations[globalIndex];
+                                                const msg = tagMessages[globalIndex];
+                                                
+                                                // Simula lo sheet renderizzato ma in piccolo per l'anteprima
+                                                // Nota: Qui usiamo un placeholder visuale perché non possiamo riusare facilmente i componenti PrintTemplates dentro questo loop senza rifattorizzare tutto.
+                                                // Mostriamo un box che rappresenta il biglietto.
+                                                return (
+                                                    <div key={i} style={{ height: '50%', width: '100%', borderBottom: '1px dashed #ccc', display: 'flex', alignItems: 'center', justifyContent: 'center', background: '#f9f9f9' }}>
+                                                        <div className="text-center p-4">
+                                                            <p className="font-bold text-gray-400 uppercase text-xs mb-2">Biglietto #{i+1}</p>
+                                                            {sheetIdx === 0 ? (
+                                                                // Anteprima FRONT
+                                                                v?.img ? <img src={v.img} className="h-32 object-contain shadow-md" /> : <span className="text-xs text-gray-400">Nessuna Immagine</span>
+                                                            ) : (
+                                                                // Anteprima BACK (Messaggio)
+                                                                <div className="w-48 p-2 bg-white shadow text-[10px] italic border">{msg || "Nessun messaggio"}</div>
+                                                            )}
+                                                        </div>
+                                                    </div>
+                                                );
+                                            })}
+                                        </div>
+                                    )}
                                  </div>
                             </div>
                         </div>
@@ -852,7 +904,7 @@ const CrosswordGrid: React.FC<CrosswordGridProps> = ({ data, onComplete, onEdit,
                                 </div>
                             )}
 
-                            {data.format !== 'tags' && <div className="shrink-0 mb-2 pointer-events-auto z-20">
+                            {!isMultiItemFormat && <div className="shrink-0 mb-2 pointer-events-auto z-20">
                                 <h1 className={`text-2xl md:text-3xl ${themeAssets.fontTitle} text-gray-900 leading-tight drop-shadow-sm`}>{data.title}</h1>
                                 <p className="text-xs uppercase text-gray-500 font-bold tracking-widest mt-1">{data.eventDate || "Data Speciale"} • {currentYear}</p>
                             </div>}
@@ -864,7 +916,7 @@ const CrosswordGrid: React.FC<CrosswordGridProps> = ({ data, onComplete, onEdit,
                                     onClick={(e) => e.stopPropagation()} 
                                     onDoubleClick={(e) => { e.stopPropagation(); setActiveItemId('img2'); }}
                                 >
-                                    {data.format === 'tags' ? (
+                                    {isMultiItemFormat ? (
                                         <div className="relative w-full h-full group bg-gray-50">
                                             {tagVariations[currentTagIndex]?.img || data.images?.extraImage || photos[0] ? (
                                                 <img 
@@ -878,7 +930,7 @@ const CrosswordGrid: React.FC<CrosswordGridProps> = ({ data, onComplete, onEdit,
                                             )}
                                             <div className="absolute bottom-2 right-2 flex gap-2 z-50 pointer-events-auto opacity-0 group-hover:opacity-100 transition-opacity">
                                                  <input type="file" ref={singleTagFileInputRef} className="hidden" accept="image/*" onChange={handleSingleTagFileChange}/>
-                                                 <button onClick={handleSingleTagUploadTrigger} className="bg-white text-gray-700 p-2 rounded-full shadow hover:bg-gray-100 hover:text-blue-600" title="Carica foto per questo bigliettino"><Camera size={16}/></button>
+                                                 <button onClick={handleSingleTagUploadTrigger} className="bg-white text-gray-700 p-2 rounded-full shadow hover:bg-gray-100 hover:text-blue-600" title="Carica foto per questo biglietto"><Camera size={16}/></button>
                                             </div>
                                         </div>
                                     ) : photos.length === 1 ? (
@@ -895,7 +947,7 @@ const CrosswordGrid: React.FC<CrosswordGridProps> = ({ data, onComplete, onEdit,
                                 </div>
                             </div>
 
-                            {data.format !== 'tags' && (
+                            {!isMultiItemFormat && (
                                 <div className={`w-full relative group pointer-events-auto shrink-0 mt-2 ${activeItemId === 'txt2' ? 'cursor-move ring-2 ring-blue-500 ring-dashed z-50' : ''}`} 
                                     style={{ transform: `translate(${txtSheet2.x}px, ${txtSheet2.y}px) scale(${txtSheet2.scale})` }} 
                                     onMouseDown={(e) => startDrag(e, 'txt2')}
@@ -947,7 +999,7 @@ const CrosswordGrid: React.FC<CrosswordGridProps> = ({ data, onComplete, onEdit,
                                         <div className="pl-1 border-l border-gray-100"><b className="block border-b border-gray-300 mb-1 pb-0.5 font-bold text-xs">Verticali</b>{data.words.filter(w=>w.direction===Direction.DOWN).map(w=><div key={w.id} className="mb-0.5"><b className="mr-1">{w.number}.</b>{w.clue}</div>)}</div>
                                     </div>
                                 </div>
-                            ) : data.format === 'tags' ? (
+                            ) : isMultiItemFormat ? (
                                 <div className="flex-1 flex flex-col items-center justify-start text-center p-2 pt-4 z-10">
                                     <div className="w-full mb-4">
                                         <p className="text-xs uppercase text-gray-400 font-bold mb-1">
@@ -962,7 +1014,7 @@ const CrosswordGrid: React.FC<CrosswordGridProps> = ({ data, onComplete, onEdit,
                                     <div className="mt-4 w-full relative pointer-events-auto group flex-1">
                                         <textarea 
                                             className="w-full h-full text-center text-xs font-serif bg-transparent outline-none resize-none border border-transparent hover:border-gray-200 focus:border-blue-400 transition-colors rounded p-1" 
-                                            value={tagMessages[(currentSheetPage * 8) + currentTagIndex] || tagMessages[currentTagIndex] || ""} 
+                                            value={tagMessages[(currentSheetPage * itemsPerPage) + currentTagIndex] || tagMessages[currentTagIndex] || ""} 
                                             onChange={(e) => handleTagMessageChange(e.target.value)}
                                         />
                                         <span className="absolute top-0 right-0 opacity-0 group-hover:opacity-100 text-gray-400 bg-white rounded-full p-1 shadow-sm transition-opacity"><Pencil size={10}/></span>
