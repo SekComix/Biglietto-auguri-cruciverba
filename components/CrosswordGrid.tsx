@@ -1139,4 +1139,59 @@ const CrosswordGrid: React.FC<CrosswordGridProps> = ({ data, onComplete, onEdit,
                                     <div className="relative z-[70]">
                                         <textarea 
                                             autoFocus 
-                                            className="w-full p-2 bg-white border-2 border-purple-500 rounded-lg text-center font
+                                            className="w-full p-2 bg-white border-2 border-purple-500 rounded-lg text-center font-hand text-lg shadow-xl" 
+                                            rows={3} 
+                                            value={t.content} 
+                                            onChange={(e) => updateCustomTextContent(t.id, e.target.value)}
+                                            onBlur={() => setEditingItemId(null)}
+                                        />
+                                        <button onClick={() => removeCustomText(t.id)} className="absolute -top-3 -right-3 bg-red-500 text-white rounded-full p-1 shadow hover:bg-red-600"><XCircle size={14}/></button>
+                                    </div>
+                                ) : (
+                                    <p className="font-hand select-none text-purple-900 drop-shadow-sm" style={{ fontSize: `${(t.scale * 20) * pdfScaleFactor}px`, lineHeight: 1.2, textAlign: 'center', wordWrap: 'break-word' }}>{t.content}</p>
+                                )}
+                                
+                                {activeItemId === t.id && !editingItemId && (
+                                    <>
+                                        <div onMouseDown={(e) => startResize(e, t.id, 'width')} className="absolute top-1/2 -right-4 w-6 h-12 bg-purple-200 rounded-full cursor-ew-resize flex items-center justify-center shadow border border-purple-400 opacity-80 hover:opacity-100"><ArrowRightLeft size={12}/></div>
+                                        <div onMouseDown={(e) => startResize(e, t.id, 'scale')} className="absolute -bottom-4 -right-4 w-8 h-8 bg-purple-600 text-white rounded-full shadow-xl flex items-center justify-center cursor-nwse-resize hover:scale-110"><Maximize size={16} /></div>
+                                    </>
+                                )}
+                            </div>
+                        ))}
+                    </div>
+                </div>
+            )}
+       </div>
+
+       <PrintTemplates 
+            ref={exportRef}
+            data={data}
+            themeAssets={themeAssets}
+            formatConfig={formatConfig}
+            grid={grid}
+            wmSheet1={wmSheet1}
+            wmSheet2={wmSheet2}
+            imgSheet2={imgSheet2}
+            txtSheet2={txtSheet2}
+            stickerGroup={stickerGroup}
+            customTexts={customTexts}
+            printRenderKey={printRenderKey}
+            currentSheetPage={currentSheetPage}
+            tagVariations={tagVariations}
+            tagMessages={tagMessages}
+            // Passiamo gli array completi per la stampa massiva
+            allTagImages={allTagImages}
+            // ---
+            showBorders={showBorders}
+            isCrossword={isCrossword}
+            photos={photos}
+            currentYear={currentYear}
+            editableMessage={editableMessage}
+            pdfScaleFactor={pdfScaleFactor}
+       />
+    </div>
+  );
+};
+
+export default CrosswordGrid;
