@@ -144,7 +144,7 @@ const CrosswordGrid: React.FC<CrosswordGridProps> = ({ data, onComplete, onEdit,
   const formatConfig = FORMAT_CONFIG[data.format || 'a4'];
 
   const isMultiItemFormat = data.format === 'tags' || data.format === 'a6_2x' || data.format === 'square';
-  const itemsPerPage = data.format === 'tags' ? 8 : 2; // Square e Mini2x sono entrambi 2
+  const itemsPerPage = data.format === 'tags' ? 8 : 2; 
   const totalPages = Math.ceil(Math.max(allTagImages.length, itemsPerPage) / itemsPerPage);
 
   useEffect(() => {
@@ -193,7 +193,6 @@ const CrosswordGrid: React.FC<CrosswordGridProps> = ({ data, onComplete, onEdit,
           let title = "Auguri!";
           const absoluteIndex = startIdx + i;
           if (data.theme === 'christmas') {
-              // Alterna il titolo in base alla posizione
               title = (absoluteIndex % itemsPerPage) < (itemsPerPage/2) ? "Buon Natale" : "Buone Feste";
           } else {
               title = data.title || "Auguri";
@@ -286,7 +285,6 @@ const CrosswordGrid: React.FC<CrosswordGridProps> = ({ data, onComplete, onEdit,
           setTagMessages([]); 
           setCurrentSheetPage(0);
           
-          // FEEDBACK PER L'UTENTE
           alert(`Caricamento completato! ${validImages.length} foto pronte per la creazione dei biglietti.`);
       });
       e.target.value = ''; 
@@ -313,7 +311,6 @@ const CrosswordGrid: React.FC<CrosswordGridProps> = ({ data, onComplete, onEdit,
       e.target.value = '';
   };
 
-  // --- TRIGGER INSTRUCTION MODAL ---
   const handlePrePrint = () => {
       setShowInstructionModal(true);
   };
@@ -645,7 +642,15 @@ const CrosswordGrid: React.FC<CrosswordGridProps> = ({ data, onComplete, onEdit,
             <button onClick={() => setShowGraphicsModal(true)} className="bg-white px-3 py-2 rounded-full shadow border text-sm flex items-center gap-2 font-bold hover:bg-pink-50 text-pink-600 active:scale-95 border-pink-200"><Palette size={16} /> Grafica</button>
             {isMultiItemFormat && (
                 <div className="flex bg-gray-100 rounded-full p-1 border border-gray-300">
-                    <input type="file" ref={folderInputRef} accept="image/*" multiple className="hidden" onChange={handleFolderUpload} />
+                    <input 
+                        type="file" 
+                        ref={folderInputRef}
+                        // @ts-ignore
+                        webkitdirectory="" directory="" multiple 
+                        accept="image/png, image/jpeg, image/jpg, image/webp"
+                        className="hidden" 
+                        onChange={handleFolderUpload} 
+                    />
                     <input type="file" ref={albumUploadRef} className="hidden" accept=".json" onChange={handleAlbumLoad} />
 
                     <div className="flex items-center gap-1 mr-2 px-2 border-r border-gray-300">
@@ -735,8 +740,8 @@ const CrosswordGrid: React.FC<CrosswordGridProps> = ({ data, onComplete, onEdit,
                         </div>
                         <button onClick={() => handleGraphicChange('watermark', null)} className={`w-full py-2 rounded-lg font-bold border flex items-center justify-center gap-2 ${data.hasWatermark ? 'bg-blue-50 border-blue-300 text-blue-600' : 'bg-white border-gray-300 text-gray-500'}`}>Filigrana: {data.hasWatermark ? 'SI' : 'NO'}</button>
                     </div>
-                    {/* Pulsante Cornice per i formati massivi (tranne tags) */}
-                    {isMultiItemFormat && data.format !== 'tags' && (
+                    {/* Pulsante Cornice VISIBILE per tutti TRANNE tags */}
+                    {data.format !== 'tags' && (
                         <button onClick={() => setShowBorders(!showBorders)} className={`w-full mt-2 py-2 rounded-lg font-bold border flex items-center justify-center gap-2 ${showBorders ? 'bg-blue-50 border-blue-300 text-blue-600' : 'bg-white border-gray-300 text-gray-500'}`}>{showBorders ? <CheckCircle2 size={16}/> : <div className="w-4 h-4 rounded-full border border-gray-400"/>} Cornice Decorativa</button>
                     )}
                     <button onClick={() => setShowGraphicsModal(false)} className="w-full mt-4 py-2 bg-gray-800 text-white rounded-lg font-bold">Chiudi</button>
@@ -796,7 +801,7 @@ const CrosswordGrid: React.FC<CrosswordGridProps> = ({ data, onComplete, onEdit,
                </div>
                <div className="p-6 border-t bg-white shrink-0">
                     <div className="flex flex-col md:flex-row gap-4 items-center justify-between">
-                         {!isMultiItemFormat && <button onClick={() => setShowBorders(!showBorders)} className={`w-full md:w-auto px-6 py-3 rounded-xl border-2 flex items-center justify-center gap-3 font-bold transition-all ${showBorders ? 'border-blue-500 bg-blue-50 text-blue-700' : 'border-gray-200 text-gray-500 hover:bg-gray-50'}`}>{showBorders ? <CheckCircle2 size={20} className="text-blue-600"/> : <div className="w-5 h-5 rounded-full border-2 border-gray-300"/>} Cornice Decorativa</button>}
+                         {data.format !== 'tags' && <button onClick={() => setShowBorders(!showBorders)} className={`w-full md:w-auto px-6 py-3 rounded-xl border-2 flex items-center justify-center gap-3 font-bold transition-all ${showBorders ? 'border-blue-500 bg-blue-50 text-blue-700' : 'border-gray-200 text-gray-500 hover:bg-gray-50'}`}>{showBorders ? <CheckCircle2 size={20} className="text-blue-600"/> : <div className="w-5 h-5 rounded-full border-2 border-gray-300"/>} Cornice Decorativa</button>}
                          
                          <div className="flex gap-3 w-full justify-end">
                             <button onClick={() => setShowPrintModal(false)} className="px-6 py-3 rounded-xl font-bold text-gray-500 hover:bg-gray-100 transition-colors">Annulla</button>
