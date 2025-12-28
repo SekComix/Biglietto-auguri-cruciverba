@@ -24,18 +24,19 @@ const getApiKey = (): string => {
   // ---------------------------------------------------------
   // 1. INCOLLA QUI SOTTO LA TUA NUOVA CHIAVE (quella appena creata)
   // ---------------------------------------------------------
-  const manualKey: string = "AIzaSyAEebjjAfWWX1884SA2ssRUhZWJL8ZO5pg"; 
+  const manualKey: string = "AIzaSyAEebjjAfWWX1884SA2ssRUhZWJL8ZO5pg";
   
   // Se hai incollato la chiave, la usiamo
   if (manualKey && manualKey.length > 20 && !manualKey.includes("INCOLLA")) {
       return manualKey;
   }
 
-  // 2. Altrimenti cerca nelle variabili d'ambiente (GitHub Secrets)
+  // 2. Altrimenti cerca nelle variabili d'ambiente (GitHub Secrets o .env)
   // @ts-ignore
   const envKey = import.meta.env.VITE_GEMINI_API_KEY || process.env.API_KEY || process.env.GEMINI_API_KEY;
   
   if (!envKey) {
+      // Ritorniamo stringa vuota per non rompere il build, l'errore apparirà a runtime se manca
       return "";
   }
   return envKey;
@@ -50,12 +51,16 @@ const FALLBACK_GREETINGS: Record<string, string[]> = {
     christmas: [
         "Ti auguro un Natale pieno di gioia, calore e momenti indimenticabili!",
         "Che la magia delle feste porti serenità a te e alla tua famiglia. Auguri!",
-        "Sotto l'albero spero tu trovi felicità e sorrisi. Buon Natale!"
+        "Sotto l'albero spero tu trovi felicità e sorrisi. Buon Natale!",
+        "Un mondo di auguri per un Natale scintillante e felice.",
+        "Che questo Natale brilli di luce, amore e allegria!"
     ],
     birthday: [
         "Buon Compleanno! Che la tua giornata sia speciale come te.",
         "Cento di questi giorni! Ti auguro un anno pieno di successi.",
-        "Tanti auguri! Festeggia alla grande e goditi ogni momento."
+        "Tanti auguri! Festeggia alla grande e goditi ogni momento.",
+        "Un altro anno è passato, ma sei sempre fantastico! Auguri!",
+        "Auguri di cuore! Che tutti i tuoi desideri si avverino oggi."
     ],
     generic: [
         "Tanti auguri! Spero che questa giornata ti porti tanta felicità.",
@@ -149,6 +154,23 @@ function generateLayout(wordsInput: {word: string, clue: string}[]): any[] {
                 }
                 if (placed) break;
             }
+        }
+
+        // Tenta posizionamento libero se fallisce l'incastro
+        if (!placed) {
+             for (let y = 1; y < MAX_GRID_SIZE - 1; y++) {
+                if (placed) break;
+                for (let x = 1; x < MAX_GRID_SIZE - 1; x++) {
+                     if (isWithinBounds(x, y, currentWord.word.length, 'across', MAX_GRID_SIZE)) {
+                        if (isValidPlacement(grid, currentWord.word, x, y, 'across')) {
+                             placeWordOnGrid(grid, currentWord.word, x, y, 'across');
+                             placedWords.push({ ...currentWord, direction: 'across', startX: x, startY: y, number: placedWords.length + 1 });
+                             placed = true;
+                             break;
+                        }
+                     }
+                }
+             }
         }
     }
     return placedWords;
@@ -320,14 +342,14 @@ export const generateCrossword = async (
                      if (!apiKey) throw new Error("No API Key");
                      const prompt = `Completa cruciverba. Soluzione: "${cleanSol}". Parole: ${generatedWords.map(w => w.word).join(', ')}. Mancano lettere: ${missingLetters.join(', ')}. Genera 4 parole ITALIANE. Output JSON {words: [{word, clue}]}.`;
                      const response = await ai.models.generateContent({
-                        // MODIFICATO: Usiamo gemini-1.5-flash (il modello corretto)
+                        // MODELLO CORRETTO
                         model: 'gemini-1.5-flash',
                         contents: prompt,
                         config: { responseMimeType: "application/json", responseSchema: wordListSchema, temperature: 0.7 },
                      });
                      const json = JSON.parse(response.text || "{}");
                      if (json.words) generatedWords = [...generatedWords, ...json.words.map((w: any) => ({ ...w, word: normalizeWord(w.word) }))];
-                 } catch (e) { console.warn("AI integrazione fallita", e); }
+                 } catch (e) { console.warn("AI integrazione fallita, procedo senza", e); }
              }
           }
 
@@ -341,7 +363,7 @@ export const generateCrossword = async (
           try {
             if (onStatusUpdate) onStatusUpdate("L'IA inventa le parole...");
             
-            // MODIFICATO: Usiamo gemini-1.5-flash (Standard per chiavi nuove)
+            // MODELLO CORRETTO
             const responsePromise = ai.models.generateContent({
                 model: 'gemini-1.5-flash',
                 contents: prompt,
@@ -354,8 +376,7 @@ export const generateCrossword = async (
             }
           } catch (e: any) {
             console.error("AI Error:", e);
-            alert(`Errore AI: ${e.message}`); 
-            throw new Error(`Errore AI: ${e.message}`);
+            throw new Error(`Errore AI: ${e.message}. Controlla la tua API Key.`);
           }
       }
 
@@ -393,7 +414,7 @@ export const generateCrossword = async (
 
   let defaultTitle = `Per ${extraData?.recipientName}`;
   if (theme === 'christmas') defaultTitle = `Buon Natale ${extraData?.recipientName}!`;
-  // ... altri temi
+  // ... altri temi ...
 
   let photoArray = extraData.images?.photos || [];
   if (photoArray.length === 0 && extraData.images?.photo) photoArray = [extraData.images.photo];
@@ -429,7 +450,7 @@ export const regenerateGreetingOptions = async (
     customPrompt?: string
 ): Promise<string[]> => {
     let apiKey = '';
-    try { apiKey = getApiKey(); } catch(e) { return [getRandomFallback(theme)]; }
+    try { apiKey = getApiKey(); } catch(e) { console.error(e); return [getRandomFallback(theme)]; }
     
     if (!apiKey) return [getRandomFallback(theme)];
 
@@ -437,7 +458,7 @@ export const regenerateGreetingOptions = async (
     let instructions = tone === 'custom' && customPrompt ? `Istruzioni: "${customPrompt}".` : `Stile: ${tone}.`;
     let context = currentMessage !== 'placeholder' ? `Argomento: "${currentMessage}".` : '';
 
-    const prompt = `Scrivi 5 messaggi di auguri brevi in ITALIANO per ${recipient}. Evento: ${theme}. ${instructions} ${context} Max 30 parole. JSON: { "options": ["msg1", "msg2"] }`;
+    const prompt = `Scrivi 5 messaggi di auguri brevi in ITALIANO per ${recipient}. Evento: ${theme}. ${instructions} ${context} Max 25 parole. JSON: { "options": ["msg1", "msg2"] }`;
     
     const schema = {
         type: Type.OBJECT,
@@ -447,7 +468,7 @@ export const regenerateGreetingOptions = async (
 
     try {
         const apiCall = ai.models.generateContent({ 
-            // MODIFICATO: Usiamo gemini-1.5-flash
+            // MODELLO CORRETTO
             model: 'gemini-1.5-flash', 
             contents: prompt, 
             config: { temperature: 0.9, responseMimeType: "application/json", responseSchema: schema } 
