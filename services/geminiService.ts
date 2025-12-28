@@ -22,7 +22,7 @@ const wordListSchema = {
 // Funzione sicura per recuperare la chiave API
 const getApiKey = (): string => {
   // 1. HARDCODING: INCOLLA QUI LA TUA CHIAVE TRA LE VIRGOLETTE PER TEST
-  const manualKey: string = "AIzaSyCaOmwnZK90qcxOkurRGKce0H0DVDGDp44"; 
+  const manualKey: string = "AIzaSyAEebjjAfWWX1884SA2ssRUhZWJL8ZO5pg"; 
   
   if (manualKey && manualKey.length > 20 && !manualKey.includes("INSERISCI")) {
       return manualKey;
