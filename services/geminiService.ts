@@ -24,7 +24,7 @@ const getApiKey = (): string => {
   // ---------------------------------------------------------
   // 1. INCOLLA QUI SOTTO LA TUA NUOVA CHIAVE (quella appena creata)
   // ---------------------------------------------------------
-  const manualKey: string = ""; 
+  const manualKey: string = "AIzaSyAEebjjAfWWX1884SA2ssRUhZWJL8ZO5pg"; 
   
   // Se hai incollato la chiave, la usiamo
   if (manualKey && manualKey.length > 20 && !manualKey.includes("INCOLLA")) {
