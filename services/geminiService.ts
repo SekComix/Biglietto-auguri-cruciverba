@@ -19,23 +19,22 @@ const wordListSchema = {
   required: ["words"]
 };
 
-// --- FUNZIONE RECUPERO CHIAVE SEMPLIFICATA ---
+// Funzione sicura per recuperare la chiave API senza errori TS
 const getApiKey = () => {
-  // 1. INSERISCI QUI LA TUA CHIAVE SE VUOI L'HARDCODING (SOLO PER TEST)
-  const manualKey = ""; // Es: "AIzaSyD..."
+  // 1. HARDCODING (Opzionale per test rapido, altrimenti lascia stringa vuota)
+  const manualKey = ""; 
   
-  // Se hai scritto qualcosa sopra (più lungo di 10 caratteri), usa quello.
-  if (manualKey.length > 10) {
+  // Se c'è una chiave manuale valida, usa quella
+  if (manualKey && manualKey.length > 20) {
       return manualKey;
   }
 
-  // 2. Altrimenti cerca nelle variabili d'ambiente (Standard)
+  // 2. Recupero da variabili d'ambiente
   // @ts-ignore
   const envKey = import.meta.env.VITE_GEMINI_API_KEY || process.env.API_KEY || process.env.GEMINI_API_KEY;
   
   if (!envKey) {
-      console.error("ERRORE: API Key non trovata.");
-      // Ritorniamo stringa vuota per non rompere il build, l'errore apparirà a runtime
+      // Non lanciamo errore qui per non bloccare il build, l'errore apparirà a runtime se provi a generare
       return "";
   }
   return envKey;
@@ -92,7 +91,7 @@ const withTimeout = <T>(promise: Promise<T>, ms: number, errorMessage: string): 
     ]);
 };
 
-// --- MOTORE DI LAYOUT LOCALE ---
+// --- MOTORE DI LAYOUT LOCALE (STRICLY BOUNDED) ---
 type GridCell = { char: string; wordId?: string };
 type Grid = Map<string, GridCell>; 
 const MAX_GRID_SIZE = 14; 
@@ -108,6 +107,7 @@ function generateLayout(wordsInput: {word: string, clue: string}[]): any[] {
     const grid: Grid = new Map();
     const placedWords: any[] = [];
     
+    // Piazza la prima parola al centro
     const firstWord = wordsToPlace[0];
     const startX = Math.floor(MAX_GRID_SIZE / 2) - Math.floor(firstWord.word.length / 2);
     const startY = Math.floor(MAX_GRID_SIZE / 2);
@@ -115,11 +115,13 @@ function generateLayout(wordsInput: {word: string, clue: string}[]): any[] {
     placeWordOnGrid(grid, firstWord.word, startX, startY, 'across');
     placedWords.push({ ...firstWord, direction: 'across', startX, startY, number: 1 });
 
+    // Piazza le altre
     for (let i = 1; i < wordsToPlace.length; i++) {
         const currentWord = wordsToPlace[i];
         let placed = false;
         
         const occupiedCoords = Array.from(grid.keys());
+        // Randomizza per variare layout
         occupiedCoords.sort(() => Math.random() - 0.5);
 
         for (const coordKey of occupiedCoords) {
@@ -154,6 +156,7 @@ function generateLayout(wordsInput: {word: string, clue: string}[]): any[] {
             }
         }
 
+        // 2. Tenta POSIZIONAMENTO LIBERO (Se fallisce intersezione)
         if (!placed) {
              for (let y = 1; y < MAX_GRID_SIZE - 1; y++) {
                 if (placed) break;
@@ -185,10 +188,19 @@ function isValidPlacement(grid: Grid, word: string, startX: number, startY: numb
         const y = direction === 'down' ? startY + i : startY;
         const key = `${x},${y}`;
         const existing = grid.get(key);
+        
         if (existing && existing.char !== word[i]) return false;
+        
         if (!existing) {
-            if (direction === 'across') { if (grid.has(`${x},${y-1}`) || grid.has(`${x},${y+1}`)) return false; }
-            else { if (grid.has(`${x-1},${y}`) || grid.has(`${x+1},${y}`)) return false; }
+            if (direction === 'across') {
+                 if (grid.has(`${x},${y-1}`) || grid.has(`${x},${y+1}`)) return false;
+                 if (i === 0 && grid.has(`${x-1},${y}`)) return false;
+                 if (i === word.length - 1 && grid.has(`${x+1},${y}`)) return false;
+            } else {
+                 if (grid.has(`${x-1},${y}`) || grid.has(`${x+1},${y}`)) return false;
+                 if (i === 0 && grid.has(`${x},${y-1}`)) return false;
+                 if (i === word.length - 1 && grid.has(`${x},${y+1}`)) return false;
+            }
         }
     }
     return true;
@@ -213,12 +225,13 @@ function normalizeCoordinates(placedWords: any[]) {
         maxX = Math.max(maxX, endX);
         maxY = Math.max(maxY, endY);
     });
-    const width = (maxX - minX) + 2;
-    const height = (maxY - minY) + 2;
+    const padding = 1;
+    const width = (maxX - minX) + padding * 2;
+    const height = (maxY - minY) + padding * 2;
     const normalizedWords = placedWords.map(w => ({
         ...w,
-        startX: w.startX - minX + 1,
-        startY: w.startY - minY + 1
+        startX: w.startX - minX + padding,
+        startY: w.startY - minY + padding
     }));
     return { words: normalizedWords, width, height };
 }
@@ -228,16 +241,30 @@ function reindexGridNumbering(words: any[]) {
     const pointsSet = new Set<string>();
     words.forEach(w => {
         const key = `${w.startX},${w.startY}`;
-        if (!pointsSet.has(key)) { pointsSet.add(key); startPoints.push({ x: w.startX, y: w.startY }); }
+        if (!pointsSet.has(key)) {
+            pointsSet.add(key);
+            startPoints.push({ x: w.startX, y: w.startY });
+        }
     });
-    startPoints.sort((a, b) => (a.y !== b.y) ? a.y - b.y : a.x - b.x);
+
+    startPoints.sort((a, b) => {
+        if (a.y !== b.y) return a.y - b.y;
+        return a.x - b.x;
+    });
+
     const coordToNumber = new Map<string, number>();
-    startPoints.forEach((p, index) => { coordToNumber.set(`${p.x},${p.y}`, index + 1); });
-    return words.map(w => ({ ...w, number: coordToNumber.get(`${w.startX},${w.startY}`) })).sort((a,b) => a.number - b.number); 
+    startPoints.forEach((p, index) => {
+        coordToNumber.set(`${p.x},${p.y}`, index + 1);
+    });
+
+    return words.map(w => ({
+        ...w,
+        number: coordToNumber.get(`${w.startX},${w.startY}`)
+    })).sort((a,b) => a.number - b.number); 
 }
 
 const findSolutionInGrid = (words: any[], hiddenWord: string): any => {
-    if (!hiddenWord) return undefined; 
+    if (!hiddenWord) return undefined;
     const cleanTarget = normalizeWord(hiddenWord);
     const targetChars = cleanTarget.split('');
     const solutionCells: any[] = [];
@@ -311,8 +338,8 @@ export const generateCrossword = async (
   try {
       apiKey = getApiKey();
   } catch (e: any) {
-      alert(`ERRORE CRITICO: ${e.message}`);
-      throw e;
+      console.error(e);
+      // Non blocchiamo subito, proviamo a vedere se l'AI è necessaria
   }
 
   const ai = new GoogleGenAI({ apiKey });
@@ -324,7 +351,7 @@ export const generateCrossword = async (
   let calculatedSolution = undefined;
   let message = '';
 
-  // --- LOGICA CROSSWORD ---
+  // 1. LOGICA CROSSWORD
   if (extraData.contentType === 'crossword') {
       if (mode === 'manual') {
           const inputs = inputData as ManualInput[];
@@ -336,6 +363,7 @@ export const generateCrossword = async (
              if (missingLetters.length > 0) {
                  if (onStatusUpdate) onStatusUpdate(`Integro lettere...`);
                  try {
+                     if (!apiKey) throw new Error("No API Key");
                      const prompt = `Completa cruciverba. Soluzione: "${cleanSol}". Parole: ${generatedWords.map(w => w.word).join(', ')}. Mancano lettere: ${missingLetters.join(', ')}. Genera 4 parole ITALIANE. Output JSON {words: [{word, clue}]}.`;
                      const response = await ai.models.generateContent({
                         model: 'gemini-1.5-flash',
@@ -344,12 +372,14 @@ export const generateCrossword = async (
                      });
                      const json = JSON.parse(response.text || "{}");
                      if (json.words) generatedWords = [...generatedWords, ...json.words.map((w: any) => ({ ...w, word: normalizeWord(w.word) }))];
-                 } catch (e) { console.warn("AI integrazione fallita", e); }
+                 } catch (e) { console.warn("AI integrazione fallita, procedo senza", e); }
              }
           }
 
       } else {
           // AI MODE
+          if (!apiKey) throw new Error("Manca la chiave API per generare il cruciverba!");
+          
           const topic = inputData as string;
           const prompt = `Genera 10 parole e definizioni per cruciverba in ITALIANO. Tema: "${topic}". Output JSON {words: [{word, clue}]}.`;
           
@@ -373,8 +403,10 @@ export const generateCrossword = async (
 
       if (generatedWords.length === 0) throw new Error("Nessuna parola generata.");
       if (onStatusUpdate) onStatusUpdate("Costruisco la griglia...");
+      
       const placedWordsRaw = generateLayout(generatedWords);
       if (placedWordsRaw.length < 2) throw new Error("Impossibile incastrare le parole.");
+      
       const normalized = normalizeCoordinates(placedWordsRaw);
       const reindexedWords = reindexGridNumbering(normalized.words);
       width = normalized.width; height = normalized.height;
@@ -382,9 +414,9 @@ export const generateCrossword = async (
       calculatedSolution = hiddenSolutionWord ? findSolutionInGrid(reindexedWords, hiddenSolutionWord) : undefined;
   }
 
-  // --- LOGICA MESSAGGIO AUGURI ---
+  // 2. LOGICA MESSAGGIO AUGURI
   if (typeof inputData === 'string' && inputData.trim().length > 0) {
-      if (mode === 'ai') {
+      if (mode === 'ai' && apiKey) {
           if (onStatusUpdate) onStatusUpdate("Scrivo la dedica...");
           try {
               const generatedMessage = await regenerateGreeting(
@@ -392,7 +424,7 @@ export const generateCrossword = async (
               );
               message = generatedMessage;
           } catch (e) {
-              message = inputData; // Fallback al prompt utente se AI fallisce
+              message = inputData;
           }
       } else {
           message = inputData;
@@ -403,7 +435,6 @@ export const generateCrossword = async (
 
   let defaultTitle = `Per ${extraData?.recipientName}`;
   if (theme === 'christmas') defaultTitle = `Buon Natale ${extraData?.recipientName}!`;
-  // ... altri temi
 
   let photoArray = extraData.images?.photos || [];
   if (photoArray.length === 0 && extraData.images?.photo) photoArray = [extraData.images.photo];
@@ -432,17 +463,42 @@ export const generateCrossword = async (
 };
 
 export const regenerateGreetingOptions = async (
-    currentMessage: string,
-    theme: string,
-    recipient: string,
-    tone: ToneType,
-    customPrompt?: string
+    currentMessage: string, theme: string, recipient: string, tone: ToneType, customPrompt?: string
 ): Promise<string[]> => {
     let apiKey = '';
-    try { apiKey = getApiKey(); } catch(e) { console.error(e); return [getRandomFallback(theme)]; }
+    try { apiKey = getApiKey(); } catch(e) { return [getRandomFallback(theme)]; }
+    
+    if (!apiKey) return [getRandomFallback(theme)];
 
     const ai = new GoogleGenAI({ apiKey });
     let instructions = tone === 'custom' && customPrompt ? `Istruzioni: "${customPrompt}".` : `Stile: ${tone}.`;
     let context = currentMessage !== 'placeholder' ? `Argomento: "${currentMessage}".` : '';
 
-    const prompt = `Scrivi 5 m
+    const prompt = `Scrivi 5 messaggi di auguri in ITALIANO per ${recipient}. Evento: ${theme}. ${instructions} ${context} Max 25 parole. JSON: { "options": ["msg1", "msg2"] }`;
+    
+    const schema = {
+        type: Type.OBJECT,
+        properties: { options: { type: Type.ARRAY, items: { type: Type.STRING } } },
+        required: ["options"]
+    };
+
+    try {
+        const apiCall = ai.models.generateContent({ 
+            model: 'gemini-1.5-flash', 
+            contents: prompt, 
+            config: { temperature: 0.9, responseMimeType: "application/json", responseSchema: schema } 
+        });
+        const response = await withTimeout<GenerateContentResponse>(apiCall, 30000, "Timeout");
+        const json = JSON.parse(response.text || "{}");
+        return json.options || [getRandomFallback(theme)];
+    } catch (e) {
+        return [getRandomFallback(theme)];
+    }
+};
+
+export const regenerateGreeting = async (
+    currentMessage: string, theme: string, recipient: string, tone: ToneType, customPrompt?: string
+): Promise<string> => {
+     const options = await regenerateGreetingOptions(currentMessage, theme, recipient, tone, customPrompt);
+     return options[0];
+}
