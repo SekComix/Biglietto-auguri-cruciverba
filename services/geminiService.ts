@@ -22,15 +22,16 @@ const wordListSchema = {
 // Funzione sicura per recuperare la chiave API
 const getApiKey = (): string => {
   // ---------------------------------------------------------
-  // 1. INCOLLA QUI LA TUA NUOVA CHIAVE (quella appena creata)
+  // 1. INCOLLA QUI SOTTO LA TUA NUOVA CHIAVE (quella appena creata)
   // ---------------------------------------------------------
-  const manualKey: string = "AIzaSyAEebjjAfWWX1884SA2ssRUhZWJL8ZO5pg";
+  const manualKey: string = ""; 
   
+  // Se hai incollato la chiave, la usiamo
   if (manualKey && manualKey.length > 20 && !manualKey.includes("INCOLLA")) {
       return manualKey;
   }
 
-  // 2. Recupero da variabili d'ambiente
+  // 2. Altrimenti cerca nelle variabili d'ambiente (GitHub Secrets)
   // @ts-ignore
   const envKey = import.meta.env.VITE_GEMINI_API_KEY || process.env.API_KEY || process.env.GEMINI_API_KEY;
   
@@ -40,6 +41,7 @@ const getApiKey = (): string => {
   return envKey;
 };
 
+// Helper function to normalize words
 const normalizeWord = (str: string): string => {
     return str.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toUpperCase().replace(/[^A-Z]/g, "");
 };
@@ -69,7 +71,7 @@ const getRandomFallback = (theme: string): string => {
     return messages[Math.floor(Math.random() * messages.length)];
 };
 
-// Timeout
+// Timeout impostato a 45 secondi
 const withTimeout = <T>(promise: Promise<T>, ms: number, errorMessage: string): Promise<T> => {
     let timeoutId: any;
     const timeoutPromise = new Promise<T>((_, reject) => {
@@ -86,7 +88,7 @@ const withTimeout = <T>(promise: Promise<T>, ms: number, errorMessage: string): 
     ]);
 };
 
-// --- MOTORE DI LAYOUT ---
+// --- MOTORE DI LAYOUT LOCALE ---
 type GridCell = { char: string; wordId?: string };
 type Grid = Map<string, GridCell>; 
 const MAX_GRID_SIZE = 14; 
@@ -102,6 +104,7 @@ function generateLayout(wordsInput: {word: string, clue: string}[]): any[] {
     const grid: Grid = new Map();
     const placedWords: any[] = [];
     
+    // Piazza la prima parola al centro
     const firstWord = wordsToPlace[0];
     const startX = Math.floor(MAX_GRID_SIZE / 2) - Math.floor(firstWord.word.length / 2);
     const startY = Math.floor(MAX_GRID_SIZE / 2);
@@ -289,7 +292,7 @@ export const generateCrossword = async (
   try {
       apiKey = getApiKey();
   } catch (e: any) {
-      alert(`ERRORE CRITICO CHIAVE: ${e.message}`);
+      alert(`ERRORE CRITICO: ${e.message}`);
       throw e;
   }
 
@@ -317,14 +320,14 @@ export const generateCrossword = async (
                      if (!apiKey) throw new Error("No API Key");
                      const prompt = `Completa cruciverba. Soluzione: "${cleanSol}". Parole: ${generatedWords.map(w => w.word).join(', ')}. Mancano lettere: ${missingLetters.join(', ')}. Genera 4 parole ITALIANE. Output JSON {words: [{word, clue}]}.`;
                      const response = await ai.models.generateContent({
-                        // MODIFICATO: Usiamo gemini-pro che è più stabile
-                        model: 'gemini-pro',
+                        // MODIFICATO: Usiamo gemini-1.5-flash (il modello corretto)
+                        model: 'gemini-1.5-flash',
                         contents: prompt,
                         config: { responseMimeType: "application/json", responseSchema: wordListSchema, temperature: 0.7 },
                      });
                      const json = JSON.parse(response.text || "{}");
                      if (json.words) generatedWords = [...generatedWords, ...json.words.map((w: any) => ({ ...w, word: normalizeWord(w.word) }))];
-                 } catch (e) { console.warn("AI integrazione fallita, procedo senza", e); }
+                 } catch (e) { console.warn("AI integrazione fallita", e); }
              }
           }
 
@@ -338,9 +341,9 @@ export const generateCrossword = async (
           try {
             if (onStatusUpdate) onStatusUpdate("L'IA inventa le parole...");
             
-            // MODIFICATO: Usiamo gemini-pro che è più stabile
+            // MODIFICATO: Usiamo gemini-1.5-flash (Standard per chiavi nuove)
             const responsePromise = ai.models.generateContent({
-                model: 'gemini-pro',
+                model: 'gemini-1.5-flash',
                 contents: prompt,
                 config: { responseMimeType: "application/json", responseSchema: wordListSchema },
             });
@@ -390,6 +393,7 @@ export const generateCrossword = async (
 
   let defaultTitle = `Per ${extraData?.recipientName}`;
   if (theme === 'christmas') defaultTitle = `Buon Natale ${extraData?.recipientName}!`;
+  // ... altri temi
 
   let photoArray = extraData.images?.photos || [];
   if (photoArray.length === 0 && extraData.images?.photo) photoArray = [extraData.images.photo];
@@ -433,7 +437,7 @@ export const regenerateGreetingOptions = async (
     let instructions = tone === 'custom' && customPrompt ? `Istruzioni: "${customPrompt}".` : `Stile: ${tone}.`;
     let context = currentMessage !== 'placeholder' ? `Argomento: "${currentMessage}".` : '';
 
-    const prompt = `Scrivi 5 messaggi di auguri brevi in ITALIANO per ${recipient}. Evento: ${theme}. ${instructions} ${context} Max 25 parole. JSON: { "options": ["msg1", "msg2"] }`;
+    const prompt = `Scrivi 5 messaggi di auguri brevi in ITALIANO per ${recipient}. Evento: ${theme}. ${instructions} ${context} Max 30 parole. JSON: { "options": ["msg1", "msg2"] }`;
     
     const schema = {
         type: Type.OBJECT,
@@ -443,8 +447,8 @@ export const regenerateGreetingOptions = async (
 
     try {
         const apiCall = ai.models.generateContent({ 
-            // MODIFICATO: Usiamo gemini-pro che è più stabile
-            model: 'gemini-pro', 
+            // MODIFICATO: Usiamo gemini-1.5-flash
+            model: 'gemini-1.5-flash', 
             contents: prompt, 
             config: { temperature: 0.9, responseMimeType: "application/json", responseSchema: schema } 
         });
@@ -457,7 +461,11 @@ export const regenerateGreetingOptions = async (
 };
 
 export const regenerateGreeting = async (
-    currentMessage: string, theme: string, recipient: string, tone: ToneType, customPrompt?: string
+    currentMessage: string,
+    theme: string,
+    recipient: string,
+    tone: ToneType,
+    customPrompt?: string
 ): Promise<string> => {
      const options = await regenerateGreetingOptions(currentMessage, theme, recipient, tone, customPrompt);
      return options[0];
