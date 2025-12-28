@@ -22,9 +22,9 @@ const wordListSchema = {
 // Funzione sicura per recuperare la chiave API
 const getApiKey = (): string => {
   // ---------------------------------------------------------
-  // 1. INCOLLA QUI SOTTO LA TUA NUOVA CHIAVE (quella appena creata)
+  // 1. INCOLLA QUI LA TUA NUOVA CHIAVE (quella appena creata)
   // ---------------------------------------------------------
-  const manualKey: string = "AIzaSyAEebjjAfWWX1884SA2ssRUhZWJL8ZO5pg"; 
+  const manualKey: string = "AIzaSyAEebjjAfWWX1884SA2ssRUhZWJL8ZO5pg";
   
   if (manualKey && manualKey.length > 20 && !manualKey.includes("INCOLLA")) {
       return manualKey;
@@ -317,7 +317,8 @@ export const generateCrossword = async (
                      if (!apiKey) throw new Error("No API Key");
                      const prompt = `Completa cruciverba. Soluzione: "${cleanSol}". Parole: ${generatedWords.map(w => w.word).join(', ')}. Mancano lettere: ${missingLetters.join(', ')}. Genera 4 parole ITALIANE. Output JSON {words: [{word, clue}]}.`;
                      const response = await ai.models.generateContent({
-                        model: 'gemini-1.5-flash',
+                        // MODIFICATO: Usiamo gemini-pro che è più stabile
+                        model: 'gemini-pro',
                         contents: prompt,
                         config: { responseMimeType: "application/json", responseSchema: wordListSchema, temperature: 0.7 },
                      });
@@ -337,9 +338,9 @@ export const generateCrossword = async (
           try {
             if (onStatusUpdate) onStatusUpdate("L'IA inventa le parole...");
             
-            // MODELLO 1.5 FLASH (Standard, più veloce e supportato dalle nuove chiavi)
+            // MODIFICATO: Usiamo gemini-pro che è più stabile
             const responsePromise = ai.models.generateContent({
-                model: 'gemini-1.5-flash',
+                model: 'gemini-pro',
                 contents: prompt,
                 config: { responseMimeType: "application/json", responseSchema: wordListSchema },
             });
@@ -350,7 +351,7 @@ export const generateCrossword = async (
             }
           } catch (e: any) {
             console.error("AI Error:", e);
-            alert(`Errore AI: ${e.message}`); // MOSTRO L'ERRORE VERO
+            alert(`Errore AI: ${e.message}`); 
             throw new Error(`Errore AI: ${e.message}`);
           }
       }
@@ -424,7 +425,7 @@ export const regenerateGreetingOptions = async (
     customPrompt?: string
 ): Promise<string[]> => {
     let apiKey = '';
-    try { apiKey = getApiKey(); } catch(e) { console.error(e); return [getRandomFallback(theme)]; }
+    try { apiKey = getApiKey(); } catch(e) { return [getRandomFallback(theme)]; }
     
     if (!apiKey) return [getRandomFallback(theme)];
 
@@ -442,8 +443,8 @@ export const regenerateGreetingOptions = async (
 
     try {
         const apiCall = ai.models.generateContent({ 
-            // MODELLO 1.5 FLASH
-            model: 'gemini-1.5-flash', 
+            // MODIFICATO: Usiamo gemini-pro che è più stabile
+            model: 'gemini-pro', 
             contents: prompt, 
             config: { temperature: 0.9, responseMimeType: "application/json", responseSchema: schema } 
         });
