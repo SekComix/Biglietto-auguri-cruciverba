@@ -19,24 +19,29 @@ const wordListSchema = {
   required: ["words"]
 };
 
-// --- MODIFICA QUI SOTTO ---
+// --- FUNZIONE RECUPERO CHIAVE SEMPLIFICATA ---
 const getApiKey = () => {
-  // CANCELLA TUTTO IL RESTO E INCOLLA LA TUA CHIAVE TRA LE VIRGOLETTE QUI SOTTO:
-  const manualKey = "AIzaSyCaOmwnZK90qcxOkurRGKce0H0DVDGDp44"; 
+  // 1. INSERISCI QUI LA TUA CHIAVE SE VUOI L'HARDCODING (SOLO PER TEST)
+  const manualKey = ""; // Es: "AIzaSyD..."
   
-  // Se hai incollato la chiave sopra, userà quella. Altrimenti prova a cercarla.
-  if (manualKey !== "INSERISCI_QUI_LA_TUA_CHIAVE_CHE_INIZIA_CON_AIza") {
+  // Se hai scritto qualcosa sopra (più lungo di 10 caratteri), usa quello.
+  if (manualKey.length > 10) {
       return manualKey;
   }
 
+  // 2. Altrimenti cerca nelle variabili d'ambiente (Standard)
   // @ts-ignore
   const envKey = import.meta.env.VITE_GEMINI_API_KEY || process.env.API_KEY || process.env.GEMINI_API_KEY;
+  
   if (!envKey) {
-      throw new Error("NESSUNA CHIAVE TROVATA! Incolla la chiave direttamente nel file geminiService.ts alla riga 23.");
+      console.error("ERRORE: API Key non trovata.");
+      // Ritorniamo stringa vuota per non rompere il build, l'errore apparirà a runtime
+      return "";
   }
   return envKey;
 };
 
+// Helper function to normalize words (remove accents, keep only A-Z)
 const normalizeWord = (str: string): string => {
     return str.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toUpperCase().replace(/[^A-Z]/g, "");
 };
@@ -45,16 +50,21 @@ const FALLBACK_GREETINGS: Record<string, string[]> = {
     christmas: [
         "Ti auguro un Natale pieno di gioia, calore e momenti indimenticabili!",
         "Che la magia delle feste porti serenità a te e alla tua famiglia. Auguri!",
-        "Sotto l'albero spero tu trovi felicità e sorrisi. Buon Natale!"
+        "Sotto l'albero spero tu trovi felicità e sorrisi. Buon Natale!",
+        "Un mondo di auguri per un Natale scintillante e felice.",
+        "Che questo Natale brilli di luce, amore e allegria!"
     ],
     birthday: [
         "Buon Compleanno! Che la tua giornata sia speciale come te.",
         "Cento di questi giorni! Ti auguro un anno pieno di successi.",
-        "Tanti auguri! Festeggia alla grande e goditi ogni momento."
+        "Tanti auguri! Festeggia alla grande e goditi ogni momento.",
+        "Un altro anno è passato, ma sei sempre fantastico! Auguri!",
+        "Auguri di cuore! Che tutti i tuoi desideri si avverino oggi."
     ],
     generic: [
         "Tanti auguri! Spero che questa giornata ti porti tanta felicità.",
-        "Un pensiero speciale per una persona speciale."
+        "Un pensiero speciale per una persona speciale.",
+        "Auguri sinceri per ogni tuo sogno."
     ]
 };
 
@@ -65,6 +75,7 @@ const getRandomFallback = (theme: string): string => {
     return messages[Math.floor(Math.random() * messages.length)];
 };
 
+// Timeout impostato a 45 secondi
 const withTimeout = <T>(promise: Promise<T>, ms: number, errorMessage: string): Promise<T> => {
     let timeoutId: any;
     const timeoutPromise = new Promise<T>((_, reject) => {
@@ -81,7 +92,7 @@ const withTimeout = <T>(promise: Promise<T>, ms: number, errorMessage: string): 
     ]);
 };
 
-// --- MOTORE DI LAYOUT ---
+// --- MOTORE DI LAYOUT LOCALE ---
 type GridCell = { char: string; wordId?: string };
 type Grid = Map<string, GridCell>; 
 const MAX_GRID_SIZE = 14; 
@@ -142,6 +153,22 @@ function generateLayout(wordsInput: {word: string, clue: string}[]): any[] {
                 if (placed) break;
             }
         }
+
+        if (!placed) {
+             for (let y = 1; y < MAX_GRID_SIZE - 1; y++) {
+                if (placed) break;
+                for (let x = 1; x < MAX_GRID_SIZE - 1; x++) {
+                     if (isWithinBounds(x, y, currentWord.word.length, 'across', MAX_GRID_SIZE)) {
+                        if (isValidPlacement(grid, currentWord.word, x, y, 'across')) {
+                             placeWordOnGrid(grid, currentWord.word, x, y, 'across');
+                             placedWords.push({ ...currentWord, direction: 'across', startX: x, startY: y, number: placedWords.length + 1 });
+                             placed = true;
+                             break;
+                        }
+                     }
+                }
+             }
+        }
     }
     return placedWords;
 }
@@ -158,19 +185,10 @@ function isValidPlacement(grid: Grid, word: string, startX: number, startY: numb
         const y = direction === 'down' ? startY + i : startY;
         const key = `${x},${y}`;
         const existing = grid.get(key);
-        
         if (existing && existing.char !== word[i]) return false;
-        
         if (!existing) {
-            if (direction === 'across') {
-                 if (grid.has(`${x},${y-1}`) || grid.has(`${x},${y+1}`)) return false;
-                 if (i === 0 && grid.has(`${x-1},${y}`)) return false;
-                 if (i === word.length - 1 && grid.has(`${x+1},${y}`)) return false;
-            } else {
-                 if (grid.has(`${x-1},${y}`) || grid.has(`${x+1},${y}`)) return false;
-                 if (i === 0 && grid.has(`${x},${y-1}`)) return false;
-                 if (i === word.length - 1 && grid.has(`${x},${y+1}`)) return false;
-            }
+            if (direction === 'across') { if (grid.has(`${x},${y-1}`) || grid.has(`${x},${y+1}`)) return false; }
+            else { if (grid.has(`${x-1},${y}`) || grid.has(`${x+1},${y}`)) return false; }
         }
     }
     return true;
@@ -195,13 +213,12 @@ function normalizeCoordinates(placedWords: any[]) {
         maxX = Math.max(maxX, endX);
         maxY = Math.max(maxY, endY);
     });
-    const padding = 1;
-    const width = (maxX - minX) + padding * 2;
-    const height = (maxY - minY) + padding * 2;
+    const width = (maxX - minX) + 2;
+    const height = (maxY - minY) + 2;
     const normalizedWords = placedWords.map(w => ({
         ...w,
-        startX: w.startX - minX + padding,
-        startY: w.startY - minY + padding
+        startX: w.startX - minX + 1,
+        startY: w.startY - minY + 1
     }));
     return { words: normalizedWords, width, height };
 }
@@ -252,7 +269,7 @@ const findSolutionInGrid = (words: any[], hiddenWord: string): any => {
         usedWordIndices.add(wordIndex);
     }
     if (solutionCells.length > 0) return { word: cleanTarget, original: hiddenWord.toUpperCase(), cells: solutionCells };
-    return undefined; 
+    return undefined;
 };
 
 const getMissingLetters = (existingWords: string[], targetWord: string): string[] => {
@@ -294,8 +311,8 @@ export const generateCrossword = async (
   try {
       apiKey = getApiKey();
   } catch (e: any) {
-      alert(`ERRORE CRITICO CHIAVE: ${e.message}`);
-      throw new Error(e.message);
+      alert(`ERRORE CRITICO: ${e.message}`);
+      throw e;
   }
 
   const ai = new GoogleGenAI({ apiKey });
@@ -304,7 +321,7 @@ export const generateCrossword = async (
   let finalWords: any[] = [];
   let width = 0;
   let height = 0;
-  let calculatedSolution = undefined; 
+  let calculatedSolution = undefined;
   let message = '';
 
   // --- LOGICA CROSSWORD ---
@@ -350,7 +367,6 @@ export const generateCrossword = async (
             }
           } catch (e: any) {
             console.error("AI Error:", e);
-            alert(`ERRORE AI: ${e.message}`); // MOSTRO L'ERRORE VERO
             throw new Error(`Errore AI: ${e.message}`);
           }
       }
@@ -376,7 +392,7 @@ export const generateCrossword = async (
               );
               message = generatedMessage;
           } catch (e) {
-              message = inputData;
+              message = inputData; // Fallback al prompt utente se AI fallisce
           }
       } else {
           message = inputData;
@@ -387,6 +403,7 @@ export const generateCrossword = async (
 
   let defaultTitle = `Per ${extraData?.recipientName}`;
   if (theme === 'christmas') defaultTitle = `Buon Natale ${extraData?.recipientName}!`;
+  // ... altri temi
 
   let photoArray = extraData.images?.photos || [];
   if (photoArray.length === 0 && extraData.images?.photo) photoArray = [extraData.images.photo];
@@ -422,37 +439,10 @@ export const regenerateGreetingOptions = async (
     customPrompt?: string
 ): Promise<string[]> => {
     let apiKey = '';
-    try { apiKey = getApiKey(); } catch(e) { return [getRandomFallback(theme)]; }
+    try { apiKey = getApiKey(); } catch(e) { console.error(e); return [getRandomFallback(theme)]; }
 
     const ai = new GoogleGenAI({ apiKey });
     let instructions = tone === 'custom' && customPrompt ? `Istruzioni: "${customPrompt}".` : `Stile: ${tone}.`;
     let context = currentMessage !== 'placeholder' ? `Argomento: "${currentMessage}".` : '';
 
-    const prompt = `Scrivi 5 messaggi di auguri in ITALIANO per ${recipient}. Evento: ${theme}. ${instructions} ${context} Max 30 parole. JSON: { "options": ["msg1", "msg2"] }`;
-    
-    const schema = {
-        type: Type.OBJECT,
-        properties: { options: { type: Type.ARRAY, items: { type: Type.STRING } } },
-        required: ["options"]
-    };
-
-    try {
-        const apiCall = ai.models.generateContent({ 
-            model: 'gemini-1.5-flash', 
-            contents: prompt, 
-            config: { temperature: 0.9, responseMimeType: "application/json", responseSchema: schema } 
-        });
-        const response = await withTimeout<GenerateContentResponse>(apiCall, 30000, "Timeout");
-        const json = JSON.parse(response.text || "{}");
-        return json.options || [getRandomFallback(theme)];
-    } catch (e) {
-        return [getRandomFallback(theme)];
-    }
-};
-
-export const regenerateGreeting = async (
-    currentMessage: string, theme: string, recipient: string, tone: ToneType, customPrompt?: string
-): Promise<string> => {
-     const options = await regenerateGreetingOptions(currentMessage, theme, recipient, tone, customPrompt);
-     return options[0];
-}
+    const prompt = `Scrivi 5 m
