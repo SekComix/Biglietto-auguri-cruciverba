@@ -21,10 +21,12 @@ const wordListSchema = {
 
 // Funzione sicura per recuperare la chiave API
 const getApiKey = (): string => {
-  // 1. HARDCODING: INCOLLA QUI LA TUA CHIAVE TRA LE VIRGOLETTE PER TEST
+  // ---------------------------------------------------------
+  // 1. INCOLLA QUI SOTTO LA TUA NUOVA CHIAVE (quella appena creata)
+  // ---------------------------------------------------------
   const manualKey: string = "AIzaSyAEebjjAfWWX1884SA2ssRUhZWJL8ZO5pg"; 
   
-  if (manualKey && manualKey.length > 20 && !manualKey.includes("INSERISCI")) {
+  if (manualKey && manualKey.length > 20 && !manualKey.includes("INCOLLA")) {
       return manualKey;
   }
 
@@ -287,7 +289,7 @@ export const generateCrossword = async (
   try {
       apiKey = getApiKey();
   } catch (e: any) {
-      alert(`ERRORE CRITICO: ${e.message}`);
+      alert(`ERRORE CRITICO CHIAVE: ${e.message}`);
       throw e;
   }
 
@@ -315,20 +317,19 @@ export const generateCrossword = async (
                      if (!apiKey) throw new Error("No API Key");
                      const prompt = `Completa cruciverba. Soluzione: "${cleanSol}". Parole: ${generatedWords.map(w => w.word).join(', ')}. Mancano lettere: ${missingLetters.join(', ')}. Genera 4 parole ITALIANE. Output JSON {words: [{word, clue}]}.`;
                      const response = await ai.models.generateContent({
-                        // USIAMO GEMINI PRO (più stabile)
-                        model: 'gemini-pro',
+                        model: 'gemini-1.5-flash',
                         contents: prompt,
                         config: { responseMimeType: "application/json", responseSchema: wordListSchema, temperature: 0.7 },
                      });
                      const json = JSON.parse(response.text || "{}");
                      if (json.words) generatedWords = [...generatedWords, ...json.words.map((w: any) => ({ ...w, word: normalizeWord(w.word) }))];
-                 } catch (e) { console.warn("AI integrazione fallita", e); }
+                 } catch (e) { console.warn("AI integrazione fallita, procedo senza", e); }
              }
           }
 
       } else {
           // AI MODE
-          if (!apiKey) throw new Error("Manca la chiave API per generare il cruciverba!");
+          if (!apiKey) throw new Error("Manca la chiave API. Inseriscila nel codice o nel file .env.");
           
           const topic = inputData as string;
           const prompt = `Genera 10 parole e definizioni per cruciverba in ITALIANO. Tema: "${topic}". Output JSON {words: [{word, clue}]}.`;
@@ -336,9 +337,9 @@ export const generateCrossword = async (
           try {
             if (onStatusUpdate) onStatusUpdate("L'IA inventa le parole...");
             
-            // USIAMO GEMINI PRO (più stabile)
+            // MODELLO 1.5 FLASH (Standard, più veloce e supportato dalle nuove chiavi)
             const responsePromise = ai.models.generateContent({
-                model: 'gemini-pro',
+                model: 'gemini-1.5-flash',
                 contents: prompt,
                 config: { responseMimeType: "application/json", responseSchema: wordListSchema },
             });
@@ -349,7 +350,8 @@ export const generateCrossword = async (
             }
           } catch (e: any) {
             console.error("AI Error:", e);
-            throw new Error(`Errore AI: ${e.message}.`);
+            alert(`Errore AI: ${e.message}`); // MOSTRO L'ERRORE VERO
+            throw new Error(`Errore AI: ${e.message}`);
           }
       }
 
@@ -387,7 +389,6 @@ export const generateCrossword = async (
 
   let defaultTitle = `Per ${extraData?.recipientName}`;
   if (theme === 'christmas') defaultTitle = `Buon Natale ${extraData?.recipientName}!`;
-  // ... altri temi
 
   let photoArray = extraData.images?.photos || [];
   if (photoArray.length === 0 && extraData.images?.photo) photoArray = [extraData.images.photo];
@@ -423,7 +424,7 @@ export const regenerateGreetingOptions = async (
     customPrompt?: string
 ): Promise<string[]> => {
     let apiKey = '';
-    try { apiKey = getApiKey(); } catch(e) { return [getRandomFallback(theme)]; }
+    try { apiKey = getApiKey(); } catch(e) { console.error(e); return [getRandomFallback(theme)]; }
     
     if (!apiKey) return [getRandomFallback(theme)];
 
@@ -431,7 +432,7 @@ export const regenerateGreetingOptions = async (
     let instructions = tone === 'custom' && customPrompt ? `Istruzioni: "${customPrompt}".` : `Stile: ${tone}.`;
     let context = currentMessage !== 'placeholder' ? `Argomento: "${currentMessage}".` : '';
 
-    const prompt = `Scrivi 5 messaggi di auguri brevi in ITALIANO per ${recipient}. Evento: ${theme}. ${instructions} ${context} Max 30 parole. JSON: { "options": ["msg1", "msg2"] }`;
+    const prompt = `Scrivi 5 messaggi di auguri brevi in ITALIANO per ${recipient}. Evento: ${theme}. ${instructions} ${context} Max 25 parole. JSON: { "options": ["msg1", "msg2"] }`;
     
     const schema = {
         type: Type.OBJECT,
@@ -441,8 +442,8 @@ export const regenerateGreetingOptions = async (
 
     try {
         const apiCall = ai.models.generateContent({ 
-            // USIAMO GEMINI PRO (più stabile)
-            model: 'gemini-pro', 
+            // MODELLO 1.5 FLASH
+            model: 'gemini-1.5-flash', 
             contents: prompt, 
             config: { temperature: 0.9, responseMimeType: "application/json", responseSchema: schema } 
         });
