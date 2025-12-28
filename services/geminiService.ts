@@ -21,14 +21,15 @@ const wordListSchema = {
 
 // Funzione sicura per recuperare la chiave API
 const getApiKey = (): string => {
-  // 1. HARDCODING (Opzionale per test rapido)
-  const manualKey: string = ""; 
+  // 1. HARDCODING: INCOLLA QUI LA TUA CHIAVE TRA LE VIRGOLETTE
+  const manualKey: string = "AIzaSyCaOmwnZK90qcxOkurRGKce0H0DVDGDp44"; 
   
-  if (manualKey && manualKey.length > 20) {
+  // Se hai incollato la chiave (e non è quella di esempio), usa quella
+  if (manualKey && manualKey.length > 20 && !manualKey.includes("INCOLLA_QUI")) {
       return manualKey;
   }
 
-  // 2. Recupero da variabili d'ambiente
+  // 2. Recupero da variabili d'ambiente (Fallback)
   // @ts-ignore
   const envKey = import.meta.env.VITE_GEMINI_API_KEY || process.env.API_KEY || process.env.GEMINI_API_KEY;
   
@@ -38,6 +39,7 @@ const getApiKey = (): string => {
   return envKey;
 };
 
+// Helper function to normalize words
 const normalizeWord = (str: string): string => {
     return str.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toUpperCase().replace(/[^A-Z]/g, "");
 };
@@ -55,7 +57,8 @@ const FALLBACK_GREETINGS: Record<string, string[]> = {
     ],
     generic: [
         "Tanti auguri! Spero che questa giornata ti porti tanta felicità.",
-        "Un pensiero speciale per una persona speciale."
+        "Un pensiero speciale per una persona speciale.",
+        "Auguri sinceri per ogni tuo sogno."
     ]
 };
 
@@ -66,7 +69,7 @@ const getRandomFallback = (theme: string): string => {
     return messages[Math.floor(Math.random() * messages.length)];
 };
 
-// Timeout
+// Timeout impostato a 60 secondi per sicurezza
 const withTimeout = <T>(promise: Promise<T>, ms: number, errorMessage: string): Promise<T> => {
     let timeoutId: any;
     const timeoutPromise = new Promise<T>((_, reject) => {
@@ -83,7 +86,7 @@ const withTimeout = <T>(promise: Promise<T>, ms: number, errorMessage: string): 
     ]);
 };
 
-// --- MOTORE DI LAYOUT ---
+// --- MOTORE DI LAYOUT LOCALE ---
 type GridCell = { char: string; wordId?: string };
 type Grid = Map<string, GridCell>; 
 const MAX_GRID_SIZE = 14; 
@@ -99,6 +102,7 @@ function generateLayout(wordsInput: {word: string, clue: string}[]): any[] {
     const grid: Grid = new Map();
     const placedWords: any[] = [];
     
+    // Piazza la prima parola al centro
     const firstWord = wordsToPlace[0];
     const startX = Math.floor(MAX_GRID_SIZE / 2) - Math.floor(firstWord.word.length / 2);
     const startY = Math.floor(MAX_GRID_SIZE / 2);
@@ -143,6 +147,22 @@ function generateLayout(wordsInput: {word: string, clue: string}[]): any[] {
                 }
                 if (placed) break;
             }
+        }
+
+        if (!placed) {
+             for (let y = 1; y < MAX_GRID_SIZE - 1; y++) {
+                if (placed) break;
+                for (let x = 1; x < MAX_GRID_SIZE - 1; x++) {
+                     if (isWithinBounds(x, y, currentWord.word.length, 'across', MAX_GRID_SIZE)) {
+                        if (isValidPlacement(grid, currentWord.word, x, y, 'across')) {
+                             placeWordOnGrid(grid, currentWord.word, x, y, 'across');
+                             placedWords.push({ ...currentWord, direction: 'across', startX: x, startY: y, number: placedWords.length + 1 });
+                             placed = true;
+                             break;
+                        }
+                     }
+                }
+             }
         }
     }
     return placedWords;
@@ -286,8 +306,8 @@ export const generateCrossword = async (
   try {
       apiKey = getApiKey();
   } catch (e: any) {
-      console.error(e);
-      // Non blocchiamo subito
+      alert(`ERRORE CRITICO: ${e.message}`);
+      throw e;
   }
 
   const ai = new GoogleGenAI({ apiKey });
@@ -314,8 +334,7 @@ export const generateCrossword = async (
                      if (!apiKey) throw new Error("No API Key");
                      const prompt = `Completa cruciverba. Soluzione: "${cleanSol}". Parole: ${generatedWords.map(w => w.word).join(', ')}. Mancano lettere: ${missingLetters.join(', ')}. Genera 4 parole ITALIANE. Output JSON {words: [{word, clue}]}.`;
                      const response = await ai.models.generateContent({
-                        // AGGIORNATO MODELLO: gemini-1.5-flash-latest
-                        model: 'gemini-1.5-flash-latest',
+                        model: 'gemini-1.5-flash',
                         contents: prompt,
                         config: { responseMimeType: "application/json", responseSchema: wordListSchema, temperature: 0.7 },
                      });
@@ -334,13 +353,14 @@ export const generateCrossword = async (
           
           try {
             if (onStatusUpdate) onStatusUpdate("L'IA inventa le parole...");
-            // AGGIORNATO MODELLO: gemini-1.5-flash-latest (Risolve il 404)
+            
+            // MODIFICATO IL MODELLO QUI (da -latest a standard)
             const responsePromise = ai.models.generateContent({
-                model: 'gemini-1.5-flash-latest',
+                model: 'gemini-1.5-flash',
                 contents: prompt,
                 config: { responseMimeType: "application/json", responseSchema: wordListSchema },
             });
-            const response = await withTimeout<GenerateContentResponse>(responsePromise, 45000, "Timeout AI.");
+            const response = await withTimeout<GenerateContentResponse>(responsePromise, 60000, "Timeout AI.");
             if (response.text) {
                 const json = JSON.parse(response.text);
                 generatedWords = json.words.map((w: any) => ({ ...w, word: normalizeWord(w.word) }));
@@ -385,7 +405,6 @@ export const generateCrossword = async (
 
   let defaultTitle = `Per ${extraData?.recipientName}`;
   if (theme === 'christmas') defaultTitle = `Buon Natale ${extraData?.recipientName}!`;
-  // ... altri temi ...
 
   let photoArray = extraData.images?.photos || [];
   if (photoArray.length === 0 && extraData.images?.photo) photoArray = [extraData.images.photo];
@@ -421,7 +440,7 @@ export const regenerateGreetingOptions = async (
     customPrompt?: string
 ): Promise<string[]> => {
     let apiKey = '';
-    try { apiKey = getApiKey(); } catch(e) { return [getRandomFallback(theme)]; }
+    try { apiKey = getApiKey(); } catch(e) { console.error(e); return [getRandomFallback(theme)]; }
     
     if (!apiKey) return [getRandomFallback(theme)];
 
@@ -429,7 +448,7 @@ export const regenerateGreetingOptions = async (
     let instructions = tone === 'custom' && customPrompt ? `Istruzioni: "${customPrompt}".` : `Stile: ${tone}.`;
     let context = currentMessage !== 'placeholder' ? `Argomento: "${currentMessage}".` : '';
 
-    const prompt = `Scrivi 5 messaggi di auguri in ITALIANO per ${recipient}. Evento: ${theme}. ${instructions} ${context} Max 30 parole. JSON: { "options": ["msg1", "msg2"] }`;
+    const prompt = `Scrivi 5 messaggi di auguri brevi in ITALIANO per ${recipient}. Evento: ${theme}. ${instructions} ${context} Max 25 parole. JSON: { "options": ["msg1", "msg2"] }`;
     
     const schema = {
         type: Type.OBJECT,
@@ -440,7 +459,7 @@ export const regenerateGreetingOptions = async (
     try {
         const apiCall = ai.models.generateContent({ 
             // AGGIORNATO MODELLO ANCHE QUI
-            model: 'gemini-1.5-flash-latest', 
+            model: 'gemini-1.5-flash', 
             contents: prompt, 
             config: { temperature: 0.9, responseMimeType: "application/json", responseSchema: schema } 
         });
