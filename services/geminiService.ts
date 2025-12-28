@@ -22,10 +22,8 @@ const wordListSchema = {
 // Funzione sicura per recuperare la chiave API
 const getApiKey = (): string => {
   // 1. HARDCODING (Opzionale per test rapido)
-  // Definiamo esplicitamente che è una stringa per evitare l'errore "type never"
   const manualKey: string = ""; 
   
-  // Se c'è una chiave manuale valida, usa quella
   if (manualKey && manualKey.length > 20) {
       return manualKey;
   }
@@ -35,13 +33,11 @@ const getApiKey = (): string => {
   const envKey = import.meta.env.VITE_GEMINI_API_KEY || process.env.API_KEY || process.env.GEMINI_API_KEY;
   
   if (!envKey) {
-      // Non lanciamo errore qui per non bloccare il build, l'errore apparirà a runtime
       return "";
   }
   return envKey;
 };
 
-// Helper function to normalize words
 const normalizeWord = (str: string): string => {
     return str.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toUpperCase().replace(/[^A-Z]/g, "");
 };
@@ -50,21 +46,16 @@ const FALLBACK_GREETINGS: Record<string, string[]> = {
     christmas: [
         "Ti auguro un Natale pieno di gioia, calore e momenti indimenticabili!",
         "Che la magia delle feste porti serenità a te e alla tua famiglia. Auguri!",
-        "Sotto l'albero spero tu trovi felicità e sorrisi. Buon Natale!",
-        "Un mondo di auguri per un Natale scintillante e felice.",
-        "Che questo Natale brilli di luce, amore e allegria!"
+        "Sotto l'albero spero tu trovi felicità e sorrisi. Buon Natale!"
     ],
     birthday: [
         "Buon Compleanno! Che la tua giornata sia speciale come te.",
         "Cento di questi giorni! Ti auguro un anno pieno di successi.",
-        "Tanti auguri! Festeggia alla grande e goditi ogni momento.",
-        "Un altro anno è passato, ma sei sempre fantastico! Auguri!",
-        "Auguri di cuore! Che tutti i tuoi desideri si avverino oggi."
+        "Tanti auguri! Festeggia alla grande e goditi ogni momento."
     ],
     generic: [
         "Tanti auguri! Spero che questa giornata ti porti tanta felicità.",
-        "Un pensiero speciale per una persona speciale.",
-        "Auguri sinceri per ogni tuo sogno."
+        "Un pensiero speciale per una persona speciale."
     ]
 };
 
@@ -75,7 +66,7 @@ const getRandomFallback = (theme: string): string => {
     return messages[Math.floor(Math.random() * messages.length)];
 };
 
-// Timeout impostato a 45 secondi
+// Timeout
 const withTimeout = <T>(promise: Promise<T>, ms: number, errorMessage: string): Promise<T> => {
     let timeoutId: any;
     const timeoutPromise = new Promise<T>((_, reject) => {
@@ -92,7 +83,7 @@ const withTimeout = <T>(promise: Promise<T>, ms: number, errorMessage: string): 
     ]);
 };
 
-// --- MOTORE DI LAYOUT LOCALE (STRICTLY BOUNDED) ---
+// --- MOTORE DI LAYOUT ---
 type GridCell = { char: string; wordId?: string };
 type Grid = Map<string, GridCell>; 
 const MAX_GRID_SIZE = 14; 
@@ -108,7 +99,6 @@ function generateLayout(wordsInput: {word: string, clue: string}[]): any[] {
     const grid: Grid = new Map();
     const placedWords: any[] = [];
     
-    // Piazza la prima parola al centro
     const firstWord = wordsToPlace[0];
     const startX = Math.floor(MAX_GRID_SIZE / 2) - Math.floor(firstWord.word.length / 2);
     const startY = Math.floor(MAX_GRID_SIZE / 2);
@@ -116,7 +106,6 @@ function generateLayout(wordsInput: {word: string, clue: string}[]): any[] {
     placeWordOnGrid(grid, firstWord.word, startX, startY, 'across');
     placedWords.push({ ...firstWord, direction: 'across', startX, startY, number: 1 });
 
-    // Piazza le altre
     for (let i = 1; i < wordsToPlace.length; i++) {
         const currentWord = wordsToPlace[i];
         let placed = false;
@@ -155,23 +144,6 @@ function generateLayout(wordsInput: {word: string, clue: string}[]): any[] {
                 if (placed) break;
             }
         }
-
-        // Tenta posizionamento libero se fallisce l'incastro
-        if (!placed) {
-             for (let y = 1; y < MAX_GRID_SIZE - 1; y++) {
-                if (placed) break;
-                for (let x = 1; x < MAX_GRID_SIZE - 1; x++) {
-                     if (isWithinBounds(x, y, currentWord.word.length, 'across', MAX_GRID_SIZE)) {
-                        if (isValidPlacement(grid, currentWord.word, x, y, 'across')) {
-                             placeWordOnGrid(grid, currentWord.word, x, y, 'across');
-                             placedWords.push({ ...currentWord, direction: 'across', startX: x, startY: y, number: placedWords.length + 1 });
-                             placed = true;
-                             break;
-                        }
-                     }
-                }
-             }
-        }
     }
     return placedWords;
 }
@@ -188,19 +160,10 @@ function isValidPlacement(grid: Grid, word: string, startX: number, startY: numb
         const y = direction === 'down' ? startY + i : startY;
         const key = `${x},${y}`;
         const existing = grid.get(key);
-        
         if (existing && existing.char !== word[i]) return false;
-        
         if (!existing) {
-            if (direction === 'across') {
-                 if (grid.has(`${x},${y-1}`) || grid.has(`${x},${y+1}`)) return false;
-                 if (i === 0 && grid.has(`${x-1},${y}`)) return false;
-                 if (i === word.length - 1 && grid.has(`${x+1},${y}`)) return false;
-            } else {
-                 if (grid.has(`${x-1},${y}`) || grid.has(`${x+1},${y}`)) return false;
-                 if (i === 0 && grid.has(`${x},${y-1}`)) return false;
-                 if (i === word.length - 1 && grid.has(`${x},${y+1}`)) return false;
-            }
+            if (direction === 'across') { if (grid.has(`${x},${y-1}`) || grid.has(`${x},${y+1}`)) return false; }
+            else { if (grid.has(`${x-1},${y}`) || grid.has(`${x+1},${y}`)) return false; }
         }
     }
     return true;
@@ -225,13 +188,12 @@ function normalizeCoordinates(placedWords: any[]) {
         maxX = Math.max(maxX, endX);
         maxY = Math.max(maxY, endY);
     });
-    const padding = 1;
-    const width = (maxX - minX) + padding * 2;
-    const height = (maxY - minY) + padding * 2;
+    const width = (maxX - minX) + 2;
+    const height = (maxY - minY) + 2;
     const normalizedWords = placedWords.map(w => ({
         ...w,
-        startX: w.startX - minX + padding,
-        startY: w.startY - minY + padding
+        startX: w.startX - minX + 1,
+        startY: w.startY - minY + 1
     }));
     return { words: normalizedWords, width, height };
 }
@@ -241,30 +203,16 @@ function reindexGridNumbering(words: any[]) {
     const pointsSet = new Set<string>();
     words.forEach(w => {
         const key = `${w.startX},${w.startY}`;
-        if (!pointsSet.has(key)) {
-            pointsSet.add(key);
-            startPoints.push({ x: w.startX, y: w.startY });
-        }
+        if (!pointsSet.has(key)) { pointsSet.add(key); startPoints.push({ x: w.startX, y: w.startY }); }
     });
-
-    startPoints.sort((a, b) => {
-        if (a.y !== b.y) return a.y - b.y;
-        return a.x - b.x;
-    });
-
+    startPoints.sort((a, b) => (a.y !== b.y) ? a.y - b.y : a.x - b.x);
     const coordToNumber = new Map<string, number>();
-    startPoints.forEach((p, index) => {
-        coordToNumber.set(`${p.x},${p.y}`, index + 1);
-    });
-
-    return words.map(w => ({
-        ...w,
-        number: coordToNumber.get(`${w.startX},${w.startY}`)
-    })).sort((a,b) => a.number - b.number); 
+    startPoints.forEach((p, index) => { coordToNumber.set(`${p.x},${p.y}`, index + 1); });
+    return words.map(w => ({ ...w, number: coordToNumber.get(`${w.startX},${w.startY}`) })).sort((a,b) => a.number - b.number); 
 }
 
 const findSolutionInGrid = (words: any[], hiddenWord: string): any => {
-    if (!hiddenWord) return undefined;
+    if (!hiddenWord) return undefined; 
     const cleanTarget = normalizeWord(hiddenWord);
     const targetChars = cleanTarget.split('');
     const solutionCells: any[] = [];
@@ -295,7 +243,6 @@ const findSolutionInGrid = (words: any[], hiddenWord: string): any => {
         usedCoords.add(`${x},${y}`);
         usedWordIndices.add(wordIndex);
     }
-
     if (solutionCells.length > 0) return { word: cleanTarget, original: hiddenWord.toUpperCase(), cells: solutionCells };
     return undefined;
 };
@@ -339,8 +286,8 @@ export const generateCrossword = async (
   try {
       apiKey = getApiKey();
   } catch (e: any) {
-      alert(`ERRORE CRITICO CHIAVE: ${e.message}`);
-      throw new Error(e.message);
+      console.error(e);
+      // Non blocchiamo subito
   }
 
   const ai = new GoogleGenAI({ apiKey });
@@ -364,27 +311,32 @@ export const generateCrossword = async (
              if (missingLetters.length > 0) {
                  if (onStatusUpdate) onStatusUpdate(`Integro lettere...`);
                  try {
+                     if (!apiKey) throw new Error("No API Key");
                      const prompt = `Completa cruciverba. Soluzione: "${cleanSol}". Parole: ${generatedWords.map(w => w.word).join(', ')}. Mancano lettere: ${missingLetters.join(', ')}. Genera 4 parole ITALIANE. Output JSON {words: [{word, clue}]}.`;
                      const response = await ai.models.generateContent({
-                        model: 'gemini-1.5-flash',
+                        // AGGIORNATO MODELLO: gemini-1.5-flash-latest
+                        model: 'gemini-1.5-flash-latest',
                         contents: prompt,
                         config: { responseMimeType: "application/json", responseSchema: wordListSchema, temperature: 0.7 },
                      });
                      const json = JSON.parse(response.text || "{}");
                      if (json.words) generatedWords = [...generatedWords, ...json.words.map((w: any) => ({ ...w, word: normalizeWord(w.word) }))];
-                 } catch (e) { console.warn("AI integrazione fallita", e); }
+                 } catch (e) { console.warn("AI integrazione fallita, procedo senza", e); }
              }
           }
 
       } else {
           // AI MODE
+          if (!apiKey) throw new Error("Manca la chiave API. Inseriscila nel codice o nel file .env.");
+          
           const topic = inputData as string;
           const prompt = `Genera 10 parole e definizioni per cruciverba in ITALIANO. Tema: "${topic}". Output JSON {words: [{word, clue}]}.`;
           
           try {
             if (onStatusUpdate) onStatusUpdate("L'IA inventa le parole...");
+            // AGGIORNATO MODELLO: gemini-1.5-flash-latest (Risolve il 404)
             const responsePromise = ai.models.generateContent({
-                model: 'gemini-1.5-flash',
+                model: 'gemini-1.5-flash-latest',
                 contents: prompt,
                 config: { responseMimeType: "application/json", responseSchema: wordListSchema },
             });
@@ -395,14 +347,16 @@ export const generateCrossword = async (
             }
           } catch (e: any) {
             console.error("AI Error:", e);
-            throw new Error(`Errore AI: ${e.message}`);
+            throw new Error(`Errore AI: ${e.message}. Controlla la tua API Key.`);
           }
       }
 
       if (generatedWords.length === 0) throw new Error("Nessuna parola generata.");
       if (onStatusUpdate) onStatusUpdate("Costruisco la griglia...");
+      
       const placedWordsRaw = generateLayout(generatedWords);
       if (placedWordsRaw.length < 2) throw new Error("Impossibile incastrare le parole.");
+      
       const normalized = normalizeCoordinates(placedWordsRaw);
       const reindexedWords = reindexGridNumbering(normalized.words);
       width = normalized.width; height = normalized.height;
@@ -431,7 +385,7 @@ export const generateCrossword = async (
 
   let defaultTitle = `Per ${extraData?.recipientName}`;
   if (theme === 'christmas') defaultTitle = `Buon Natale ${extraData?.recipientName}!`;
-  // ... altri temi
+  // ... altri temi ...
 
   let photoArray = extraData.images?.photos || [];
   if (photoArray.length === 0 && extraData.images?.photo) photoArray = [extraData.images.photo];
@@ -485,7 +439,8 @@ export const regenerateGreetingOptions = async (
 
     try {
         const apiCall = ai.models.generateContent({ 
-            model: 'gemini-1.5-flash', 
+            // AGGIORNATO MODELLO ANCHE QUI
+            model: 'gemini-1.5-flash-latest', 
             contents: prompt, 
             config: { temperature: 0.9, responseMimeType: "application/json", responseSchema: schema } 
         });
@@ -498,11 +453,7 @@ export const regenerateGreetingOptions = async (
 };
 
 export const regenerateGreeting = async (
-    currentMessage: string,
-    theme: string,
-    recipient: string,
-    tone: ToneType,
-    customPrompt?: string
+    currentMessage: string, theme: string, recipient: string, tone: ToneType, customPrompt?: string
 ): Promise<string> => {
      const options = await regenerateGreetingOptions(currentMessage, theme, recipient, tone, customPrompt);
      return options[0];
