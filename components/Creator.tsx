@@ -147,13 +147,14 @@ export const Creator: React.FC<CreatorProps> = ({ onCreated, initialData }) => {
     }
   }, [initialData]);
 
+  // Gestione Errore (SENZA TIMEOUT, così lo leggiamo)
   useEffect(() => {
       if (error) {
-          const timer = setTimeout(() => { setError(null); setShowNameError(false); setShowTopicError(false); }, 5000);
-          return () => clearTimeout(timer);
+          console.error("ERRORE RILEVATO:", error);
+          // Ho rimosso il timer che lo faceva sparire
       }
   }, [error]);
-
+  
   useEffect(() => { if(recipientName) setShowNameError(false); }, [recipientName]);
   useEffect(() => { if(topic) setShowTopicError(false); }, [topic]);
 
