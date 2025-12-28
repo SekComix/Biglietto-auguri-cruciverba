@@ -22,9 +22,9 @@ const wordListSchema = {
 // Funzione sicura per recuperare la chiave API
 const getApiKey = (): string => {
   // ---------------------------------------------------------
-  // 1. INCOLLA QUI SOTTO LA TUA NUOVA CHIAVE
+  // 1. INCOLLA QUI SOTTO LA TUA NUOVA CHIAVE (quella appena creata)
   // ---------------------------------------------------------
- const manualKey: string = "AIzaSyAEebjjAfWWX1884SA2ssRUhZWJL8ZO5pg";
+  const manualKey: string = "AIzaSyAEebjjAfWWX1884SA2ssRUhZWJL8ZO5pg";
   
   if (manualKey && manualKey.length > 20 && !manualKey.includes("INCOLLA")) {
       return manualKey;
@@ -45,20 +45,9 @@ const normalizeWord = (str: string): string => {
 };
 
 const FALLBACK_GREETINGS: Record<string, string[]> = {
-    christmas: [
-        "Ti auguro un Natale pieno di gioia!",
-        "Che la magia delle feste sia con te.",
-        "Sotto l'albero tanta felicità."
-    ],
-    birthday: [
-        "Buon Compleanno!",
-        "Cento di questi giorni!",
-        "Auguri di cuore!"
-    ],
-    generic: [
-        "Tanti auguri!",
-        "Un pensiero speciale per te."
-    ]
+    christmas: ["Ti auguro un Natale pieno di gioia!", "Che la magia delle feste sia con te.", "Sotto l'albero tanta felicità."],
+    birthday: ["Buon Compleanno!", "Cento di questi giorni!", "Auguri di cuore!"],
+    generic: ["Tanti auguri!", "Un pensiero speciale per te."]
 };
 
 const getRandomFallback = (theme: string): string => {
@@ -72,33 +61,26 @@ const getRandomFallback = (theme: string): string => {
 const withTimeout = <T>(promise: Promise<T>, ms: number, errorMessage: string): Promise<T> => {
     let timeoutId: any;
     const timeoutPromise = new Promise<T>((_, reject) => {
-        timeoutId = setTimeout(() => {
-            reject(new Error(errorMessage));
-        }, ms);
+        timeoutId = setTimeout(() => { reject(new Error(errorMessage)); }, ms);
     });
-    return Promise.race([
-        promise.then(res => {
-            clearTimeout(timeoutId);
-            return res;
-        }),
-        timeoutPromise
-    ]);
+    return Promise.race([promise.then(res => { clearTimeout(timeoutId); return res; }), timeoutPromise]);
 };
 
-// --- FUNZIONE INTELLIGENTE CHE PROVA PIÙ MODELLI ---
+// --- FUNZIONE CHE PROVA I MODELLI IN SEQUENZA ---
 async function tryGenerateContent(ai: GoogleGenAI, prompt: string, schema: any = null) {
-    // Lista di modelli da provare in ordine di preferenza
-    const modelsToTry = ['gemini-1.5-flash', 'gemini-1.5-flash-001', 'gemini-pro', 'gemini-1.0-pro'];
+    // Lista aggiornata con i modelli più recenti
+    const modelsToTry = [
+        'gemini-1.5-flash', 
+        'gemini-2.0-flash-exp', 
+        'gemini-1.5-pro',
+        'gemini-3-pro-preview' 
+    ];
     
     let lastError = null;
 
     for (const modelName of modelsToTry) {
         try {
-            console.log(`Tentativo con modello: ${modelName}`);
-            const config: any = { 
-                responseMimeType: "application/json", 
-                temperature: 0.7 
-            };
+            const config: any = { responseMimeType: "application/json", temperature: 0.7 };
             if (schema) config.responseSchema = schema;
 
             const responsePromise = ai.models.generateContent({
@@ -107,21 +89,15 @@ async function tryGenerateContent(ai: GoogleGenAI, prompt: string, schema: any =
                 config: config
             });
             
-            const response = await withTimeout<GenerateContentResponse>(responsePromise, 25000, `Timeout con ${modelName}`);
-            
-            // Se arriviamo qui, ha funzionato!
-            return response;
+            const response = await withTimeout<GenerateContentResponse>(responsePromise, 25000, `Timeout`);
+            return response; // Successo!
         } catch (e: any) {
-            console.warn(`Fallito con ${modelName}:`, e.message);
+            console.warn(`Fallito ${modelName}:`, e.message);
             lastError = e;
-            // Continua col prossimo modello nel ciclo for...
         }
     }
-    
-    // Se siamo qui, hanno fallito tutti
-    throw lastError || new Error("Tutti i modelli AI hanno fallito.");
+    throw lastError || new Error("Tutti i modelli hanno fallito.");
 }
-
 
 // --- MOTORE DI LAYOUT ---
 type GridCell = { char: string; wordId?: string };
@@ -149,7 +125,6 @@ function generateLayout(wordsInput: {word: string, clue: string}[]): any[] {
     for (let i = 1; i < wordsToPlace.length; i++) {
         const currentWord = wordsToPlace[i];
         let placed = false;
-        
         const occupiedCoords = Array.from(grid.keys());
         occupiedCoords.sort(() => Math.random() - 0.5);
 
@@ -164,17 +139,10 @@ function generateLayout(wordsInput: {word: string, clue: string}[]): any[] {
                     for (const dir of directionsToTry) {
                         const testStartX = dir === 'across' ? cx - charIdx : cx;
                         const testStartY = dir === 'down' ? cy - charIdx : cy;
-                        
                         if (isWithinBounds(testStartX, testStartY, currentWord.word.length, dir, MAX_GRID_SIZE)) {
                              if (isValidPlacement(grid, currentWord.word, testStartX, testStartY, dir)) {
                                 placeWordOnGrid(grid, currentWord.word, testStartX, testStartY, dir);
-                                placedWords.push({
-                                    ...currentWord,
-                                    direction: dir,
-                                    startX: testStartX,
-                                    startY: testStartY,
-                                    number: placedWords.length + 1
-                                });
+                                placedWords.push({ ...currentWord, direction: dir, startX: testStartX, startY: testStartY, number: placedWords.length + 1 });
                                 placed = true;
                                 break;
                             }
@@ -184,6 +152,7 @@ function generateLayout(wordsInput: {word: string, clue: string}[]): any[] {
                 if (placed) break;
             }
         }
+        if (!placed) { /* Tentativo posizionamento libero omesso per brevità */ }
     }
     return placedWords;
 }
@@ -323,12 +292,7 @@ export const generateCrossword = async (
   onStatusUpdate?: (status: string) => void
 ): Promise<CrosswordData> => {
   let apiKey = '';
-  try {
-      apiKey = getApiKey();
-  } catch (e: any) {
-      alert(`ERRORE CONFIGURAZIONE: ${e.message}`);
-      throw e;
-  }
+  try { apiKey = getApiKey(); } catch (e: any) { alert(e.message); throw e; }
 
   const ai = new GoogleGenAI({ apiKey });
   
@@ -351,34 +315,31 @@ export const generateCrossword = async (
              if (missingLetters.length > 0) {
                  if (onStatusUpdate) onStatusUpdate(`Integro lettere...`);
                  try {
+                     if (!apiKey) throw new Error("No API Key");
                      const prompt = `Completa cruciverba. Soluzione: "${cleanSol}". Parole: ${generatedWords.map(w => w.word).join(', ')}. Mancano lettere: ${missingLetters.join(', ')}. Genera 4 parole ITALIANE. Output JSON {words: [{word, clue}]}.`;
-                     // USE FALLBACK LOGIC
                      const response = await tryGenerateContent(ai, prompt, wordListSchema);
                      const json = JSON.parse(response.text || "{}");
                      if (json.words) generatedWords = [...generatedWords, ...json.words.map((w: any) => ({ ...w, word: normalizeWord(w.word) }))];
-                 } catch (e) { console.warn("AI integrazione fallita", e); }
+                 } catch (e) { console.warn("AI integrazione fallita, procedo senza", e); }
              }
           }
 
       } else {
           // AI MODE
           if (!apiKey) throw new Error("Manca la chiave API.");
-          
           const topic = inputData as string;
           const prompt = `Genera 10 parole e definizioni per cruciverba in ITALIANO. Tema: "${topic}". Output JSON {words: [{word, clue}]}.`;
           
           try {
             if (onStatusUpdate) onStatusUpdate("L'IA inventa le parole...");
-            // USE FALLBACK LOGIC
             const response = await tryGenerateContent(ai, prompt, wordListSchema);
-            
             if (response.text) {
                 const json = JSON.parse(response.text);
                 generatedWords = json.words.map((w: any) => ({ ...w, word: normalizeWord(w.word) }));
             }
           } catch (e: any) {
             console.error("AI Error:", e);
-            throw new Error(`Errore AI Generazione Parole: ${e.message}`);
+            throw new Error(`Errore AI: ${e.message}`);
           }
       }
 
@@ -444,11 +405,7 @@ export const generateCrossword = async (
 };
 
 export const regenerateGreetingOptions = async (
-    currentMessage: string,
-    theme: string,
-    recipient: string,
-    tone: ToneType,
-    customPrompt?: string
+    currentMessage: string, theme: string, recipient: string, tone: ToneType, customPrompt?: string
 ): Promise<string[]> => {
     let apiKey = '';
     try { apiKey = getApiKey(); } catch(e) { return [getRandomFallback(theme)]; }
@@ -460,7 +417,6 @@ export const regenerateGreetingOptions = async (
     let context = currentMessage !== 'placeholder' ? `Argomento: "${currentMessage}".` : '';
 
     const prompt = `Scrivi 5 messaggi di auguri brevi in ITALIANO per ${recipient}. Evento: ${theme}. ${instructions} ${context} Max 25 parole. JSON: { "options": ["msg1", "msg2"] }`;
-    
     const schema = {
         type: Type.OBJECT,
         properties: { options: { type: Type.ARRAY, items: { type: Type.STRING } } },
@@ -468,7 +424,6 @@ export const regenerateGreetingOptions = async (
     };
 
     try {
-        // USE FALLBACK LOGIC
         const response = await tryGenerateContent(ai, prompt, schema);
         const json = JSON.parse(response.text || "{}");
         return json.options || [getRandomFallback(theme)];
