@@ -22,7 +22,7 @@ const wordListSchema = {
 // --- MODIFICA QUI SOTTO ---
 const getApiKey = () => {
   // CANCELLA TUTTO IL RESTO E INCOLLA LA TUA CHIAVE TRA LE VIRGOLETTE QUI SOTTO:
-  const manualKey = "INSERISCI_QUI_LA_TUA_CHIAVE_CHE_INIZIA_CON_AIza"; 
+  const manualKey = "AIzaSyCaOmwnZK90qcxOkurRGKce0H0DVDGDp44"; 
   
   // Se hai incollato la chiave sopra, userà quella. Altrimenti prova a cercarla.
   if (manualKey !== "INSERISCI_QUI_LA_TUA_CHIAVE_CHE_INIZIA_CON_AIza") {
