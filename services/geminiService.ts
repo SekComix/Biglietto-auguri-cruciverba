@@ -19,18 +19,17 @@ const wordListSchema = {
   required: ["words"]
 };
 
-// Funzione sicura per recuperare la chiave API
+// --- FUNZIONE RECUPERO CHIAVE ---
 const getApiKey = (): string => {
-  // ---------------------------------------------------------
-  // 1. INCOLLA QUI SOTTO LA TUA NUOVA CHIAVE
-  // ---------------------------------------------------------
- const manualKey: string = "AIzaSyAEebjjAfWWX1884SA2ssRUhZWJL8ZO5pg";
-  
+  // 1. HARDCODING (INCOLLA QUI LA CHIAVE NUOVA)
+  // -----------------------------------------------------
+  const manualKey: string = "AIzaSyAEebjjAfWWX1884SA2ssRUhZWJL8ZO5pg";
+  // -----------------------------------------------------
+
   if (manualKey && manualKey.length > 20 && !manualKey.includes("INCOLLA")) {
       return manualKey;
   }
 
-  // 2. Recupero da variabili d'ambiente
   // @ts-ignore
   const envKey = import.meta.env.VITE_GEMINI_API_KEY || process.env.API_KEY || process.env.GEMINI_API_KEY;
   
@@ -39,6 +38,33 @@ const getApiKey = (): string => {
   }
   return envKey;
 };
+
+// --- DIAGNOSTICA MODELLI (LA PARTE NUOVA) ---
+async function logAvailableModels(apiKey: string) {
+    try {
+        console.log("🔍 DIAGNOSTICA: Richiedo lista modelli a Google...");
+        const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models?key=${apiKey}`);
+        const data = await response.json();
+        
+        if (data.models) {
+            console.log("✅ MODELLI DISPONIBILI PER LA TUA CHIAVE:");
+            const modelNames = data.models.map((m: any) => m.name.replace('models/', ''));
+            console.log(modelNames.join('\n'));
+            
+            // Cerchiamo quello "Flash" giusto
+            const flashModel = modelNames.find((m: string) => m.includes('flash') && !m.includes('8b'));
+            if (flashModel) {
+                console.log(`🎯 MODELLO CONSIGLIATO: ${flashModel}`);
+                return flashModel;
+            }
+        } else {
+            console.error("❌ Errore nel recupero modelli:", data);
+        }
+    } catch (e) {
+        console.error("❌ Errore di rete diagnostica:", e);
+    }
+    return 'gemini-1.5-flash'; // Fallback
+}
 
 const normalizeWord = (str: string): string => {
     return str.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toUpperCase().replace(/[^A-Z]/g, "");
@@ -57,7 +83,6 @@ const getRandomFallback = (theme: string): string => {
     return messages[Math.floor(Math.random() * messages.length)];
 };
 
-// Timeout
 const withTimeout = <T>(promise: Promise<T>, ms: number, errorMessage: string): Promise<T> => {
     let timeoutId: any;
     const timeoutPromise = new Promise<T>((_, reject) => {
@@ -66,55 +91,13 @@ const withTimeout = <T>(promise: Promise<T>, ms: number, errorMessage: string): 
     return Promise.race([promise.then(res => { clearTimeout(timeoutId); return res; }), timeoutPromise]);
 };
 
-// --- FUNZIONE INTELLIGENTE CHE PROVA I MODELLI IN SEQUENZA ---
-async function tryGenerateContent(ai: GoogleGenAI, prompt: string, schema: any = null) {
-    // LISTA DI TENTATIVI IN ORDINE DI PROBABILITÀ
-    // 1. Il nuovissimo 2.0 (spesso funziona dove l'1.5 fallisce)
-    // 2. Il classico 1.5 flash (senza suffissi)
-    // 3. La versione 8b (molto leggera)
-    // 4. Il Pro (come ultima spiaggia)
-    const modelsToTry = [
-        'gemini-2.0-flash-exp', 
-        'gemini-1.5-flash', 
-        'gemini-1.5-flash-8b', 
-        'gemini-1.5-pro' 
-    ];
-    
-    let lastError = null;
-
-    for (const modelName of modelsToTry) {
-        try {
-            const config: any = { responseMimeType: "application/json", temperature: 0.7 };
-            if (schema) config.responseSchema = schema;
-
-            const responsePromise = ai.models.generateContent({
-                model: modelName,
-                contents: prompt,
-                config: config
-            });
-            
-            // Timeout rapido per passare al modello successivo
-            const response = await withTimeout<GenerateContentResponse>(responsePromise, 20000, `Timeout`);
-            return response; // Se arrivo qui, ha funzionato!
-        } catch (e: any) {
-            console.warn(`Fallito ${modelName}:`, e.message);
-            lastError = e;
-        }
-    }
-    throw lastError || new Error("Tutti i modelli hanno fallito.");
-}
-
 // --- MOTORE DI LAYOUT ---
 type GridCell = { char: string; wordId?: string };
 type Grid = Map<string, GridCell>; 
 const MAX_GRID_SIZE = 14; 
 
 function generateLayout(wordsInput: {word: string, clue: string}[]): any[] {
-    const wordsToPlace = [...wordsInput]
-        .map(w => ({ ...w, word: normalizeWord(w.word) }))
-        .filter(w => w.word.length > 1 && w.word.length <= MAX_GRID_SIZE) 
-        .sort((a, b) => b.word.length - a.word.length);
-
+    const wordsToPlace = [...wordsInput].map(w => ({ ...w, word: normalizeWord(w.word) })).filter(w => w.word.length > 1 && w.word.length <= MAX_GRID_SIZE).sort((a, b) => b.word.length - a.word.length);
     if (wordsToPlace.length === 0) return [];
     
     const grid: Grid = new Map();
@@ -123,7 +106,6 @@ function generateLayout(wordsInput: {word: string, clue: string}[]): any[] {
     const firstWord = wordsToPlace[0];
     const startX = Math.floor(MAX_GRID_SIZE / 2) - Math.floor(firstWord.word.length / 2);
     const startY = Math.floor(MAX_GRID_SIZE / 2);
-    
     placeWordOnGrid(grid, firstWord.word, startX, startY, 'across');
     placedWords.push({ ...firstWord, direction: 'across', startX, startY, number: 1 });
 
@@ -137,7 +119,6 @@ function generateLayout(wordsInput: {word: string, clue: string}[]): any[] {
             if (placed) break;
             const [cx, cy] = coordKey.split(',').map(Number);
             const charOnGrid = grid.get(coordKey)?.char;
-
             for (let charIdx = 0; charIdx < currentWord.word.length; charIdx++) {
                 if (currentWord.word[charIdx] === charOnGrid) {
                     const directionsToTry = ['down', 'across'];
@@ -157,7 +138,7 @@ function generateLayout(wordsInput: {word: string, clue: string}[]): any[] {
                 if (placed) break;
             }
         }
-        if (!placed) { /* Tentativo libero omesso */ }
+        if (!placed) { /* skip */ }
     }
     return placedWords;
 }
@@ -204,11 +185,7 @@ function normalizeCoordinates(placedWords: any[]) {
     });
     const width = (maxX - minX) + 2;
     const height = (maxY - minY) + 2;
-    const normalizedWords = placedWords.map(w => ({
-        ...w,
-        startX: w.startX - minX + 1,
-        startY: w.startY - minY + 1
-    }));
+    const normalizedWords = placedWords.map(w => ({ ...w, startX: w.startX - minX + 1, startY: w.startY - minY + 1 }));
     return { words: normalizedWords, width, height };
 }
 
@@ -232,7 +209,6 @@ const findSolutionInGrid = (words: any[], hiddenWord: string): any => {
     const solutionCells: any[] = [];
     const usedCoords = new Set<string>();
     const availablePositions: Record<string, {x: number, y: number, wordIndex: number}[]> = {};
-
     words.forEach((w: any, wIdx: number) => {
         for(let i=0; i<w.word.length; i++) {
             const char = w.word[i];
@@ -242,7 +218,6 @@ const findSolutionInGrid = (words: any[], hiddenWord: string): any => {
             availablePositions[char].push({ x, y, wordIndex: wIdx });
         }
     });
-
     const usedWordIndices = new Set<number>();
     for (let i = 0; i < targetChars.length; i++) {
         const char = targetChars[i];
@@ -259,22 +234,6 @@ const findSolutionInGrid = (words: any[], hiddenWord: string): any => {
     }
     if (solutionCells.length > 0) return { word: cleanTarget, original: hiddenWord.toUpperCase(), cells: solutionCells };
     return undefined;
-};
-
-const getMissingLetters = (existingWords: string[], targetWord: string): string[] => {
-    const pool = existingWords.join('').toUpperCase().split('');
-    const target = normalizeWord(targetWord).split('');
-    const missing: string[] = [];
-    const poolMap = new Map<string, number>();
-    pool.forEach(c => poolMap.set(c, (poolMap.get(c) || 0) + 1));
-    target.forEach(c => {
-        if (poolMap.get(c) && poolMap.get(c)! > 0) {
-            poolMap.set(c, poolMap.get(c)! - 1);
-        } else {
-            missing.push(c);
-        }
-    });
-    return missing;
 };
 
 // --- MAIN FUNCTION ---
@@ -297,7 +256,15 @@ export const generateCrossword = async (
   onStatusUpdate?: (status: string) => void
 ): Promise<CrosswordData> => {
   let apiKey = '';
-  try { apiKey = getApiKey(); } catch (e: any) { alert(e.message); throw e; }
+  try {
+      apiKey = getApiKey();
+  } catch (e: any) {
+      alert(e.message); throw e;
+  }
+
+  // DIAGNOSTICA: STAMPA I MODELLI DISPONIBILI
+  const workingModel = await logAvailableModels(apiKey);
+  console.log("Utilizzo modello:", workingModel);
 
   const ai = new GoogleGenAI({ apiKey });
   
@@ -313,21 +280,6 @@ export const generateCrossword = async (
       if (mode === 'manual') {
           const inputs = inputData as ManualInput[];
           generatedWords = inputs.filter(i => i.word.trim() && i.clue.trim()).map(i => ({ word: normalizeWord(i.word), clue: i.clue }));
-          
-          if (hiddenSolutionWord) {
-             const cleanSol = normalizeWord(hiddenSolutionWord);
-             const missingLetters = getMissingLetters(generatedWords.map(w => w.word), cleanSol);
-             if (missingLetters.length > 0) {
-                 if (onStatusUpdate) onStatusUpdate(`Integro lettere...`);
-                 try {
-                     const prompt = `Completa cruciverba. Soluzione: "${cleanSol}". Parole: ${generatedWords.map(w => w.word).join(', ')}. Mancano lettere: ${missingLetters.join(', ')}. Genera 4 parole ITALIANE. Output JSON {words: [{word, clue}]}.`;
-                     const response = await tryGenerateContent(ai, prompt, wordListSchema);
-                     const json = JSON.parse(response.text || "{}");
-                     if (json.words) generatedWords = [...generatedWords, ...json.words.map((w: any) => ({ ...w, word: normalizeWord(w.word) }))];
-                 } catch (e) { console.warn("AI fallita integrazione", e); }
-             }
-          }
-
       } else {
           // AI MODE
           if (!apiKey) throw new Error("Manca la chiave API.");
@@ -336,7 +288,12 @@ export const generateCrossword = async (
           
           try {
             if (onStatusUpdate) onStatusUpdate("L'IA inventa le parole...");
-            const response = await tryGenerateContent(ai, prompt, wordListSchema);
+            const responsePromise = ai.models.generateContent({
+                model: workingModel, // USA IL MODELLO TROVATO DALLA DIAGNOSTICA
+                contents: prompt,
+                config: { responseMimeType: "application/json", responseSchema: wordListSchema },
+            });
+            const response = await withTimeout<GenerateContentResponse>(responsePromise, 45000, "Timeout AI.");
             if (response.text) {
                 const json = JSON.parse(response.text);
                 generatedWords = json.words.map((w: any) => ({ ...w, word: normalizeWord(w.word) }));
@@ -381,7 +338,6 @@ export const generateCrossword = async (
 
   let defaultTitle = `Per ${extraData?.recipientName}`;
   if (theme === 'christmas') defaultTitle = `Buon Natale ${extraData?.recipientName}!`;
-  // ...
 
   let photoArray = extraData.images?.photos || [];
   if (photoArray.length === 0 && extraData.images?.photo) photoArray = [extraData.images.photo];
@@ -430,7 +386,13 @@ export const regenerateGreetingOptions = async (
     };
 
     try {
-        const response = await tryGenerateContent(ai, prompt, schema);
+        const apiCall = ai.models.generateContent({ 
+            // Usa un modello base sicuro per i messaggi
+            model: 'gemini-1.5-flash', 
+            contents: prompt, 
+            config: { temperature: 0.9, responseMimeType: "application/json", responseSchema: schema } 
+        });
+        const response = await withTimeout<GenerateContentResponse>(apiCall, 30000, "Timeout");
         const json = JSON.parse(response.text || "{}");
         return json.options || [getRandomFallback(theme)];
     } catch (e) {
