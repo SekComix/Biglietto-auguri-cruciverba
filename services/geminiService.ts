@@ -24,7 +24,7 @@ const getApiKey = (): string => {
   // ---------------------------------------------------------
   // 1. INCOLLA QUI SOTTO LA TUA NUOVA CHIAVE
   // ---------------------------------------------------------
-  const manualKey: string = "AIzaSyAEebjjAfWWX1884SA2ssRUhZWJL8ZO5pg";
+  const manualKey: string = ""; 
   
   if (manualKey && manualKey.length > 20 && !manualKey.includes("INCOLLA")) {
       return manualKey;
@@ -45,20 +45,9 @@ const normalizeWord = (str: string): string => {
 };
 
 const FALLBACK_GREETINGS: Record<string, string[]> = {
-    christmas: [
-        "Ti auguro un Natale pieno di gioia!",
-        "Che la magia delle feste sia con te.",
-        "Sotto l'albero tanta felicità."
-    ],
-    birthday: [
-        "Buon Compleanno!",
-        "Cento di questi giorni!",
-        "Auguri di cuore!"
-    ],
-    generic: [
-        "Tanti auguri!",
-        "Un pensiero speciale per te."
-    ]
+    christmas: ["Ti auguro un Natale pieno di gioia!", "Che la magia delle feste sia con te.", "Sotto l'albero tanta felicità."],
+    birthday: ["Buon Compleanno!", "Cento di questi giorni!", "Auguri di cuore!"],
+    generic: ["Tanti auguri!", "Un pensiero speciale per te."]
 };
 
 const getRandomFallback = (theme: string): string => {
@@ -79,11 +68,16 @@ const withTimeout = <T>(promise: Promise<T>, ms: number, errorMessage: string): 
 
 // --- FUNZIONE INTELLIGENTE CHE PROVA I MODELLI IN SEQUENZA ---
 async function tryGenerateContent(ai: GoogleGenAI, prompt: string, schema: any = null) {
-    // MODIFICATO: Usiamo SOLO modelli "Flash" che consumano poca quota
+    // LISTA DI TENTATIVI IN ORDINE DI PROBABILITÀ
+    // 1. Il nuovissimo 2.0 (spesso funziona dove l'1.5 fallisce)
+    // 2. Il classico 1.5 flash (senza suffissi)
+    // 3. La versione 8b (molto leggera)
+    // 4. Il Pro (come ultima spiaggia)
     const modelsToTry = [
+        'gemini-2.0-flash-exp', 
         'gemini-1.5-flash', 
-        'gemini-1.5-flash-latest', 
-        'gemini-1.5-flash-001'
+        'gemini-1.5-flash-8b', 
+        'gemini-1.5-pro' 
     ];
     
     let lastError = null;
@@ -99,14 +93,11 @@ async function tryGenerateContent(ai: GoogleGenAI, prompt: string, schema: any =
                 config: config
             });
             
-            const response = await withTimeout<GenerateContentResponse>(responsePromise, 25000, `Timeout`);
-            return response; // Successo!
+            // Timeout rapido per passare al modello successivo
+            const response = await withTimeout<GenerateContentResponse>(responsePromise, 20000, `Timeout`);
+            return response; // Se arrivo qui, ha funzionato!
         } catch (e: any) {
             console.warn(`Fallito ${modelName}:`, e.message);
-            // Se l'errore è 429 (Quota), aspettiamo un attimo prima di riprovare con l'altro modello
-            if (e.message.includes('429')) {
-                await new Promise(r => setTimeout(r, 2000));
-            }
             lastError = e;
         }
     }
@@ -166,7 +157,7 @@ function generateLayout(wordsInput: {word: string, clue: string}[]): any[] {
                 if (placed) break;
             }
         }
-        if (!placed) { /* Tentativo posizionamento libero omesso per brevità */ }
+        if (!placed) { /* Tentativo libero omesso */ }
     }
     return placedWords;
 }
@@ -306,12 +297,7 @@ export const generateCrossword = async (
   onStatusUpdate?: (status: string) => void
 ): Promise<CrosswordData> => {
   let apiKey = '';
-  try {
-      apiKey = getApiKey();
-  } catch (e: any) {
-      alert(`ERRORE CRITICO: ${e.message}`);
-      throw e;
-  }
+  try { apiKey = getApiKey(); } catch (e: any) { alert(e.message); throw e; }
 
   const ai = new GoogleGenAI({ apiKey });
   
@@ -334,12 +320,11 @@ export const generateCrossword = async (
              if (missingLetters.length > 0) {
                  if (onStatusUpdate) onStatusUpdate(`Integro lettere...`);
                  try {
-                     if (!apiKey) throw new Error("No API Key");
                      const prompt = `Completa cruciverba. Soluzione: "${cleanSol}". Parole: ${generatedWords.map(w => w.word).join(', ')}. Mancano lettere: ${missingLetters.join(', ')}. Genera 4 parole ITALIANE. Output JSON {words: [{word, clue}]}.`;
                      const response = await tryGenerateContent(ai, prompt, wordListSchema);
                      const json = JSON.parse(response.text || "{}");
                      if (json.words) generatedWords = [...generatedWords, ...json.words.map((w: any) => ({ ...w, word: normalizeWord(w.word) }))];
-                 } catch (e) { console.warn("AI integrazione fallita, procedo senza", e); }
+                 } catch (e) { console.warn("AI fallita integrazione", e); }
              }
           }
 
@@ -358,7 +343,7 @@ export const generateCrossword = async (
             }
           } catch (e: any) {
             console.error("AI Error:", e);
-            throw new Error(`Errore AI Generazione Parole: ${e.message}`);
+            throw new Error(`Errore AI: ${e.message}`);
           }
       }
 
@@ -396,6 +381,7 @@ export const generateCrossword = async (
 
   let defaultTitle = `Per ${extraData?.recipientName}`;
   if (theme === 'christmas') defaultTitle = `Buon Natale ${extraData?.recipientName}!`;
+  // ...
 
   let photoArray = extraData.images?.photos || [];
   if (photoArray.length === 0 && extraData.images?.photo) photoArray = [extraData.images.photo];
@@ -424,11 +410,7 @@ export const generateCrossword = async (
 };
 
 export const regenerateGreetingOptions = async (
-    currentMessage: string,
-    theme: string,
-    recipient: string,
-    tone: ToneType,
-    customPrompt?: string
+    currentMessage: string, theme: string, recipient: string, tone: ToneType, customPrompt?: string
 ): Promise<string[]> => {
     let apiKey = '';
     try { apiKey = getApiKey(); } catch(e) { return [getRandomFallback(theme)]; }
@@ -448,7 +430,6 @@ export const regenerateGreetingOptions = async (
     };
 
     try {
-        // USE FALLBACK LOGIC
         const response = await tryGenerateContent(ai, prompt, schema);
         const json = JSON.parse(response.text || "{}");
         return json.options || [getRandomFallback(theme)];
