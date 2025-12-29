@@ -66,23 +66,21 @@ const withTimeout = <T>(promise: Promise<T>, ms: number, errorMessage: string): 
     return Promise.race([promise.then(res => { clearTimeout(timeoutId); return res; }), timeoutPromise]);
 };
 
-// --- FUNZIONE "FORZA BRUTA" CHE PROVA TUTTI I MODELLI ---
+// --- FUNZIONE INTELLIGENTE CHE PROVA I MODELLI IN SEQUENZA ---
 async function tryGenerateContent(ai: GoogleGenAI, prompt: string, schema: any = null) {
-    // ELENCO DI TUTTI I NOMI POSSIBILI DEI MODELLI (Uno di questi DEVE funzionare)
+    // MODIFICATO: Mettiamo al primo posto il modello più stabile e con limiti più alti
     const modelsToTry = [
-        'gemini-1.5-flash',
-        'gemini-1.5-flash-001',
-        'gemini-1.5-flash-002',
-        'gemini-1.5-flash-latest',
-        'gemini-2.0-flash-exp'
+        'gemini-1.5-flash',       // STANDARD (Limiti alti)
+        'gemini-1.5-flash-001',   // STANDARD (Versione specifica)
+        'gemini-1.5-flash-8b',    // LEGGERO
+        'gemini-2.0-flash-exp',   // SPERIMENTALE (Limiti bassi - Usare dopo)
+        'gemini-1.5-pro'          // PESANTE (Usare solo se necessario)
     ];
     
     let lastError = null;
 
     for (const modelName of modelsToTry) {
         try {
-            console.log(`Tentativo con modello: ${modelName}...`);
-            
             const config: any = { responseMimeType: "application/json", temperature: 0.7 };
             if (schema) config.responseSchema = schema;
 
@@ -92,21 +90,18 @@ async function tryGenerateContent(ai: GoogleGenAI, prompt: string, schema: any =
                 config: config
             });
             
-            const response = await withTimeout<GenerateContentResponse>(responsePromise, 20000, `Timeout su ${modelName}`);
-            
-            console.log(`SUCCESSO con ${modelName}!`);
-            return response; // Se arrivo qui, ha funzionato, esco dal loop e restituisco il risultato
-            
+            const response = await withTimeout<GenerateContentResponse>(responsePromise, 25000, `Timeout`);
+            return response; // Successo!
         } catch (e: any) {
             console.warn(`Fallito ${modelName}:`, e.message);
+            // Se è un errore di quota (429), aspettiamo 2 secondi prima di cambiare modello
+            if (e.message && e.message.includes('429')) {
+                await new Promise(r => setTimeout(r, 2000));
+            }
             lastError = e;
-            // Non faccio nulla, il loop continua e prova il prossimo modello
         }
     }
-    
-    // Se arrivo qui, hanno fallito tutti
-    console.error("Tutti i modelli hanno fallito.");
-    throw lastError || new Error("Impossibile contattare l'AI con nessun modello.");
+    throw lastError || new Error("Tutti i modelli hanno fallito.");
 }
 
 // --- MOTORE DI LAYOUT ---
@@ -135,7 +130,6 @@ function generateLayout(wordsInput: {word: string, clue: string}[]): any[] {
     for (let i = 1; i < wordsToPlace.length; i++) {
         const currentWord = wordsToPlace[i];
         let placed = false;
-        
         const occupiedCoords = Array.from(grid.keys());
         occupiedCoords.sort(() => Math.random() - 0.5);
 
@@ -150,7 +144,6 @@ function generateLayout(wordsInput: {word: string, clue: string}[]): any[] {
                     for (const dir of directionsToTry) {
                         const testStartX = dir === 'across' ? cx - charIdx : cx;
                         const testStartY = dir === 'down' ? cy - charIdx : cy;
-                        
                         if (isWithinBounds(testStartX, testStartY, currentWord.word.length, dir, MAX_GRID_SIZE)) {
                              if (isValidPlacement(grid, currentWord.word, testStartX, testStartY, dir)) {
                                 placeWordOnGrid(grid, currentWord.word, testStartX, testStartY, dir);
@@ -299,12 +292,7 @@ export const generateCrossword = async (
   onStatusUpdate?: (status: string) => void
 ): Promise<CrosswordData> => {
   let apiKey = '';
-  try {
-      apiKey = getApiKey();
-  } catch (e: any) {
-      alert(`ERRORE CRITICO CHIAVE: ${e.message}`);
-      throw e;
-  }
+  try { apiKey = getApiKey(); } catch (e: any) { alert(e.message); throw e; }
 
   const ai = new GoogleGenAI({ apiKey });
   
@@ -329,7 +317,6 @@ export const generateCrossword = async (
                  try {
                      if (!apiKey) throw new Error("No API Key");
                      const prompt = `Completa cruciverba. Soluzione: "${cleanSol}". Parole: ${generatedWords.map(w => w.word).join(', ')}. Mancano lettere: ${missingLetters.join(', ')}. Genera 4 parole ITALIANE. Output JSON {words: [{word, clue}]}.`;
-                     // USA LA NUOVA FUNZIONE
                      const response = await tryGenerateContent(ai, prompt, wordListSchema);
                      const json = JSON.parse(response.text || "{}");
                      if (json.words) generatedWords = [...generatedWords, ...json.words.map((w: any) => ({ ...w, word: normalizeWord(w.word) }))];
@@ -345,7 +332,6 @@ export const generateCrossword = async (
           
           try {
             if (onStatusUpdate) onStatusUpdate("L'IA inventa le parole...");
-            // USA LA NUOVA FUNZIONE
             const response = await tryGenerateContent(ai, prompt, wordListSchema);
             if (response.text) {
                 const json = JSON.parse(response.text);
@@ -353,7 +339,7 @@ export const generateCrossword = async (
             }
           } catch (e: any) {
             console.error("AI Error:", e);
-            throw new Error(`Errore AI: ${e.message}`);
+            throw new Error(`Errore AI Generazione Parole: ${e.message}`);
           }
       }
 
@@ -391,7 +377,7 @@ export const generateCrossword = async (
 
   let defaultTitle = `Per ${extraData?.recipientName}`;
   if (theme === 'christmas') defaultTitle = `Buon Natale ${extraData?.recipientName}!`;
-  // ... altri temi
+  // ... altri temi ...
 
   let photoArray = extraData.images?.photos || [];
   if (photoArray.length === 0 && extraData.images?.photo) photoArray = [extraData.images.photo];
@@ -420,11 +406,7 @@ export const generateCrossword = async (
 };
 
 export const regenerateGreetingOptions = async (
-    currentMessage: string,
-    theme: string,
-    recipient: string,
-    tone: ToneType,
-    customPrompt?: string
+    currentMessage: string, theme: string, recipient: string, tone: ToneType, customPrompt?: string
 ): Promise<string[]> => {
     let apiKey = '';
     try { apiKey = getApiKey(); } catch(e) { return [getRandomFallback(theme)]; }
@@ -444,7 +426,7 @@ export const regenerateGreetingOptions = async (
     };
 
     try {
-        // USA LA NUOVA FUNZIONE
+        // USE FALLBACK LOGIC
         const response = await tryGenerateContent(ai, prompt, schema);
         const json = JSON.parse(response.text || "{}");
         return json.options || [getRandomFallback(theme)];
