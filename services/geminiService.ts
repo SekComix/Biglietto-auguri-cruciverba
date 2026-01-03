@@ -48,9 +48,9 @@ const withTimeout = <T>(promise: Promise<T>, ms: number, errorMessage: string): 
     return Promise.race([promise.then(res => { clearTimeout(timeoutId); return res; }), timeoutPromise]);
 };
 
-// --- LOGICA MODELLI AI (VERSIONE STABILE AL 100%) ---
+// --- LOGICA MODELLI AI (VERSIONE STABILE V1) ---
 async function tryGenerateContent(ai: GoogleGenAI, prompt: string, schema: any = null): Promise<GenerateContentResponse> {
-    // Usiamo SOLO il modello Flash 1.5 che è quello con più quota gratuita in Europa
+    // Usiamo il modello stabile
     const modelName = 'gemini-1.5-flash';
     
     try {
@@ -67,16 +67,15 @@ async function tryGenerateContent(ai: GoogleGenAI, prompt: string, schema: any =
                 config: config
             }),
             30000,
-            "L'AI ci sta mettendo troppo..."
+            "Timeout"
         );
     } catch (e: any) {
-        // Se proprio fallisce, lanciamo l'errore per il debug
-        console.error("Errore AI:", e.message);
+        console.error("Errore critico AI:", e.message);
         throw e;
     }
 }
 
-// --- LOGICA CRUCIVERBA (COMPLETA) ---
+// --- MOTORE CRUCIVERBA (COMPLETO) ---
 function generateLayout(wordsInput: {word: string, clue: string}[]): any[] {
     const MAX_GRID_SIZE = 14; 
     const wordsToPlace = [...wordsInput].map(w => ({ ...w, word: normalizeWord(w.word) })).filter(w => w.word.length > 1 && w.word.length <= MAX_GRID_SIZE).sort((a, b) => b.word.length - a.word.length);
@@ -168,7 +167,9 @@ export const generateCrossword = async (
   mode: 'ai' | 'manual', theme: ThemeType, inputData: string | ManualInput[], hiddenSolutionWord: string | undefined, extraData: any, onStatusUpdate?: (s: string) => void
 ): Promise<CrosswordData> => {
   const apiKey = getApiKey();
-  const ai = new GoogleGenAI({ apiKey });
+  // MODIFICA CRUCIALE: Usiamo la versione API 'v1'
+  const ai = new GoogleGenAI({ apiKey, apiVersion: 'v1' });
+  
   let generatedWords: {word: string, clue: string}[] = [];
   let message = '';
 
@@ -215,9 +216,11 @@ export const generateCrossword = async (
 export const regenerateGreetingOptions = async (msg: string, theme: string, recipient: string, tone: ToneType, customPrompt?: string): Promise<string[]> => {
     const apiKey = getApiKey();
     if (!apiKey) return [getRandomFallback(theme)];
+    // MODIFICA CRUCIALE: Usiamo la versione API 'v1'
+    const ai = new GoogleGenAI({ apiKey, apiVersion: 'v1' });
     try {
         const inst = tone === 'custom' && customPrompt ? `Istruzioni: ${customPrompt}` : `Stile: ${tone}`;
-        const response = await tryGenerateContent(new GoogleGenAI({ apiKey }), `Scrivi 5 auguri per ${recipient}, tema ${theme}, ${inst}. JSON {options:[]}`);
+        const response = await tryGenerateContent(ai, `Scrivi 5 auguri per ${recipient}, tema ${theme}, ${inst}. JSON {options:[]}`);
         return JSON.parse(response.text || "{}").options || [getRandomFallback(theme)];
     } catch (e) { return [getRandomFallback(theme)]; }
 };
