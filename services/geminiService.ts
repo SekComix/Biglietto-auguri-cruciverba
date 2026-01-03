@@ -19,7 +19,6 @@ const wordListSchema = {
   required: ["words"]
 };
 
-// --- RECUPERO CHIAVE SICURO ---
 const getApiKey = (): string => {
   // @ts-ignore
   return import.meta.env.VITE_GEMINI_API_KEY || import.meta.env.API_KEY || "";
@@ -49,12 +48,16 @@ const withTimeout = <T>(promise: Promise<T>, ms: number, errorMessage: string): 
     return Promise.race([promise.then(res => { clearTimeout(timeoutId); return res; }), timeoutPromise]);
 };
 
-// --- LOGICA MODELLI AI (VERSIONE ULTRA-COMPATIBILE) ---
+// --- LOGICA MODELLI AI (FORZATA SU FLASH PER EVITARE 404) ---
 async function tryGenerateContent(ai: GoogleGenAI, prompt: string, schema: any = null): Promise<GenerateContentResponse> {
-    // Abbiamo rimosso 'pro' come prima scelta per evitare il 404
-    const modelsToTry = ['gemini-1.5-flash', 'gemini-1.5-flash-latest'];
+    // Abbiamo rimosso 'gemini-1.5-pro' perché ti causa l'errore 404
+    const modelsToTry = [
+        'gemini-1.5-flash', 
+        'gemini-1.5-flash-latest', 
+        'gemini-2.0-flash-exp'
+    ];
+    
     let lastError = null;
-
     for (const modelName of modelsToTry) {
         try {
             const config: any = { temperature: 0.7 };
@@ -65,7 +68,7 @@ async function tryGenerateContent(ai: GoogleGenAI, prompt: string, schema: any =
 
             const response = await withTimeout<GenerateContentResponse>(
                 ai.models.generateContent({
-                    model: modelName, // Ora proverà solo Flash
+                    model: modelName,
                     contents: prompt,
                     config: config
                 }),
@@ -75,16 +78,16 @@ async function tryGenerateContent(ai: GoogleGenAI, prompt: string, schema: any =
             return response;
         } catch (e: any) {
             lastError = e;
-            // Se è un errore 404, non aspettare e prova il prossimo
-            if (!e?.message?.includes('404')) {
-                if (e?.message?.includes('429')) await new Promise(r => setTimeout(r, 2000));
+            // Se è un errore di quota, aspetta, altrimenti prova subito il prossimo modello Flash
+            if (e?.message?.includes('429')) {
+                await new Promise(r => setTimeout(r, 2000));
             }
         }
     }
-    throw lastError || new Error("AI Offline");
+    throw lastError || new Error("AI non disponibile.");
 }
 
-// --- MOTORE DI LAYOUT CRUCIVERBA ---
+// --- LOGICA CRUCIVERBA ---
 function generateLayout(wordsInput: {word: string, clue: string}[]): any[] {
     const MAX_GRID_SIZE = 14; 
     const wordsToPlace = [...wordsInput].map(w => ({ ...w, word: normalizeWord(w.word) })).filter(w => w.word.length > 1 && w.word.length <= MAX_GRID_SIZE).sort((a, b) => b.word.length - a.word.length);
