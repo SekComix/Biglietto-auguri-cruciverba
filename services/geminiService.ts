@@ -49,9 +49,10 @@ const withTimeout = <T>(promise: Promise<T>, ms: number, errorMessage: string): 
     return Promise.race([promise.then(res => { clearTimeout(timeoutId); return res; }), timeoutPromise]);
 };
 
-// --- LOGICA MODELLI AI ---
+// --- LOGICA MODELLI AI (VERSIONE ULTRA-COMPATIBILE) ---
 async function tryGenerateContent(ai: GoogleGenAI, prompt: string, schema: any = null): Promise<GenerateContentResponse> {
-    const modelsToTry = ['gemini-1.5-flash', 'gemini-1.5-pro'];
+    // Abbiamo rimosso 'pro' come prima scelta per evitare il 404
+    const modelsToTry = ['gemini-1.5-flash', 'gemini-1.5-flash-latest'];
     let lastError = null;
 
     for (const modelName of modelsToTry) {
@@ -62,10 +63,9 @@ async function tryGenerateContent(ai: GoogleGenAI, prompt: string, schema: any =
                 config.responseSchema = schema;
             }
 
-            // Chiamata corretta per la libreria @google/genai
             const response = await withTimeout<GenerateContentResponse>(
                 ai.models.generateContent({
-                    model: modelName,
+                    model: modelName, // Ora proverà solo Flash
                     contents: prompt,
                     config: config
                 }),
@@ -75,7 +75,10 @@ async function tryGenerateContent(ai: GoogleGenAI, prompt: string, schema: any =
             return response;
         } catch (e: any) {
             lastError = e;
-            if (e?.message?.includes('429')) await new Promise(r => setTimeout(r, 2000));
+            // Se è un errore 404, non aspettare e prova il prossimo
+            if (!e?.message?.includes('404')) {
+                if (e?.message?.includes('429')) await new Promise(r => setTimeout(r, 2000));
+            }
         }
     }
     throw lastError || new Error("AI Offline");
