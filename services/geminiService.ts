@@ -48,46 +48,35 @@ const withTimeout = <T>(promise: Promise<T>, ms: number, errorMessage: string): 
     return Promise.race([promise.then(res => { clearTimeout(timeoutId); return res; }), timeoutPromise]);
 };
 
-// --- LOGICA MODELLI AI (FORZATA SU FLASH PER EVITARE 404) ---
+// --- LOGICA MODELLI AI (VERSIONE STABILE AL 100%) ---
 async function tryGenerateContent(ai: GoogleGenAI, prompt: string, schema: any = null): Promise<GenerateContentResponse> {
-    // Abbiamo rimosso 'gemini-1.5-pro' perché ti causa l'errore 404
-    const modelsToTry = [
-        'gemini-1.5-flash', 
-        'gemini-1.5-flash-latest', 
-        'gemini-2.0-flash-exp'
-    ];
+    // Usiamo SOLO il modello Flash 1.5 che è quello con più quota gratuita in Europa
+    const modelName = 'gemini-1.5-flash';
     
-    let lastError = null;
-    for (const modelName of modelsToTry) {
-        try {
-            const config: any = { temperature: 0.7 };
-            if (schema) {
-                config.responseMimeType = "application/json";
-                config.responseSchema = schema;
-            }
-
-            const response = await withTimeout<GenerateContentResponse>(
-                ai.models.generateContent({
-                    model: modelName,
-                    contents: prompt,
-                    config: config
-                }),
-                30000,
-                "Timeout AI"
-            );
-            return response;
-        } catch (e: any) {
-            lastError = e;
-            // Se è un errore di quota, aspetta, altrimenti prova subito il prossimo modello Flash
-            if (e?.message?.includes('429')) {
-                await new Promise(r => setTimeout(r, 2000));
-            }
+    try {
+        const config: any = { temperature: 0.7 };
+        if (schema) {
+            config.responseMimeType = "application/json";
+            config.responseSchema = schema;
         }
+
+        return await withTimeout<GenerateContentResponse>(
+            ai.models.generateContent({
+                model: modelName,
+                contents: prompt,
+                config: config
+            }),
+            30000,
+            "L'AI ci sta mettendo troppo..."
+        );
+    } catch (e: any) {
+        // Se proprio fallisce, lanciamo l'errore per il debug
+        console.error("Errore AI:", e.message);
+        throw e;
     }
-    throw lastError || new Error("AI non disponibile.");
 }
 
-// --- LOGICA CRUCIVERBA ---
+// --- LOGICA CRUCIVERBA (COMPLETA) ---
 function generateLayout(wordsInput: {word: string, clue: string}[]): any[] {
     const MAX_GRID_SIZE = 14; 
     const wordsToPlace = [...wordsInput].map(w => ({ ...w, word: normalizeWord(w.word) })).filter(w => w.word.length > 1 && w.word.length <= MAX_GRID_SIZE).sort((a, b) => b.word.length - a.word.length);
@@ -147,7 +136,6 @@ function placeWordOnGrid(grid: Map<string, {char: string}>, word: string, startX
     }
 }
 
-// --- RICERCA SOLUZIONE ---
 const findSolutionInGrid = (words: any[], hiddenWord: string): any => {
     if (!hiddenWord) return undefined; 
     const cleanTarget = normalizeWord(hiddenWord);
