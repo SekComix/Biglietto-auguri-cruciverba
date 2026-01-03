@@ -29,7 +29,11 @@ jobs:
       - name: Build
         run: npm run build
         env:
+          # Questa è la riga magica: prende il tuo Secret e lo "inietta" nel sito
+          # Assicurati che in GitHub Secrets il nome sia VITE_GEMINI_API_KEY o API_KEY
+          VITE_GEMINI_API_KEY: ${{ secrets.VITE_GEMINI_API_KEY || secrets.API_KEY }}
           API_KEY: ${{ secrets.API_KEY }}
+          
       - name: Upload artifact
         uses: actions/upload-pages-artifact@v3
         with:
