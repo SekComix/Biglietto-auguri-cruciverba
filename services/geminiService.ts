@@ -49,9 +49,10 @@ const withTimeout = <T>(promise: Promise<T>, ms: number, errorMessage: string): 
     return Promise.race([promise.then(res => { clearTimeout(timeoutId); return res; }), timeoutPromise]);
 };
 
-// --- LOGICA MODELLI AI (VERSIONE STABILE V1) ---
+// --- LOGICA MODELLI AI (AGGIORNATA AL 2026) ---
 async function tryGenerateContent(ai: GoogleGenAI, prompt: string, isJson: boolean = false): Promise<GenerateContentResponse> {
-    const modelName = 'gemini-1.5-flash'; 
+    // Nel 2026, Gemini 1.5 è ritirato. Usiamo Gemini 2.0 Flash (stabile e gratuito)
+    const modelName = 'gemini-2.0-flash'; 
     
     try {
         const genConfig: any = {
@@ -69,7 +70,7 @@ async function tryGenerateContent(ai: GoogleGenAI, prompt: string, isJson: boole
                 config: genConfig
             }),
             30000,
-            "L'AI non ha risposto in tempo."
+            "Timeout AI"
         );
     } catch (e: any) {
         console.error("Dettaglio Errore AI:", e.message);
@@ -77,7 +78,7 @@ async function tryGenerateContent(ai: GoogleGenAI, prompt: string, isJson: boole
     }
 }
 
-// --- MOTORE DI LAYOUT CRUCIVERBA ---
+// --- MOTORE DI LAYOUT CRUCIVERBA (COMPLETO) ---
 function generateLayout(wordsInput: {word: string, clue: string}[]): any[] {
     const MAX_GRID_SIZE = 14; 
     const wordsToPlace = [...wordsInput]
@@ -150,9 +151,6 @@ function placeWordOnGrid(grid: Map<string, {char: string}>, word: string, startX
 const findSolutionInGrid = (words: any[], hiddenWord: string): any => {
     if (!hiddenWord) return undefined; 
     const cleanTarget = normalizeWord(hiddenWord);
-    const targetChars = cleanTarget.split('');
-    const solutionCells: any[] = [];
-    const usedCoords = new Set<string>();
     const availablePositions: Record<string, {x: number, y: number, wordIndex: number}[]> = {};
     words.forEach((w, wIdx) => {
         for(let i=0; i<w.word.length; i++) {
@@ -163,9 +161,11 @@ const findSolutionInGrid = (words: any[], hiddenWord: string): any => {
             availablePositions[char].push({ x, y, wordIndex: wIdx });
         }
     });
+    const solutionCells: any[] = [];
+    const usedCoords = new Set<string>();
     const usedWordIndices = new Set<number>();
-    for (let i = 0; i < targetChars.length; i++) {
-        const char = targetChars[i];
+    for (let i = 0; i < cleanTarget.split('').length; i++) {
+        const char = cleanTarget.split('')[i];
         const candidates = (availablePositions[char] || []).filter(c => !usedCoords.has(`${c.x},${c.y}`));
         if (candidates.length === 0) return undefined;
         let best = candidates.find(c => !usedWordIndices.has(c.wordIndex)) || candidates[0];
@@ -196,8 +196,7 @@ export const generateCrossword = async (
   onStatusUpdate?: (status: string) => void
 ): Promise<CrosswordData> => {
   const apiKey = getApiKey();
-  // Forza versione v1
-  const ai = new GoogleGenAI({ apiKey, apiVersion: 'v1' });
+  const ai = new GoogleGenAI({ apiKey });
   
   let generatedWords: {word: string, clue: string}[] = [];
   let message = '';
@@ -226,7 +225,6 @@ export const generateCrossword = async (
   if (mode === 'ai' && apiKey) {
       if (onStatusUpdate) onStatusUpdate("Scrivo la dedica...");
       try {
-          // CORREZIONE TS: Aggiunto || 'surprise' per evitare errore undefined
           message = await regenerateGreeting(inputData as string, theme, extraData.recipientName, extraData.tone || 'surprise', extraData.customTone);
       } catch (e) { message = typeof inputData === 'string' ? inputData : getRandomFallback(theme); }
   } else {
@@ -249,7 +247,7 @@ export const regenerateGreetingOptions = async (
 ): Promise<string[]> => {
     const apiKey = getApiKey();
     if (!apiKey) return [getRandomFallback(theme)];
-    const ai = new GoogleGenAI({ apiKey, apiVersion: 'v1' });
+    const ai = new GoogleGenAI({ apiKey });
     try {
         const inst = tone === 'custom' && customPrompt ? `Istruzioni: ${customPrompt}` : `Stile: ${tone}`;
         const response = await tryGenerateContent(ai, `Scrivi 5 auguri per ${recipient}, tema ${theme}, ${inst}. JSON: { "options": ["..."] }`, true);
