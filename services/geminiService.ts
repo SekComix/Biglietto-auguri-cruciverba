@@ -19,7 +19,7 @@ const wordListSchema = {
   required: ["words"]
 };
 
-// --- RECUPERO CHIAVE SICURO (Cerca entrambi i nomi per sicurezza) ---
+// --- RECUPERO CHIAVE SICURO ---
 const getApiKey = (): string => {
   // @ts-ignore
   const key = import.meta.env.VITE_GEMINI_API_KEY || import.meta.env.API_KEY || "";
@@ -39,8 +39,7 @@ const FALLBACK_GREETINGS: Record<string, string[]> = {
 const getRandomFallback = (theme: string): string => {
     const keys = Object.keys(FALLBACK_GREETINGS);
     const key = keys.includes(theme) ? theme : 'generic';
-    const messages = FALLBACK_GREETINGS[key] || FALLBACK_GREETINGS['generic'];
-    return messages[Math.floor(Math.random() * messages.length)];
+    return FALLBACK_GREETINGS[key][Math.floor(Math.random() * FALLBACK_GREETINGS[key].length)];
 };
 
 const withTimeout = <T>(promise: Promise<T>, ms: number, errorMessage: string): Promise<T> => {
@@ -51,12 +50,12 @@ const withTimeout = <T>(promise: Promise<T>, ms: number, errorMessage: string): 
     return Promise.race([promise.then(res => { clearTimeout(timeoutId); return res; }), timeoutPromise]);
 };
 
-// --- LOGICA MODELLI ---
+// --- LOGICA MODELLI AGGIORNATA 2026 ---
 async function tryGenerateContent(ai: GoogleGenAI, prompt: string, schema: any = null) {
+    // Abbiamo semplificato la lista con i nomi più compatibili in assoluto
     const modelsToTry = [
-        'gemini-1.5-flash',
-        'gemini-1.5-flash-8b',
-        'gemini-2.0-flash-exp',
+        'gemini-1.5-flash', 
+        'gemini-1.5-flash-latest',
         'gemini-1.5-pro'
     ];
     
@@ -65,6 +64,8 @@ async function tryGenerateContent(ai: GoogleGenAI, prompt: string, schema: any =
         try {
             const config: any = { responseMimeType: "application/json", temperature: 0.7 };
             if (schema) config.responseSchema = schema;
+            
+            // Chiamata al modello
             const response = await withTimeout<GenerateContentResponse>(
                 ai.models.generateContent({ model: modelName, contents: prompt, config: config }),
                 25000, 
@@ -72,14 +73,15 @@ async function tryGenerateContent(ai: GoogleGenAI, prompt: string, schema: any =
             );
             return response;
         } catch (e: any) {
-            console.warn(`Fallito ${modelName}:`, e.message);
+            console.warn(`Modello ${modelName} non riuscito:`, e.message);
+            // Se l'errore è 404 (Modello non trovato), passa subito al prossimo senza aspettare
             if (e.message && e.message.includes('429')) {
                 await new Promise(r => setTimeout(r, 2000));
             }
             lastError = e;
         }
     }
-    throw lastError || new Error("Tutti i modelli hanno fallito.");
+    throw lastError || new Error("Nessun modello AI disponibile al momento.");
 }
 
 // --- MOTORE DI LAYOUT ---
@@ -105,8 +107,7 @@ function generateLayout(wordsInput: {word: string, clue: string}[]): any[] {
     for (let i = 1; i < wordsToPlace.length; i++) {
         const currentWord = wordsToPlace[i];
         let placed = false;
-        const occupiedCoords = Array.from(grid.keys());
-        occupiedCoords.sort(() => Math.random() - 0.5);
+        const occupiedCoords = Array.from(grid.keys()).sort(() => Math.random() - 0.5);
 
         for (const coordKey of occupiedCoords) {
             if (placed) break;
@@ -115,8 +116,7 @@ function generateLayout(wordsInput: {word: string, clue: string}[]): any[] {
 
             for (let charIdx = 0; charIdx < currentWord.word.length; charIdx++) {
                 if (currentWord.word[charIdx] === charOnGrid) {
-                    const directionsToTry = ['down', 'across'];
-                    for (const dir of directionsToTry) {
+                    for (const dir of ['down', 'across']) {
                         const testStartX = dir === 'across' ? cx - charIdx : cx;
                         const testStartY = dir === 'down' ? cy - charIdx : cy;
                         if (isWithinBounds(testStartX, testStartY, currentWord.word.length, dir, MAX_GRID_SIZE)) {
@@ -178,13 +178,12 @@ function normalizeCoordinates(placedWords: any[]) {
     });
     const width = (maxX - minX) + 2;
     const height = (maxY - minY) + 2;
-    const normalizedWords = placedWords.map(w => ({ ...w, startX: w.startX - minX + 1, startY: w.startY - minY + 1 }));
-    return { words: normalizedWords, width, height };
+    return { words: placedWords.map(w => ({ ...w, startX: w.startX - minX + 1, startY: w.startY - minY + 1 })), width, height };
 }
 
 function reindexGridNumbering(words: any[]) {
-    const startPoints: {x: number, y: number}[] = [];
     const pointsSet = new Set<string>();
+    const startPoints: {x: number, y: number}[] = [];
     words.forEach(w => {
         const key = `${w.startX},${w.startY}`;
         if (!pointsSet.has(key)) { pointsSet.add(key); startPoints.push({ x: w.startX, y: w.startY }); }
@@ -216,35 +215,15 @@ const findSolutionInGrid = (words: any[], hiddenWord: string): any => {
     const usedWordIndices = new Set<number>();
     for (let i = 0; i < targetChars.length; i++) {
         const char = targetChars[i];
-        const candidates = availablePositions[char] || [];
-        const validCandidates = candidates.filter(c => !usedCoords.has(`${c.x},${c.y}`));
-        if (validCandidates.length === 0) return undefined; 
-        validCandidates.sort(() => Math.random() - 0.5);
-        let bestCandidate = validCandidates.find(c => !usedWordIndices.has(c.wordIndex));
-        if (!bestCandidate) bestCandidate = validCandidates[0];
-        const { x, y, wordIndex } = bestCandidate;
-        solutionCells.push({ x, y, char, index: i });
-        usedCoords.add(`${x},${y}`);
-        usedWordIndices.add(wordIndex);
+        const candidates = (availablePositions[char] || []).filter(c => !usedCoords.has(`${c.x},${c.y}`));
+        if (candidates.length === 0) return undefined; 
+        candidates.sort(() => Math.random() - 0.5);
+        let best = candidates.find(c => !usedWordIndices.has(c.wordIndex)) || candidates[0];
+        solutionCells.push({ x: best.x, y: best.y, char, index: i });
+        usedCoords.add(`${best.x},${best.y}`);
+        usedWordIndices.add(best.wordIndex);
     }
-    if (solutionCells.length > 0) return { word: cleanTarget, original: hiddenWord.toUpperCase(), cells: solutionCells };
-    return undefined;
-};
-
-const getMissingLetters = (existingWords: string[], targetWord: string): string[] => {
-    const pool = existingWords.join('').toUpperCase().split('');
-    const target = normalizeWord(targetWord).split('');
-    const missing: string[] = [];
-    const poolMap = new Map<string, number>();
-    pool.forEach(c => poolMap.set(c, (poolMap.get(c) || 0) + 1));
-    target.forEach(c => {
-        if (poolMap.get(c) && poolMap.get(c)! > 0) {
-            poolMap.set(c, poolMap.get(c)! - 1);
-        } else {
-            missing.push(c);
-        }
-    });
-    return missing;
+    return { word: cleanTarget, original: hiddenWord.toUpperCase(), cells: solutionCells };
 };
 
 // --- FUNZIONE PRINCIPALE ---
@@ -253,17 +232,7 @@ export const generateCrossword = async (
   theme: ThemeType,
   inputData: string | ManualInput[],
   hiddenSolutionWord: string | undefined,
-  extraData: {
-    recipientName: string;
-    eventDate: string;
-    images?: { extraImage?: string; photos?: string[]; photo?: string; brandLogo?: string }; 
-    stickers?: string[];
-    contentType: 'crossword' | 'simple';
-    tone?: ToneType;
-    customTone?: string;
-    format?: CardFormat; 
-    hasWatermark?: boolean; 
-  },
+  extraData: any,
   onStatusUpdate?: (status: string) => void
 ): Promise<CrosswordData> => {
   const apiKey = getApiKey();
@@ -272,92 +241,49 @@ export const generateCrossword = async (
   const ai = new GoogleGenAI({ apiKey });
   
   let generatedWords: {word: string, clue: string}[] = [];
-  let finalWords: any[] = [];
-  let width = 0;
-  let height = 0;
-  let calculatedSolution = undefined;
   let message = '';
 
   if (extraData.contentType === 'crossword') {
       if (mode === 'manual') {
-          const inputs = inputData as ManualInput[];
-          generatedWords = inputs.filter(i => i.word.trim() && i.clue.trim()).map(i => ({ word: normalizeWord(i.word), clue: i.clue }));
-          
-          if (hiddenSolutionWord && apiKey) {
-             const cleanSol = normalizeWord(hiddenSolutionWord);
-             const missingLetters = getMissingLetters(generatedWords.map(w => w.word), cleanSol);
-             if (missingLetters.length > 0) {
-                 if (onStatusUpdate) onStatusUpdate(`Integro lettere...`);
-                 try {
-                     const prompt = `Completa cruciverba. Soluzione: "${cleanSol}". Parole: ${generatedWords.map(w => w.word).join(', ')}. Mancano lettere: ${missingLetters.join(', ')}. Genera 4 parole ITALIANE. Output JSON {words: [{word, clue}]}.`;
-                     const response = await tryGenerateContent(ai, prompt, wordListSchema);
-                     const json = JSON.parse(response.text || "{}");
-                     if (json.words) generatedWords = [...generatedWords, ...json.words.map((w: any) => ({ ...w, word: normalizeWord(w.word) }))];
-                 } catch (e) { console.warn("AI integrazione fallita", e); }
-             }
-          }
+          generatedWords = (inputData as ManualInput[]).filter(i => i.word.trim()).map(i => ({ word: normalizeWord(i.word), clue: i.clue }));
       } else {
-          const topic = inputData as string;
-          const prompt = `Genera 10 parole e definizioni per cruciverba in ITALIANO. Tema: "${topic}". Output JSON {words: [{word, clue}]}.`;
           if (onStatusUpdate) onStatusUpdate("L'IA inventa le parole...");
-          const response = await tryGenerateContent(ai, prompt, wordListSchema);
+          const response = await tryGenerateContent(ai, `Genera 10 parole e definizioni tema: ${inputData}. JSON {words:[{word,clue}]}`, wordListSchema);
           const json = JSON.parse(response.text || "{}");
           generatedWords = (json.words || []).map((w: any) => ({ ...w, word: normalizeWord(w.word) }));
       }
-
-      if (generatedWords.length === 0) throw new Error("Nessuna parola generata.");
-      const placedWordsRaw = generateLayout(generatedWords);
-      const normalized = normalizeCoordinates(placedWordsRaw);
-      const reindexedWords = reindexGridNumbering(normalized.words);
-      width = normalized.width; height = normalized.height;
-      finalWords = reindexedWords.map((w: any, idx: number) => ({ ...w, id: `word-${idx}`, word: w.word.toUpperCase().trim() }));
-      calculatedSolution = hiddenSolutionWord ? findSolutionInGrid(reindexedWords, hiddenSolutionWord) : undefined;
   }
 
-  // LOGICA MESSAGGIO
-  if (typeof inputData === 'string' && inputData.trim().length > 0) {
-      if (mode === 'ai' && apiKey) {
-          if (onStatusUpdate) onStatusUpdate("Scrivo la dedica...");
-          try {
-              message = await regenerateGreeting(inputData, theme, extraData.recipientName, extraData.tone || 'surprise', extraData.customTone);
-          } catch (e) { message = inputData; }
-      } else { message = inputData; }
-  } else { message = getRandomFallback(theme); }
+  const normalized = normalizeCoordinates(generateLayout(generatedWords));
+  const finalWords = reindexGridNumbering(normalized.words).map((w, idx) => ({ ...w, id: `word-${idx}`, word: w.word.toUpperCase() }));
+  const solution = hiddenSolutionWord ? findSolutionInGrid(finalWords, hiddenSolutionWord) : undefined;
 
-  let defaultTitle = `Per ${extraData.recipientName}`;
-  if (theme === 'christmas') defaultTitle = `Buon Natale ${extraData.recipientName}!`;
+  if (mode === 'ai' && apiKey) {
+      if (onStatusUpdate) onStatusUpdate("Scrivo la dedica...");
+      try {
+          message = await regenerateGreeting(inputData as string, theme, extraData.recipientName, extraData.tone);
+      } catch (e) { message = String(inputData); }
+  } else {
+      message = typeof inputData === 'string' ? inputData : getRandomFallback(theme);
+  }
 
   return {
       type: extraData.contentType,
-      title: defaultTitle,
-      message: message,
-      theme: theme,
-      recipientName: extraData.recipientName,
-      eventDate: extraData.eventDate,
+      title: theme === 'christmas' ? `Buon Natale ${extraData.recipientName}!` : `Per ${extraData.recipientName}`,
+      message, theme, recipientName: extraData.recipientName, eventDate: extraData.eventDate,
       images: { photos: extraData.images?.photos || [] },
-      words: finalWords,
-      width: Math.max(width, 8),
-      height: Math.max(height, 8),
-      solution: calculatedSolution,
-      format: extraData.format || 'a4'
+      words: finalWords, width: Math.max(normalized.width, 8), height: Math.max(normalized.height, 8),
+      solution, format: extraData.format || 'a4'
   };
 };
 
-export const regenerateGreetingOptions = async (
-    currentMessage: string, theme: string, recipient: string, tone: ToneType, customPrompt?: string
-): Promise<string[]> => {
+export const regenerateGreetingOptions = async (msg: string, theme: string, recipient: string, tone: ToneType): Promise<string[]> => {
     const apiKey = getApiKey();
     if (!apiKey) return [getRandomFallback(theme)];
-    const ai = new GoogleGenAI({ apiKey });
-    const prompt = `Scrivi 5 auguri brevi in ITALIANO per ${recipient}. Tema: ${theme}. Stile: ${tone}. JSON: { "options": ["msg1", "msg2"] }`;
     try {
-        const response = await tryGenerateContent(ai, prompt);
-        const json = JSON.parse(response.text || "{}");
-        return json.options || [getRandomFallback(theme)];
+        const response = await tryGenerateContent(new GoogleGenAI({ apiKey }), `Scrivi 5 auguri brevi per ${recipient}, tema ${theme}, stile ${tone}. JSON {options:[]}`);
+        return JSON.parse(response.text || "{}").options || [getRandomFallback(theme)];
     } catch (e) { return [getRandomFallback(theme)]; }
 };
 
-export const regenerateGreeting = async (m: string, th: string, r: string, t: ToneType, cp?: string) => {
-     const opts = await regenerateGreetingOptions(m, th, r, t, cp);
-     return opts[0];
-}
+export const regenerateGreeting = async (m: string, th: string, r: string, t: ToneType) => (await regenerateGreetingOptions(m, th, r, t))[0];
