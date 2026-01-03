@@ -19,20 +19,10 @@ const wordListSchema = {
   required: ["words"]
 };
 
-/**
- * RECUPERO SICURO DELLA CHIAVE API
- * Per GitHub Pages: La chiave non deve essere in questo file.
- * Dovrà essere inserita nelle impostazioni del tuo ambiente di build 
- * o caricata tramite un file .env locale che NON caricherai su GitHub.
- */
+// --- RECUPERO CHIAVE SICURO ---
 const getApiKey = (): string => {
-  // @ts-ignore - Cerca la chiave nelle variabili d'ambiente (metodo sicuro)
-  const envKey = import.meta.env.VITE_GEMINI_API_KEY || process.env.API_KEY || process.env.GEMINI_API_KEY;
-  
-  if (!envKey || envKey.length < 10) {
-      console.error("ERRORE: Chiave API non trovata nelle variabili d'ambiente.");
-      return "";
-  }
+  // @ts-ignore - Questa riga pesca la chiave dai segreti di GitHub/Vite
+  const envKey = import.meta.env.VITE_GEMINI_API_KEY || "";
   return envKey;
 };
 
@@ -61,7 +51,7 @@ const withTimeout = <T>(promise: Promise<T>, ms: number, errorMessage: string): 
     return Promise.race([promise.then(res => { clearTimeout(timeoutId); return res; }), timeoutPromise]);
 };
 
-// --- LOGICA DI GENERAZIONE CONTENUTO CON RETRY ---
+// --- LOGICA MODELLI ---
 async function tryGenerateContent(ai: GoogleGenAI, prompt: string, schema: any = null) {
     const modelsToTry = [
         'gemini-1.5-flash',
@@ -71,24 +61,20 @@ async function tryGenerateContent(ai: GoogleGenAI, prompt: string, schema: any =
     ];
     
     let lastError = null;
-
     for (const modelName of modelsToTry) {
         try {
             const config: any = { responseMimeType: "application/json", temperature: 0.7 };
             if (schema) config.responseSchema = schema;
-
-            const responsePromise = ai.models.generateContent({
-                model: modelName,
-                contents: prompt,
-                config: config
-            });
-            
-            const response = await withTimeout<GenerateContentResponse>(responsePromise, 25000, `Timeout`);
+            const response = await withTimeout<GenerateContentResponse>(
+                ai.models.generateContent({ model: modelName, contents: prompt, config: config }),
+                25000, 
+                `Timeout`
+            );
             return response;
         } catch (e: any) {
-            console.warn(`Tentativo fallito con ${modelName}:`, e.message);
+            console.warn(`Fallito ${modelName}:`, e.message);
             if (e.message && e.message.includes('429')) {
-                await new Promise(r => setTimeout(r, 3000)); // Aspetta 3 secondi se c'è limite di quota
+                await new Promise(r => setTimeout(r, 2000));
             }
             lastError = e;
         }
@@ -96,9 +82,9 @@ async function tryGenerateContent(ai: GoogleGenAI, prompt: string, schema: any =
     throw lastError || new Error("Tutti i modelli hanno fallito.");
 }
 
-// --- MOTORE DI LAYOUT CRUCIVERBA (Non modificato) ---
+// --- MOTORE DI LAYOUT ---
 function generateLayout(wordsInput: {word: string, clue: string}[]): any[] {
-    const MAX_GRID_SIZE = 14;
+    const MAX_GRID_SIZE = 14; 
     const wordsToPlace = [...wordsInput]
         .map(w => ({ ...w, word: normalizeWord(w.word) }))
         .filter(w => w.word.length > 1 && w.word.length <= MAX_GRID_SIZE) 
@@ -281,7 +267,7 @@ export const generateCrossword = async (
   onStatusUpdate?: (status: string) => void
 ): Promise<CrosswordData> => {
   const apiKey = getApiKey();
-  if (!apiKey && mode === 'ai') throw new Error("Chiave API mancante. Inseriscila nelle impostazioni del sito.");
+  if (!apiKey && mode === 'ai') throw new Error("Chiave API non trovata. Controlla le impostazioni di GitHub.");
 
   const ai = new GoogleGenAI({ apiKey });
   
@@ -319,8 +305,8 @@ export const generateCrossword = async (
           generatedWords = (json.words || []).map((w: any) => ({ ...w, word: normalizeWord(w.word) }));
       }
 
+      if (generatedWords.length === 0) throw new Error("Nessuna parola generata.");
       const placedWordsRaw = generateLayout(generatedWords);
-      if (placedWordsRaw.length < 2) throw new Error("Impossibile incastrare le parole.");
       const normalized = normalizeCoordinates(placedWordsRaw);
       const reindexedWords = reindexGridNumbering(normalized.words);
       width = normalized.width; height = normalized.height;
@@ -338,9 +324,12 @@ export const generateCrossword = async (
       } else { message = inputData; }
   } else { message = getRandomFallback(theme); }
 
+  let defaultTitle = `Per ${extraData.recipientName}`;
+  if (theme === 'christmas') defaultTitle = `Buon Natale ${extraData.recipientName}!`;
+
   return {
       type: extraData.contentType,
-      title: `Per ${extraData.recipientName}`,
+      title: defaultTitle,
       message: message,
       theme: theme,
       recipientName: extraData.recipientName,
@@ -360,7 +349,7 @@ export const regenerateGreetingOptions = async (
     const apiKey = getApiKey();
     if (!apiKey) return [getRandomFallback(theme)];
     const ai = new GoogleGenAI({ apiKey });
-    const prompt = `Scrivi 5 messaggi di auguri brevi in ITALIANO per ${recipient}. Tema: ${theme}. Stile: ${tone}. JSON: { "options": ["msg1", "msg2"] }`;
+    const prompt = `Scrivi 5 auguri brevi in ITALIANO per ${recipient}. Tema: ${theme}. Stile: ${tone}. JSON: { "options": ["msg1", "msg2"] }`;
     try {
         const response = await tryGenerateContent(ai, prompt);
         const json = JSON.parse(response.text || "{}");
@@ -368,9 +357,7 @@ export const regenerateGreetingOptions = async (
     } catch (e) { return [getRandomFallback(theme)]; }
 };
 
-export const regenerateGreeting = async (
-    currentMessage: string, theme: string, recipient: string, tone: ToneType, customPrompt?: string
-): Promise<string> => {
-     const options = await regenerateGreetingOptions(currentMessage, theme, recipient, tone, customPrompt);
-     return options[0];
+export const regenerateGreeting = async (m: string, th: string, r: string, t: ToneType, cp?: string) => {
+     const opts = await regenerateGreetingOptions(m, th, r, t, cp);
+     return opts[0];
 }
