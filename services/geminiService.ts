@@ -51,15 +51,13 @@ const withTimeout = <T>(promise: Promise<T>, ms: number, errorMessage: string): 
 
 // --- LOGICA MODELLI AI (VERSIONE STABILE V1) ---
 async function tryGenerateContent(ai: GoogleGenAI, prompt: string, isJson: boolean = false): Promise<GenerateContentResponse> {
-    const modelName = 'gemini-1.5-flash'; // Il modello più stabile per il piano gratuito
+    const modelName = 'gemini-1.5-flash'; 
     
     try {
-        // Usiamo una configurazione di base per massima compatibilità
         const genConfig: any = {
             temperature: 0.7,
         };
 
-        // Se è richiesto JSON, lo chiediamo nel testo per evitare errori di schema API
         const finalPrompt = isJson 
             ? `${prompt}. Rispondi esclusivamente in formato JSON puro, senza blocchi di codice markdown.` 
             : prompt;
@@ -149,7 +147,6 @@ function placeWordOnGrid(grid: Map<string, {char: string}>, word: string, startX
     }
 }
 
-// --- RICERCA SOLUZIONE ---
 const findSolutionInGrid = (words: any[], hiddenWord: string): any => {
     if (!hiddenWord) return undefined; 
     const cleanTarget = normalizeWord(hiddenWord);
@@ -199,7 +196,7 @@ export const generateCrossword = async (
   onStatusUpdate?: (status: string) => void
 ): Promise<CrosswordData> => {
   const apiKey = getApiKey();
-  // FORZA VERSIONE V1 (Stabile)
+  // Forza versione v1
   const ai = new GoogleGenAI({ apiKey, apiVersion: 'v1' });
   
   let generatedWords: {word: string, clue: string}[] = [];
@@ -229,7 +226,8 @@ export const generateCrossword = async (
   if (mode === 'ai' && apiKey) {
       if (onStatusUpdate) onStatusUpdate("Scrivo la dedica...");
       try {
-          message = await regenerateGreeting(inputData as string, theme, extraData.recipientName, extraData.tone, extraData.customTone);
+          // CORREZIONE TS: Aggiunto || 'surprise' per evitare errore undefined
+          message = await regenerateGreeting(inputData as string, theme, extraData.recipientName, extraData.tone || 'surprise', extraData.customTone);
       } catch (e) { message = typeof inputData === 'string' ? inputData : getRandomFallback(theme); }
   } else {
       message = typeof inputData === 'string' ? inputData : getRandomFallback(theme);
@@ -251,7 +249,6 @@ export const regenerateGreetingOptions = async (
 ): Promise<string[]> => {
     const apiKey = getApiKey();
     if (!apiKey) return [getRandomFallback(theme)];
-    // FORZA VERSIONE V1 (Stabile)
     const ai = new GoogleGenAI({ apiKey, apiVersion: 'v1' });
     try {
         const inst = tone === 'custom' && customPrompt ? `Istruzioni: ${customPrompt}` : `Stile: ${tone}`;
