@@ -19,22 +19,18 @@ const wordListSchema = {
   required: ["words"]
 };
 
-// Funzione sicura per recuperare la chiave API
+/**
+ * RECUPERO SICURO DELLA CHIAVE API
+ * Per GitHub Pages: La chiave non deve essere in questo file.
+ * Dovrà essere inserita nelle impostazioni del tuo ambiente di build 
+ * o caricata tramite un file .env locale che NON caricherai su GitHub.
+ */
 const getApiKey = (): string => {
-  // ---------------------------------------------------------
-  // 1. INCOLLA QUI SOTTO LA TUA NUOVA CHIAVE
-  // ---------------------------------------------------------
-  const manualKey: string = "";
-  
-  if (manualKey && manualKey.length > 20 && !manualKey.includes("INCOLLA")) {
-      return manualKey;
-  }
-
-  // 2. Recupero da variabili d'ambiente
-  // @ts-ignore
+  // @ts-ignore - Cerca la chiave nelle variabili d'ambiente (metodo sicuro)
   const envKey = import.meta.env.VITE_GEMINI_API_KEY || process.env.API_KEY || process.env.GEMINI_API_KEY;
   
-  if (!envKey) {
+  if (!envKey || envKey.length < 10) {
+      console.error("ERRORE: Chiave API non trovata nelle variabili d'ambiente.");
       return "";
   }
   return envKey;
@@ -57,7 +53,6 @@ const getRandomFallback = (theme: string): string => {
     return messages[Math.floor(Math.random() * messages.length)];
 };
 
-// Timeout
 const withTimeout = <T>(promise: Promise<T>, ms: number, errorMessage: string): Promise<T> => {
     let timeoutId: any;
     const timeoutPromise = new Promise<T>((_, reject) => {
@@ -66,15 +61,13 @@ const withTimeout = <T>(promise: Promise<T>, ms: number, errorMessage: string): 
     return Promise.race([promise.then(res => { clearTimeout(timeoutId); return res; }), timeoutPromise]);
 };
 
-// --- FUNZIONE INTELLIGENTE CHE PROVA I MODELLI IN SEQUENZA ---
+// --- LOGICA DI GENERAZIONE CONTENUTO CON RETRY ---
 async function tryGenerateContent(ai: GoogleGenAI, prompt: string, schema: any = null) {
-    // MODIFICATO: Mettiamo al primo posto il modello più stabile e con limiti più alti
     const modelsToTry = [
-        'gemini-1.5-flash',       // STANDARD (Limiti alti)
-        'gemini-1.5-flash-001',   // STANDARD (Versione specifica)
-        'gemini-1.5-flash-8b',    // LEGGERO
-        'gemini-2.0-flash-exp',   // SPERIMENTALE (Limiti bassi - Usare dopo)
-        'gemini-1.5-pro'          // PESANTE (Usare solo se necessario)
+        'gemini-1.5-flash',
+        'gemini-1.5-flash-8b',
+        'gemini-2.0-flash-exp',
+        'gemini-1.5-pro'
     ];
     
     let lastError = null;
@@ -91,12 +84,11 @@ async function tryGenerateContent(ai: GoogleGenAI, prompt: string, schema: any =
             });
             
             const response = await withTimeout<GenerateContentResponse>(responsePromise, 25000, `Timeout`);
-            return response; // Successo!
+            return response;
         } catch (e: any) {
-            console.warn(`Fallito ${modelName}:`, e.message);
-            // Se è un errore di quota (429), aspettiamo 2 secondi prima di cambiare modello
+            console.warn(`Tentativo fallito con ${modelName}:`, e.message);
             if (e.message && e.message.includes('429')) {
-                await new Promise(r => setTimeout(r, 2000));
+                await new Promise(r => setTimeout(r, 3000)); // Aspetta 3 secondi se c'è limite di quota
             }
             lastError = e;
         }
@@ -104,12 +96,9 @@ async function tryGenerateContent(ai: GoogleGenAI, prompt: string, schema: any =
     throw lastError || new Error("Tutti i modelli hanno fallito.");
 }
 
-// --- MOTORE DI LAYOUT ---
-type GridCell = { char: string; wordId?: string };
-type Grid = Map<string, GridCell>; 
-const MAX_GRID_SIZE = 14; 
-
+// --- MOTORE DI LAYOUT CRUCIVERBA (Non modificato) ---
 function generateLayout(wordsInput: {word: string, clue: string}[]): any[] {
+    const MAX_GRID_SIZE = 14;
     const wordsToPlace = [...wordsInput]
         .map(w => ({ ...w, word: normalizeWord(w.word) }))
         .filter(w => w.word.length > 1 && w.word.length <= MAX_GRID_SIZE) 
@@ -117,7 +106,7 @@ function generateLayout(wordsInput: {word: string, clue: string}[]): any[] {
 
     if (wordsToPlace.length === 0) return [];
     
-    const grid: Grid = new Map();
+    const grid: Map<string, {char: string}> = new Map();
     const placedWords: any[] = [];
     
     const firstWord = wordsToPlace[0];
@@ -167,7 +156,7 @@ function isWithinBounds(x: number, y: number, length: number, direction: string,
     return x < maxSize && (y + length) <= maxSize;
 }
 
-function isValidPlacement(grid: Grid, word: string, startX: number, startY: number, direction: string): boolean {
+function isValidPlacement(grid: Map<string, {char: string}>, word: string, startX: number, startY: number, direction: string): boolean {
     for (let i = 0; i < word.length; i++) {
         const x = direction === 'across' ? startX + i : startX;
         const y = direction === 'down' ? startY + i : startY;
@@ -182,7 +171,7 @@ function isValidPlacement(grid: Grid, word: string, startX: number, startY: numb
     return true;
 }
 
-function placeWordOnGrid(grid: Grid, word: string, startX: number, startY: number, direction: string) {
+function placeWordOnGrid(grid: Map<string, {char: string}>, word: string, startX: number, startY: number, direction: string) {
     for (let i = 0; i < word.length; i++) {
         const x = direction === 'across' ? startX + i : startX;
         const y = direction === 'down' ? startY + i : startY;
@@ -272,7 +261,7 @@ const getMissingLetters = (existingWords: string[], targetWord: string): string[
     return missing;
 };
 
-// --- MAIN FUNCTION ---
+// --- FUNZIONE PRINCIPALE ---
 export const generateCrossword = async (
   mode: 'ai' | 'manual',
   theme: ThemeType,
@@ -291,8 +280,8 @@ export const generateCrossword = async (
   },
   onStatusUpdate?: (status: string) => void
 ): Promise<CrosswordData> => {
-  let apiKey = '';
-  try { apiKey = getApiKey(); } catch (e: any) { alert(e.message); throw e; }
+  const apiKey = getApiKey();
+  if (!apiKey && mode === 'ai') throw new Error("Chiave API mancante. Inseriscila nelle impostazioni del sito.");
 
   const ai = new GoogleGenAI({ apiKey });
   
@@ -303,52 +292,35 @@ export const generateCrossword = async (
   let calculatedSolution = undefined;
   let message = '';
 
-  // 1. LOGICA CROSSWORD
   if (extraData.contentType === 'crossword') {
       if (mode === 'manual') {
           const inputs = inputData as ManualInput[];
           generatedWords = inputs.filter(i => i.word.trim() && i.clue.trim()).map(i => ({ word: normalizeWord(i.word), clue: i.clue }));
           
-          if (hiddenSolutionWord) {
+          if (hiddenSolutionWord && apiKey) {
              const cleanSol = normalizeWord(hiddenSolutionWord);
              const missingLetters = getMissingLetters(generatedWords.map(w => w.word), cleanSol);
              if (missingLetters.length > 0) {
                  if (onStatusUpdate) onStatusUpdate(`Integro lettere...`);
                  try {
-                     if (!apiKey) throw new Error("No API Key");
                      const prompt = `Completa cruciverba. Soluzione: "${cleanSol}". Parole: ${generatedWords.map(w => w.word).join(', ')}. Mancano lettere: ${missingLetters.join(', ')}. Genera 4 parole ITALIANE. Output JSON {words: [{word, clue}]}.`;
                      const response = await tryGenerateContent(ai, prompt, wordListSchema);
                      const json = JSON.parse(response.text || "{}");
                      if (json.words) generatedWords = [...generatedWords, ...json.words.map((w: any) => ({ ...w, word: normalizeWord(w.word) }))];
-                 } catch (e) { console.warn("AI integrazione fallita, procedo senza", e); }
+                 } catch (e) { console.warn("AI integrazione fallita", e); }
              }
           }
-
       } else {
-          // AI MODE
-          if (!apiKey) throw new Error("Manca la chiave API.");
           const topic = inputData as string;
           const prompt = `Genera 10 parole e definizioni per cruciverba in ITALIANO. Tema: "${topic}". Output JSON {words: [{word, clue}]}.`;
-          
-          try {
-            if (onStatusUpdate) onStatusUpdate("L'IA inventa le parole...");
-            const response = await tryGenerateContent(ai, prompt, wordListSchema);
-            if (response.text) {
-                const json = JSON.parse(response.text);
-                generatedWords = json.words.map((w: any) => ({ ...w, word: normalizeWord(w.word) }));
-            }
-          } catch (e: any) {
-            console.error("AI Error:", e);
-            throw new Error(`Errore AI Generazione Parole: ${e.message}`);
-          }
+          if (onStatusUpdate) onStatusUpdate("L'IA inventa le parole...");
+          const response = await tryGenerateContent(ai, prompt, wordListSchema);
+          const json = JSON.parse(response.text || "{}");
+          generatedWords = (json.words || []).map((w: any) => ({ ...w, word: normalizeWord(w.word) }));
       }
 
-      if (generatedWords.length === 0) throw new Error("Nessuna parola generata.");
-      if (onStatusUpdate) onStatusUpdate("Costruisco la griglia...");
-      
       const placedWordsRaw = generateLayout(generatedWords);
       if (placedWordsRaw.length < 2) throw new Error("Impossibile incastrare le parole.");
-      
       const normalized = normalizeCoordinates(placedWordsRaw);
       const reindexedWords = reindexGridNumbering(normalized.words);
       width = normalized.width; height = normalized.height;
@@ -356,51 +328,28 @@ export const generateCrossword = async (
       calculatedSolution = hiddenSolutionWord ? findSolutionInGrid(reindexedWords, hiddenSolutionWord) : undefined;
   }
 
-  // 2. LOGICA MESSAGGIO AUGURI
+  // LOGICA MESSAGGIO
   if (typeof inputData === 'string' && inputData.trim().length > 0) {
       if (mode === 'ai' && apiKey) {
           if (onStatusUpdate) onStatusUpdate("Scrivo la dedica...");
           try {
-              const generatedMessage = await regenerateGreeting(
-                  inputData, theme, extraData.recipientName, extraData.tone || 'surprise', extraData.customTone
-              );
-              message = generatedMessage;
-          } catch (e) {
-              message = inputData;
-          }
-      } else {
-          message = inputData;
-      }
-  } else {
-      message = getRandomFallback(theme);
-  }
-
-  let defaultTitle = `Per ${extraData?.recipientName}`;
-  if (theme === 'christmas') defaultTitle = `Buon Natale ${extraData?.recipientName}!`;
-  // ... altri temi ...
-
-  let photoArray = extraData.images?.photos || [];
-  if (photoArray.length === 0 && extraData.images?.photo) photoArray = [extraData.images.photo];
+              message = await regenerateGreeting(inputData, theme, extraData.recipientName, extraData.tone || 'surprise', extraData.customTone);
+          } catch (e) { message = inputData; }
+      } else { message = inputData; }
+  } else { message = getRandomFallback(theme); }
 
   return {
       type: extraData.contentType,
-      title: defaultTitle,
+      title: `Per ${extraData.recipientName}`,
       message: message,
       theme: theme,
-      recipientName: extraData?.recipientName || '',
-      eventDate: extraData?.eventDate || '',
-      images: { extraImage: extraData.images?.extraImage, photos: photoArray, brandLogo: extraData.images?.brandLogo },
-      stickers: extraData?.stickers,
+      recipientName: extraData.recipientName,
+      eventDate: extraData.eventDate,
+      images: { photos: extraData.images?.photos || [] },
       words: finalWords,
       width: Math.max(width, 8),
       height: Math.max(height, 8),
       solution: calculatedSolution,
-      originalInput: inputData,
-      originalMode: mode,
-      originalHiddenSolution: hiddenSolutionWord,
-      originalTone: extraData.tone,
-      originalCustomTone: extraData.customTone,
-      hasWatermark: extraData.hasWatermark,
       format: extraData.format || 'a4'
   };
 };
@@ -408,31 +357,15 @@ export const generateCrossword = async (
 export const regenerateGreetingOptions = async (
     currentMessage: string, theme: string, recipient: string, tone: ToneType, customPrompt?: string
 ): Promise<string[]> => {
-    let apiKey = '';
-    try { apiKey = getApiKey(); } catch(e) { return [getRandomFallback(theme)]; }
-    
+    const apiKey = getApiKey();
     if (!apiKey) return [getRandomFallback(theme)];
-
     const ai = new GoogleGenAI({ apiKey });
-    let instructions = tone === 'custom' && customPrompt ? `Istruzioni: "${customPrompt}".` : `Stile: ${tone}.`;
-    let context = currentMessage !== 'placeholder' ? `Argomento: "${currentMessage}".` : '';
-
-    const prompt = `Scrivi 5 messaggi di auguri brevi in ITALIANO per ${recipient}. Evento: ${theme}. ${instructions} ${context} Max 25 parole. JSON: { "options": ["msg1", "msg2"] }`;
-    
-    const schema = {
-        type: Type.OBJECT,
-        properties: { options: { type: Type.ARRAY, items: { type: Type.STRING } } },
-        required: ["options"]
-    };
-
+    const prompt = `Scrivi 5 messaggi di auguri brevi in ITALIANO per ${recipient}. Tema: ${theme}. Stile: ${tone}. JSON: { "options": ["msg1", "msg2"] }`;
     try {
-        // USE FALLBACK LOGIC
-        const response = await tryGenerateContent(ai, prompt, schema);
+        const response = await tryGenerateContent(ai, prompt);
         const json = JSON.parse(response.text || "{}");
         return json.options || [getRandomFallback(theme)];
-    } catch (e) {
-        return [getRandomFallback(theme)];
-    }
+    } catch (e) { return [getRandomFallback(theme)]; }
 };
 
 export const regenerateGreeting = async (
