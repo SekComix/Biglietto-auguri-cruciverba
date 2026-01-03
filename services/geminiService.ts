@@ -19,11 +19,11 @@ const wordListSchema = {
   required: ["words"]
 };
 
-// --- RECUPERO CHIAVE SICURO ---
+// --- RECUPERO CHIAVE SICURO (Cerca entrambi i nomi per sicurezza) ---
 const getApiKey = (): string => {
-  // @ts-ignore - Questa riga pesca la chiave dai segreti di GitHub/Vite
-  const envKey = import.meta.env.VITE_GEMINI_API_KEY || "";
-  return envKey;
+  // @ts-ignore
+  const key = import.meta.env.VITE_GEMINI_API_KEY || import.meta.env.API_KEY || "";
+  return key;
 };
 
 const normalizeWord = (str: string): string => {
@@ -267,7 +267,7 @@ export const generateCrossword = async (
   onStatusUpdate?: (status: string) => void
 ): Promise<CrosswordData> => {
   const apiKey = getApiKey();
-  if (!apiKey && mode === 'ai') throw new Error("Chiave API non trovata. Controlla le impostazioni di GitHub.");
+  if (!apiKey && mode === 'ai') throw new Error("Chiave API non trovata. Controlla i Secrets di GitHub.");
 
   const ai = new GoogleGenAI({ apiKey });
   
