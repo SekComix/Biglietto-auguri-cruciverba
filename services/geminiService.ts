@@ -52,27 +52,30 @@ const withTimeout = <T>(promise: Promise<T>, ms: number, errorMessage: string): 
 
 // --- MOTORE AI (BILLING V1 + FIX ERROR 400) ---
 async function tryGenerateContent(ai: GoogleGenAI, prompt: string, schema: any = null): Promise<GenerateContentResponse> {
-    // MODIFICA QUI: Cambiamo il nome da 'gemini-1.5-flash' a 'gemini-2.0-flash'
+    // Usiamo il modello 2.0 che è quello che non ti dà 404
     const modelName = 'gemini-2.0-flash'; 
     
     try {
-        const config: any = { temperature: 0.7 };
-        if (schema) {
-            config.responseMimeType = "application/json";
-            config.responseSchema = schema;
-        }
+        // Rimuoviamo TUTTO quello che causa l'errore 400 (responseMimeType e responseSchema)
+        // Usiamo solo la configurazione base che Google accetta sempre
+        const config: any = { 
+            temperature: 0.7 
+        };
+
+        // Se l'app ha bisogno di un JSON, aggiungiamo l'istruzione nel testo del prompt
+        // invece di caricarla nella configurazione che si rompe
+        const finalPrompt = schema ? `${prompt}. Rispondi ESCLUSIVAMENTE in formato JSON.` : prompt;
 
         return await withTimeout<GenerateContentResponse>(
             ai.models.generateContent({
                 model: modelName,
-                contents: [{ role: 'user', parts: [{ text: prompt }] }],
+                contents: [{ role: 'user', parts: [{ text: finalPrompt }] }],
                 config: config
             }),
             30000,
             "Timeout AI"
         );
     } catch (e: any) {
-        // Se l'errore è 429 (quota), aspetta 2 secondi
         if (e?.message?.includes('429')) await new Promise(r => setTimeout(r, 2000));
         throw e;
     }
