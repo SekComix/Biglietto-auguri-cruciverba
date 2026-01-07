@@ -56,10 +56,7 @@ const withTimeout = <T>(promise: Promise<T>, ms: number, errorMessage: string): 
 async function tryGenerateContent(ai: GoogleGenAI, prompt: string, schema: any = null): Promise<GenerateContentResponse> {
     const modelName = 'gemini-2.0-flash'; // Modello standard 2026
     try {
-        // Rimosso responseMimeType dal config per evitare l'errore 400 con il billing stabile
         const config: any = { temperature: 0.8 };
-        
-        // Se serve JSON, lo chiediamo nel testo del prompt
         const finalPrompt = schema 
             ? `${prompt}. RISPONDI ESCLUSIVAMENTE IN FORMATO JSON PURO.` 
             : prompt;
@@ -108,6 +105,7 @@ function generateLayout(wordsInput: {word: string, clue: string}[]): any[] {
             if (placed) break;
             const [cx, cy] = coordKey.split(',').map(Number);
             const charOnGrid = grid.get(coordKey)?.char;
+
             for (let charIdx = 0; charIdx < currentWord.word.length; charIdx++) {
                 if (currentWord.word[charIdx] === charOnGrid) {
                     for (const dir of ['down', 'across']) {
@@ -270,7 +268,7 @@ export const generateCrossword = async (
              const missingLetters = getMissingLetters(generatedWords.map(w => w.word), cleanSol);
              if (missingLetters.length > 0) {
                  try {
-                     const prompt = `Completa cruciverba. Soluzione: "${cleanSol}". Parole: ${generatedWords.map(w => w.word).join(', ')}. Mancano: ${missingLetters.join(', ')}. Genera 4 parole ITALIANE. JSON { "words": [{ "word": "...", "clue": "..." }] }.`;
+                     const prompt = `Completa cruciverba. Soluzione: "${cleanSol}". Parole presenti: ${generatedWords.map(w => w.word).join(', ')}. Mancano: ${missingLetters.join(', ')}. Genera 4 parole ITALIANE. JSON { "words": [{ "word": "...", "clue": "..." }] }.`;
                      const response = await tryGenerateContent(ai, prompt, wordListSchema);
                      const json = JSON.parse(response?.text?.replace(/```json|```/g, "").trim() || "{}");
                      if (json.words) generatedWords = [...generatedWords, ...json.words.map((w: any) => ({ ...w, word: normalizeWord(w.word) }))];
@@ -306,7 +304,6 @@ export const generateCrossword = async (
       } else { message = inputData; }
   } else { message = getRandomFallback(theme); }
 
-  // RIPRISTINO IMAGES INTEGRALE (CESTINO E COLLAGE)
   let photoArray = extraData.images?.photos || [];
   if (photoArray.length === 0 && extraData.images?.photo) photoArray = [extraData.images.photo];
 
@@ -315,7 +312,7 @@ export const generateCrossword = async (
       title: theme === 'christmas' ? `Buon Natale ${extraData.recipientName}!` : `Per ${extraData.recipientName}`,
       message: message, theme: theme, recipientName: extraData.recipientName || '', eventDate: extraData.eventDate || '',
       images: { extraImage: extraData.images?.extraImage, photos: photoArray, brandLogo: extraData.images?.brandLogo },
-      stickers: extraData.stickers,
+      stickers: extraData.stickers || [], // FIX: Assicura il ritorno degli sticker
       words: finalWords, width: Math.max(width, 8), height: Math.max(height, 8),
       solution: calculatedSolution,
       originalInput: inputData, originalMode: mode, originalHiddenSolution: hiddenSolutionWord,
@@ -332,12 +329,12 @@ export const regenerateGreetingOptions = async (
     const ai = new GoogleGenAI({ apiKey, apiVersion: 'v1' });
     try {
         const stile = tone === 'custom' && customPrompt ? customPrompt : tone;
-        // Prompt forzato: l'argomento dell'utente è prioritario
-        const prompt = `Sei un esperto di auguri. Scrivi 5 messaggi per ${recipient}. Tema: ${theme}. Stile: ${stile}. DEVI SEGUIRE ASSOLUTAMENTE QUESTO ARGOMENTO: "${userPrompt}". JSON { "options": ["msg1"] }.`;
+        // PROMPT FORZATO: Spingiamo l'AI a seguire solo lo spunto dell'utente
+        const prompt = `Sei un esperto di auguri. Scrivi 5 messaggi per ${recipient}. Tema: ${theme}. Stile: ${stile}. DEVI SEGUIRE ASSOLUTAMENTE QUESTO ARGOMENTO: "${userPrompt}". JSON { "options": ["testo"] }.`;
         const response = await tryGenerateContent(ai, prompt);
         const json = JSON.parse(response?.text?.replace(/```json|```/g, "").trim() || "{}");
-        return json.options || [getRandomFallback(theme)];
-    } catch (e) { return [getRandomFallback(theme)]; }
+        return json.options || [userPrompt];
+    } catch (e) { return [userPrompt]; }
 };
 
 export const regenerateGreeting = async (m: string, th: string, r: string, t: ToneType, cp?: string) => (await regenerateGreetingOptions(m, th, r, t, cp))[0];
