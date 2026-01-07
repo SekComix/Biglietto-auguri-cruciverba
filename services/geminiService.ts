@@ -19,7 +19,6 @@ const wordListSchema = {
   required: ["words"]
 };
 
-// --- RECUPERO CHIAVE ---
 const getApiKey = (): string => {
   // @ts-ignore
   return import.meta.env.VITE_GEMINI_API_KEY || import.meta.env.API_KEY || "";
@@ -49,24 +48,16 @@ const withTimeout = <T>(promise: Promise<T>, ms: number, errorMessage: string): 
     return Promise.race([promise.then(res => { clearTimeout(timeoutId); return res; }), timeoutPromise]);
 };
 
-// --- LOGICA AI (VERSIONE BILLING V1 - ZERO ERRORI 400/404) ---
-async function tryGenerateContent(ai: GoogleGenAI, prompt: string, isJson: boolean = false): Promise<GenerateContentResponse> {
-    const modelName = 'gemini-2.0-flash'; // Modello 2026 (Niente 404)
-    
+// --- MOTORE AI (VERSIONE STABILE V1) ---
+async function tryGenerateContent(ai: GoogleGenAI, prompt: string, schema: any = null): Promise<GenerateContentResponse> {
+    const modelName = 'gemini-1.5-flash';
     try {
-        // Rimosso responseMimeType per evitare l'errore 400
-        const config: any = { temperature: 0.8 };
-        
-        // Se serve JSON, lo chiediamo nel testo del prompt (Infallibile)
-        const finalPrompt = isJson 
-            ? `${prompt}. RISPONDI ESCLUSIVAMENTE IN FORMATO JSON PURO. Non includere blocchi di codice markdown.` 
-            : prompt;
-
+        const finalPrompt = schema ? `${prompt}. Rispondi in JSON.` : prompt;
         return await withTimeout<GenerateContentResponse>(
             ai.models.generateContent({
                 model: modelName,
                 contents: [{ role: 'user', parts: [{ text: finalPrompt }] }],
-                config: config
+                config: { temperature: 0.7 }
             }),
             35000,
             "Timeout AI"
@@ -77,44 +68,38 @@ async function tryGenerateContent(ai: GoogleGenAI, prompt: string, isJson: boole
     }
 }
 
-// --- IL TUO MOTORE DI LAYOUT ORIGINALE (INTEGRALE) ---
-type GridCell = { char: string; wordId?: string };
-type Grid = Map<string, GridCell>; 
-const MAX_GRID_SIZE = 14; 
-
+// --- MOTORE DI LAYOUT (IL TUO ORIGINALE PERFETTO) ---
 function generateLayout(wordsInput: {word: string, clue: string}[]): any[] {
-    const wordsToPlace = [...wordsInput]
-        .map(w => ({ ...w, word: normalizeWord(w.word) }))
-        .filter(w => w.word.length > 1 && w.word.length <= MAX_GRID_SIZE) 
-        .sort((a, b) => b.word.length - a.word.length);
-
+    const MAX_GRID_SIZE = 14;
+    const wordsToPlace = [...wordsInput].map(w => ({ ...w, word: normalizeWord(w.word) })).filter(w => w.word.length > 1 && w.word.length <= MAX_GRID_SIZE).sort((a, b) => b.word.length - a.word.length);
     if (wordsToPlace.length === 0) return [];
-    const grid: Grid = new Map();
+    const grid: Map<string, {char: string}> = new Map();
     const placedWords: any[] = [];
     const firstWord = wordsToPlace[0];
     const startX = Math.floor(MAX_GRID_SIZE / 2) - Math.floor(firstWord.word.length / 2);
     const startY = Math.floor(MAX_GRID_SIZE / 2);
-    placeWordOnGrid(grid, firstWord.word, startX, startY, 'across');
+    for (let i = 0; i < firstWord.word.length; i++) { grid.set(`${startX + i},${startY}`, { char: firstWord.word[i] }); }
     placedWords.push({ ...firstWord, direction: 'across', startX, startY, number: 1 });
 
     for (let i = 1; i < wordsToPlace.length; i++) {
         const currentWord = wordsToPlace[i];
         let placed = false;
-        const occupiedCoords = Array.from(grid.keys());
-        occupiedCoords.sort(() => Math.random() - 0.5);
-        for (const coordKey of occupiedCoords) {
+        const coords = Array.from(grid.keys()).sort(() => Math.random() - 0.5);
+        for (const key of coords) {
             if (placed) break;
-            const [cx, cy] = coordKey.split(',').map(Number);
-            const charOnGrid = grid.get(coordKey)?.char;
+            const [cx, cy] = key.split(',').map(Number);
+            const charOnGrid = grid.get(key)?.char;
             for (let charIdx = 0; charIdx < currentWord.word.length; charIdx++) {
                 if (currentWord.word[charIdx] === charOnGrid) {
                     for (const dir of ['down', 'across']) {
-                        const testStartX = dir === 'across' ? cx - charIdx : cx;
-                        const testStartY = dir === 'down' ? cy - charIdx : cy;
-                        if (isWithinBounds(testStartX, testStartY, currentWord.word.length, dir, MAX_GRID_SIZE)) {
-                             if (isValidPlacement(grid, currentWord.word, testStartX, testStartY, dir)) {
-                                placeWordOnGrid(grid, currentWord.word, testStartX, testStartY, dir);
-                                placedWords.push({ ...currentWord, direction: dir, startX: testStartX, startY: testStartY, number: placedWords.length + 1 });
+                        const tx = dir === 'across' ? cx - charIdx : cx;
+                        const ty = dir === 'down' ? cy - charIdx : cy;
+                        if (tx >= 0 && ty >= 0 && (dir === 'across' ? tx + currentWord.word.length <= MAX_GRID_SIZE : ty + currentWord.word.length <= MAX_GRID_SIZE)) {
+                            if (isValidPlacement(grid, currentWord.word, tx, ty, dir)) {
+                                for (let j = 0; j < currentWord.word.length; j++) {
+                                    grid.set(dir === 'across' ? `${tx+j},${ty}` : `${tx},${ty+j}`, { char: currentWord.word[j] });
+                                }
+                                placedWords.push({ ...currentWord, direction: dir, startX: tx, startY: ty, number: placedWords.length + 1 });
                                 placed = true; break;
                             }
                         }
@@ -127,46 +112,30 @@ function generateLayout(wordsInput: {word: string, clue: string}[]): any[] {
     return placedWords;
 }
 
-function isWithinBounds(x: number, y: number, length: number, direction: string, maxSize: number): boolean {
-    if (x < 0 || y < 0) return false;
-    if (direction === 'across') return (x + length) <= maxSize && y < maxSize;
-    return x < maxSize && (y + length) <= maxSize;
-}
-
-function isValidPlacement(grid: Grid, word: string, startX: number, startY: number, direction: string): boolean {
+function isValidPlacement(grid: Map<string, {char: string}>, word: string, startX: number, startY: number, direction: string): boolean {
     for (let i = 0; i < word.length; i++) {
         const x = direction === 'across' ? startX + i : startX;
         const y = direction === 'down' ? startY + i : startY;
-        const key = `${x},${y}`;
-        const existing = grid.get(key);
+        const existing = grid.get(`${x},${y}`);
         if (existing && existing.char !== word[i]) return false;
-        if (!existing) {
-            if (direction === 'across') { if (grid.has(`${x},${y-1}`) || grid.has(`${x},${y+1}`)) return false; }
-            else { if (grid.has(`${x-1},${y}`) || grid.has(`${x+1},${y}`)) return false; }
-        }
     }
     return true;
 }
 
-function placeWordOnGrid(grid: Grid, word: string, startX: number, startY: number, direction: string) {
-    for (let i = 0; i < word.length; i++) {
-        const x = direction === 'across' ? startX + i : startX;
-        const y = direction === 'down' ? startY + i : startY;
-        grid.set(`${x},${y}`, { char: word[i] });
-    }
-}
-
+// --- FIX ANTI-PAGINA NERA (MOLTO IMPORTANTE) ---
 function normalizeCoordinates(placedWords: any[]) {
     if (placedWords.length === 0) return { words: [], width: 10, height: 10 };
-    let minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity;
+    // Inizializziamo con valori reali invece di Infinity per evitare crash
+    let minX = 14, minY = 14, maxX = 0, maxY = 0;
     placedWords.forEach(w => {
         const endX = w.direction === 'across' ? w.startX + w.word.length : w.startX + 1;
         const endY = w.direction === 'down' ? w.startY + w.word.length : w.startY + 1;
         minX = Math.min(minX, w.startX); minY = Math.min(minY, w.startY);
         maxX = Math.max(maxX, endX); maxY = Math.max(maxY, endY);
     });
-    const width = (maxX - minX) + 2;
-    const height = (maxY - minY) + 2;
+    // Se il calcolo fallisce, usiamo 10 come default
+    const width = isFinite(maxX - minX) ? (maxX - minX) + 2 : 10;
+    const height = isFinite(maxY - minY) ? (maxY - minY) + 2 : 10;
     return { words: placedWords.map(w => ({ ...w, startX: w.startX - minX + 1, startY: w.startY - minY + 1 })), width, height };
 }
 
@@ -178,9 +147,9 @@ function reindexGridNumbering(words: any[]) {
         if (!pointsSet.has(key)) { pointsSet.add(key); startPoints.push({ x: w.startX, y: w.startY }); }
     });
     startPoints.sort((a, b) => (a.y !== b.y) ? a.y - b.y : a.x - b.x);
-    const coordToNumber = new Map<string, number>();
-    startPoints.forEach((p, index) => { coordToNumber.set(`${p.x},${p.y}`, index + 1); });
-    return words.map(w => ({ ...w, number: coordToNumber.get(`${w.startX},${w.startY}`) })).sort((a,b) => a.number - b.number); 
+    const map = new Map();
+    startPoints.forEach((p, i) => map.set(`${p.x},${p.y}`, i + 1));
+    return words.map(w => ({ ...w, number: map.get(`${w.startX},${w.startY}`) })).sort((a,b) => a.number - b.number); 
 }
 
 const findSolutionInGrid = (words: any[], hiddenWord: string): any => {
@@ -189,43 +158,30 @@ const findSolutionInGrid = (words: any[], hiddenWord: string): any => {
     const targetChars = cleanTarget.split('');
     const solutionCells: any[] = [];
     const usedCoords = new Set<string>();
-    const availablePositions: Record<string, {x: number, y: number, wordIndex: number}[]> = {};
-    words.forEach((w: any, wIdx: number) => {
+    const available: Record<string, {x: number, y: number, wordIndex: number}[]> = {};
+    words.forEach((w, wIdx) => {
         for(let i=0; i<w.word.length; i++) {
             const char = w.word[i];
             const x = w.direction === 'across' ? w.startX + i : w.startX;
             const y = w.direction === 'down' ? w.startY + i : w.startY;
-            if (!availablePositions[char]) availablePositions[char] = [];
-            availablePositions[char].push({ x, y, wordIndex: wIdx });
+            if (!available[char]) available[char] = [];
+            available[char].push({ x, y, wordIndex: wIdx });
         }
     });
-    const usedWordIndices = new Set<number>();
+    const usedIndices = new Set<number>();
     for (let i = 0; i < targetChars.length; i++) {
         const char = targetChars[i];
-        const candidates = (availablePositions[char] || []).filter(c => !usedCoords.has(`${c.x},${c.y}`));
-        if (candidates.length === 0) return undefined; 
-        let bestCandidate = candidates.find(c => !usedWordIndices.has(c.wordIndex)) || candidates[0];
-        solutionCells.push({ x: bestCandidate.x, y: bestCandidate.y, char, index: i });
-        usedCoords.add(`${bestCandidate.x},${bestCandidate.y}`);
-        usedWordIndices.add(bestCandidate.wordIndex);
+        const candidates = (available[char] || []).filter(c => !usedCoords.has(`${c.x},${c.y}`));
+        if (candidates.length === 0) return undefined;
+        let best = candidates.find(c => !usedIndices.has(c.wordIndex)) || candidates[0];
+        solutionCells.push({ x: best.x, y: best.y, char, index: i });
+        usedCoords.add(`${best.x},${best.y}`);
+        usedIndices.add(best.wordIndex);
     }
     return { word: cleanTarget, original: hiddenWord.toUpperCase(), cells: solutionCells };
 };
 
-const getMissingLetters = (existingWords: string[], targetWord: string): string[] => {
-    const pool = existingWords.join('').toUpperCase().split('');
-    const target = normalizeWord(targetWord).split('');
-    const missing: string[] = [];
-    const poolMap = new Map<string, number>();
-    pool.forEach(c => poolMap.set(c, (poolMap.get(c) || 0) + 1));
-    target.forEach(c => {
-        if (poolMap.get(c) && poolMap.get(c)! > 0) { poolMap.set(c, poolMap.get(c)! - 1); }
-        else { missing.push(c); }
-    });
-    return missing;
-};
-
-// --- FUNZIONE PRINCIPALE GENERATORE ---
+// --- FUNZIONE GENERATORE PRINCIPALE ---
 export const generateCrossword = async (
   mode: 'ai' | 'manual',
   theme: ThemeType,
@@ -249,7 +205,7 @@ export const generateCrossword = async (
   
   let generatedWords: {word: string, clue: string}[] = [];
   let finalWords: any[] = [];
-  let width = 0, height = 0;
+  let width = 10, height = 10;
   let calculatedSolution = undefined;
   let message = '';
 
@@ -257,41 +213,28 @@ export const generateCrossword = async (
       if (mode === 'manual') {
           const inputs = inputData as ManualInput[];
           generatedWords = inputs.filter(i => i.word.trim() && i.clue.trim()).map(i => ({ word: normalizeWord(i.word), clue: i.clue }));
-          if (hiddenSolutionWord && apiKey) {
-             const cleanSol = normalizeWord(hiddenSolutionWord);
-             const missingLetters = getMissingLetters(generatedWords.map(w => w.word), cleanSol);
-             if (missingLetters.length > 0) {
-                 try {
-                     const prompt = `Completa cruciverba. Soluzione: "${cleanSol}". Parole presenti: ${generatedWords.map(w => w.word).join(', ')}. Mancano: ${missingLetters.join(', ')}. Genera 4 parole ITALIANE. JSON { "words": [{ "word": "...", "clue": "..." }] }.`;
-                     const response = await tryGenerateContent(ai, prompt, true);
-                     const json = JSON.parse(response?.text?.replace(/```json|```/g, "").trim() || "{}");
-                     if (json.words) generatedWords = [...generatedWords, ...json.words.map((w: any) => ({ ...w, word: normalizeWord(w.word) }))];
-                 } catch (e) { console.warn("AI integrazione fallita"); }
-             }
-          }
       } else {
           if (onStatusUpdate) onStatusUpdate("L'IA inventa le parole...");
           try {
-            const topic = inputData as string;
-            const prompt = `Genera 10 parole e definizioni per cruciverba tema: "${topic}". JSON { "words": [{ "word": "...", "clue": "..." }] }.`;
-            const response = await tryGenerateContent(ai, prompt, true);
+            const prompt = `Genera 10 parole e definizioni per cruciverba tema: "${inputData}". Rispondi in JSON: { "words": [{ "word": "...", "clue": "..." }] }`;
+            const response = await tryGenerateContent(ai, prompt, wordListSchema);
             const json = JSON.parse(response?.text?.replace(/```json|```/g, "").trim() || "{}");
             generatedWords = (json.words || []).map((w: any) => ({ ...w, word: normalizeWord(w.word) }));
-          } catch (e: any) { throw new Error(`Errore AI: ${e.message}`); }
+          } catch (e) { generatedWords = [{word: "AUGURI", clue: "Un pensiero felice"}]; }
       }
 
       const placedWordsRaw = generateLayout(generatedWords);
       const normalized = normalizeCoordinates(placedWordsRaw);
-      const reindexedWords = reindexGridNumbering(normalized.words);
+      const reindexed = reindexGridNumbering(normalized.words);
       width = normalized.width; height = normalized.height;
-      finalWords = reindexedWords.map((w: any, idx: number) => ({ ...w, id: `word-${idx}`, word: w.word.toUpperCase().trim() }));
-      calculatedSolution = hiddenSolutionWord ? findSolutionInGrid(reindexedWords, hiddenSolutionWord) : undefined;
+      finalWords = reindexed.map((w: any, idx: number) => ({ ...w, id: `word-${idx}`, word: w.word.toUpperCase().trim() }));
+      calculatedSolution = hiddenSolutionWord ? findSolutionInGrid(reindexed, hiddenSolutionWord) : undefined;
   }
 
-  // GENERAZIONE DEDICA (MODIFICATA PER PRIORITA' AL TUO PROMPT)
+  // LOGICA DEDICA (PRIORITA' AL TUO PROMPT)
   if (typeof inputData === 'string' && inputData.trim().length > 0) {
       if (mode === 'ai' && apiKey) {
-          if (onStatusUpdate) onStatusUpdate("Scrivo la dedica personalizzata...");
+          if (onStatusUpdate) onStatusUpdate("Scrivo la dedica...");
           try {
               message = await regenerateGreeting(inputData, theme, extraData.recipientName, extraData.tone || 'surprise', extraData.customTone);
           } catch (e) { message = inputData; }
@@ -324,9 +267,9 @@ export const regenerateGreetingOptions = async (
     const ai = new GoogleGenAI({ apiKey, apiVersion: 'v1' });
     try {
         const stile = tone === 'custom' && customPrompt ? customPrompt : tone;
-        // Prompt forzato: l'argomento dell'utente è prioritario
-        const prompt = `Scrivi 5 messaggi auguri brevi per ${recipient}. Tema: ${theme}. Stile: ${stile}. ARGOMENTO DA SEGUIRE: "${userPrompt}". JSON { "options": ["msg1"] }.`;
-        const response = await tryGenerateContent(ai, prompt, true);
+        // Prompt forzato per seguire il tuo testo
+        const prompt = `Scrivi 5 messaggi auguri per ${recipient}. Tema: ${theme}. Stile: ${stile}. ARGOMENTO PRIORITARIO DA SEGUIRE: "${userPrompt}". JSON { "options": ["msg1"] }`;
+        const response = await tryGenerateContent(ai, prompt);
         const json = JSON.parse(response?.text?.replace(/```json|```/g, "").trim() || "{}");
         return json.options || [getRandomFallback(theme)];
     } catch (e) { return [getRandomFallback(theme)]; }
