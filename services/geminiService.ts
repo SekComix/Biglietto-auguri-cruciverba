@@ -54,12 +54,9 @@ const withTimeout = <T>(promise: Promise<T>, ms: number, errorMessage: string): 
 
 // --- LOGICA AI (BILLING V1 + FIX ERROR 400 + FIX 404) ---
 async function tryGenerateContent(ai: GoogleGenAI, prompt: string, schema: any = null): Promise<GenerateContentResponse> {
-    const modelName = 'gemini-2.0-flash'; // Modello standard 2026
+    const modelName = 'gemini-2.0-flash'; 
     try {
-        // Rimosso responseMimeType dal config per evitare l'errore 400 con il billing stabile
         const config: any = { temperature: 0.8 };
-        
-        // Se serve JSON, lo chiediamo nel testo del prompt
         const finalPrompt = schema 
             ? `${prompt}. RISPONDI ESCLUSIVAMENTE IN FORMATO JSON PURO.` 
             : prompt;
@@ -158,7 +155,7 @@ function placeWordOnGrid(grid: Grid, word: string, startX: number, startY: numbe
     }
 }
 
-// --- NORMALIZZAZIONE COORDINATE (RIPRISTINATA) ---
+// --- NORMALIZZAZIONE COORDINATE ---
 function normalizeCoordinates(placedWords: any[]) {
     if (placedWords.length === 0) return { words: [], width: 10, height: 10 };
     let minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity;
@@ -173,7 +170,7 @@ function normalizeCoordinates(placedWords: any[]) {
     return { words: placedWords.map(w => ({ ...w, startX: w.startX - minX + 1, startY: w.startY - minY + 1 })), width, height };
 }
 
-// --- RE-INDICIZZAZIONE NUMERI (RIPRISTINATA) ---
+// --- RE-INDICIZZAZIONE NUMERI ---
 function reindexGridNumbering(words: any[]) {
     const startPoints: {x: number, y: number}[] = [];
     const pointsSet = new Set<string>();
@@ -187,7 +184,7 @@ function reindexGridNumbering(words: any[]) {
     return words.map(w => ({ ...w, number: coordToNumber.get(`${w.startX},${w.startY}`) })).sort((a,b) => a.number - b.number); 
 }
 
-// --- RICERCA SOLUZIONE (RIPRISTINATA) ---
+// --- RICERCA SOLUZIONE ---
 const findSolutionInGrid = (words: any[], hiddenWord: string): any => {
     if (!hiddenWord) return undefined; 
     const cleanTarget = normalizeWord(hiddenWord);
@@ -210,7 +207,6 @@ const findSolutionInGrid = (words: any[], hiddenWord: string): any => {
         const candidates = availablePositions[char] || [];
         const validCandidates = candidates.filter(c => !usedCoords.has(`${c.x},${c.y}`));
         if (validCandidates.length === 0) return undefined; 
-        validCandidates.sort(() => Math.random() - 0.5);
         let bestCandidate = validCandidates.find(c => !usedWordIndices.has(c.wordIndex)) || validCandidates[0];
         solutionCells.push({ x: bestCandidate.x, y: bestCandidate.y, char, index: i });
         usedCoords.add(`${bestCandidate.x},${bestCandidate.y}`);
@@ -287,7 +283,6 @@ export const generateCrossword = async (
             generatedWords = (json.words || []).map((w: any) => ({ ...w, word: normalizeWord(w.word) }));
           } catch (e: any) { throw new Error(`Errore AI: ${e.message}`); }
       }
-
       const placedWordsRaw = generateLayout(generatedWords);
       const normalized = normalizeCoordinates(placedWordsRaw);
       const reindexedWords = reindexGridNumbering(normalized.words);
@@ -296,11 +291,12 @@ export const generateCrossword = async (
       calculatedSolution = hiddenSolutionWord ? findSolutionInGrid(reindexedWords, hiddenSolutionWord) : undefined;
   }
 
-  // LOGICA MESSAGGIO AUGURI (MODIFICATA PER PRIORITA' AL TUO PROMPT)
+  // --- FIX FRASE: GENERA CREATIVAMENTE BASANDOSI SUL PROMPT ---
   if (typeof inputData === 'string' && inputData.trim().length > 0) {
       if (mode === 'ai' && apiKey) {
           if (onStatusUpdate) onStatusUpdate("Scrivo la dedica personalizzata...");
           try {
+              // CHIAMA L'AI PER GENERARE IL TESTO CREATIVO
               message = await regenerateGreeting(inputData, theme, extraData.recipientName, extraData.tone || 'surprise', extraData.customTone);
           } catch (e) { message = inputData; }
       } else { message = inputData; }
@@ -323,16 +319,14 @@ export const generateCrossword = async (
   };
 };
 
-export const regenerateGreetingOptions = async (
-    userPrompt: string, theme: string, recipient: string, tone: ToneType, customPrompt?: string
-): Promise<string[]> => {
+export const regenerateGreetingOptions = async (userPrompt: string, theme: string, recipient: string, tone: ToneType, customPrompt?: string): Promise<string[]> => {
     const apiKey = getApiKey();
     if (!apiKey) return [getRandomFallback(theme)];
     const ai = new GoogleGenAI({ apiKey, apiVersion: 'v1' });
     try {
         const stile = tone === 'custom' && customPrompt ? customPrompt : tone;
-        // PROMPT POTENZIATO: L'argomento dell'utente è prioritario
-        const prompt = `Sei un esperto di auguri. Scrivi 5 messaggi per ${recipient}. Tema: ${theme}. Stile: ${stile}. DEVI SEGUIRE ASSOLUTAMENTE QUESTO ARGOMENTO: "${userPrompt}". JSON { "options": ["msg1"] }.`;
+        // COMANDO RAFFORZATO PER EVITARE CHE IL PROMPT VENGA COPIATO PARI PARI
+        const prompt = `Sei un esperto di auguri. Scrivi una dedica calorosa in ITALIANO per ${recipient}. Tema: ${theme}. Stile: ${stile}. BASATI SU QUESTO SPUNTO: "${userPrompt}". Non ripetere la richiesta, scrivi solo il testo d'auguri finale. JSON { "options": ["testo"] }.`;
         const response = await tryGenerateContent(ai, prompt);
         const json = JSON.parse(response?.text?.replace(/```json|```/g, "").trim() || "{}");
         return json.options || [userPrompt];
