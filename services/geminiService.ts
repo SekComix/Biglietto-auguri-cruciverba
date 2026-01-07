@@ -52,24 +52,27 @@ const withTimeout = <T>(promise: Promise<T>, ms: number, errorMessage: string): 
 
 // --- MOTORE AI (BILLING V1 + FIX ERROR 400) ---
 async function tryGenerateContent(ai: GoogleGenAI, prompt: string, schema: any = null): Promise<GenerateContentResponse> {
-    const modelName = 'gemini-1.5-flash';
+    // MODIFICA QUI: Cambiamo il nome da 'gemini-1.5-flash' a 'gemini-2.0-flash'
+    const modelName = 'gemini-2.0-flash'; 
+    
     try {
-        // Evitiamo responseMimeType nel config per compatibilità Billing v1
-        // Forziamo la richiesta JSON nel testo del prompt
-        const finalPrompt = schema 
-            ? `${prompt}. RISPONDI ESCLUSIVAMENTE IN FORMATO JSON PURO.` 
-            : prompt;
+        const config: any = { temperature: 0.7 };
+        if (schema) {
+            config.responseMimeType = "application/json";
+            config.responseSchema = schema;
+        }
 
         return await withTimeout<GenerateContentResponse>(
             ai.models.generateContent({
                 model: modelName,
-                contents: [{ role: 'user', parts: [{ text: finalPrompt }] }],
-                config: { temperature: 0.8 }
+                contents: [{ role: 'user', parts: [{ text: prompt }] }],
+                config: config
             }),
-            35000,
+            30000,
             "Timeout AI"
         );
     } catch (e: any) {
+        // Se l'errore è 429 (quota), aspetta 2 secondi
         if (e?.message?.includes('429')) await new Promise(r => setTimeout(r, 2000));
         throw e;
     }
