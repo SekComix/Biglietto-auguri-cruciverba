@@ -56,7 +56,10 @@ const withTimeout = <T>(promise: Promise<T>, ms: number, errorMessage: string): 
 async function tryGenerateContent(ai: GoogleGenAI, prompt: string, schema: any = null): Promise<GenerateContentResponse> {
     const modelName = 'gemini-2.0-flash'; // Modello standard 2026
     try {
+        // Rimosso responseMimeType dal config per evitare l'errore 400 con il billing stabile
         const config: any = { temperature: 0.8 };
+        
+        // Se serve JSON, lo chiediamo nel testo del prompt
         const finalPrompt = schema 
             ? `${prompt}. RISPONDI ESCLUSIVAMENTE IN FORMATO JSON PURO.` 
             : prompt;
@@ -105,7 +108,6 @@ function generateLayout(wordsInput: {word: string, clue: string}[]): any[] {
             if (placed) break;
             const [cx, cy] = coordKey.split(',').map(Number);
             const charOnGrid = grid.get(coordKey)?.char;
-
             for (let charIdx = 0; charIdx < currentWord.word.length; charIdx++) {
                 if (currentWord.word[charIdx] === charOnGrid) {
                     for (const dir of ['down', 'across']) {
@@ -312,7 +314,7 @@ export const generateCrossword = async (
       title: theme === 'christmas' ? `Buon Natale ${extraData.recipientName}!` : `Per ${extraData.recipientName}`,
       message: message, theme: theme, recipientName: extraData.recipientName || '', eventDate: extraData.eventDate || '',
       images: { extraImage: extraData.images?.extraImage, photos: photoArray, brandLogo: extraData.images?.brandLogo },
-      stickers: extraData.stickers || [], // FIX: Assicura il ritorno degli sticker
+      stickers: extraData.stickers || [], 
       words: finalWords, width: Math.max(width, 8), height: Math.max(height, 8),
       solution: calculatedSolution,
       originalInput: inputData, originalMode: mode, originalHiddenSolution: hiddenSolutionWord,
@@ -329,8 +331,8 @@ export const regenerateGreetingOptions = async (
     const ai = new GoogleGenAI({ apiKey, apiVersion: 'v1' });
     try {
         const stile = tone === 'custom' && customPrompt ? customPrompt : tone;
-        // PROMPT FORZATO: Spingiamo l'AI a seguire solo lo spunto dell'utente
-        const prompt = `Sei un esperto di auguri. Scrivi 5 messaggi per ${recipient}. Tema: ${theme}. Stile: ${stile}. DEVI SEGUIRE ASSOLUTAMENTE QUESTO ARGOMENTO: "${userPrompt}". JSON { "options": ["testo"] }.`;
+        // PROMPT POTENZIATO: L'argomento dell'utente è prioritario
+        const prompt = `Sei un esperto di auguri. Scrivi 5 messaggi per ${recipient}. Tema: ${theme}. Stile: ${stile}. DEVI SEGUIRE ASSOLUTAMENTE QUESTO ARGOMENTO: "${userPrompt}". JSON { "options": ["msg1"] }.`;
         const response = await tryGenerateContent(ai, prompt);
         const json = JSON.parse(response?.text?.replace(/```json|```/g, "").trim() || "{}");
         return json.options || [userPrompt];
